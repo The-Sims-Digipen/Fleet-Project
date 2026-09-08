@@ -1,0 +1,17 @@
+{
+  "name": "threejs-app-starter",
+  "private": true,
+  "packageManager": "pnpm@11.24.0",
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @starter/client dev\" \"pnpm --filter @starter/server dev\"",
+    "dev:client": "pnpm --filter @starter/client dev",
+    "dev:server": "pnpm --filter @starter/server dev",
+    "build": "pnpm --filter @starter/server build && pnpm --filter @starter/client build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @starter/server build && pnpm --filter @starter/client build"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
