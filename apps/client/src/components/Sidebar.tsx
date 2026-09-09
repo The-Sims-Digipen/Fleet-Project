@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useSceneStore, type MaterialPreset, type Vector3 } from "../state/sceneStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorControl, RangeControl, SelectControl, Vector3Control } from "./controls";
@@ -58,35 +57,9 @@ function DebugModule() {
   </CollapsibleSection>;
 }
 
-function HistoryControls() {
-  const canUndo = useSceneStore((state) => state.history.past.length > 0 || (state.history.baseline !== null && state.history.baseline !== state.document));
-  const canRedo = useSceneStore((state) => state.history.future.length > 0);
-  const undo = useSceneStore((state) => state.undo);
-  const redo = useSceneStore((state) => state.redo);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable)) return;
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-      const key = event.key.toLowerCase();
-      if (key === "z" || key === "y") {
-        event.preventDefault();
-        if (key === "y" || event.shiftKey) redo(); else undo();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo]);
-  return <div className="mb-[22px] grid grid-cols-2 gap-2.5" aria-label="Edit history">
-    <button type="button" className="min-h-12 rounded-lg border border-line-strong bg-transparent px-[15px] text-xs font-bold text-secondary transition-colors duration-150 enabled:hover:border-[#668078] enabled:hover:text-primary disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none" disabled={!canUndo} onClick={undo}>Undo</button>
-    <button type="button" className="min-h-12 rounded-lg border border-line-strong bg-transparent px-[15px] text-xs font-bold text-secondary transition-colors duration-150 enabled:hover:border-[#668078] enabled:hover:text-primary disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none" disabled={!canRedo} onClick={redo}>Redo</button>
-  </div>;
-}
-
 export function Sidebar({ onResetCamera }: { onResetCamera: () => void }) {
   return <aside className="flex min-w-0 flex-col overflow-y-auto bg-panel p-7 max-[900px]:overflow-visible max-[560px]:px-5 max-[560px]:py-6" id="controls" aria-labelledby="controls-title" tabIndex={-1}>
     <div className="pb-5"><span className="mb-2 block font-mono text-[0.68rem] font-bold tracking-[0.14em] text-accent uppercase">Scene editor</span><h2 className="text-[clamp(1.6rem,3vw,2.15rem)] font-medium tracking-[-0.045em]" id="controls-title">Playground</h2><p className="mt-2.5 max-w-[38ch] text-[0.87rem] leading-relaxed text-secondary">Explore the world, select an object, and adjust its properties.</p></div>
-    <HistoryControls />
     <Inspector />
     <SceneModule onResetCamera={onResetCamera} />
     <DebugModule />

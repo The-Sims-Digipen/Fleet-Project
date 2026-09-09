@@ -9,7 +9,7 @@ export function CollapsibleSection({ title, description, defaultOpen = false, ch
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const id = useId();
-  return <section className="border-t border-line">
+  return <section className="-mx-7 border-t border-line bg-[#10201d] px-7 max-[560px]:-mx-5 max-[560px]:px-5">
     <h3 className="m-0">
       <button className="flex min-h-[58px] w-full items-center justify-between border-0 bg-transparent py-2.5 text-[0.9rem] font-semibold text-primary" type="button" id={`${id}-heading`} aria-expanded={open} aria-controls={id} onClick={() => {
         if (open) onBeforeCollapse?.();
