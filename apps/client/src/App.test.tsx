@@ -1,24 +1,122 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { createDocument, useSceneStore } from "./state/sceneStore";
 
-vi.mock("./components/WorldScene", () => ({
-  WorldScene: ({ size }: { size: number }) => <div>Plane size {size}</div>,
-}));
+vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
+beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "cube" }, history: { past: [], future: [], baseline: null } }));
+afterEach(cleanup);
+const state = useSceneStore.getState;
 
-describe("starter playground", () => {
-  it("updates example controls and resets their values", async () => {
+describe("inspector architecture", () => {
+  it("edits live, groups typing, converts degrees, and supports undo/redo", async () => {
+    const user = userEvent.setup();
     render(<App />);
-
-    await screen.findByText("Plane size 8");
-    fireEvent.change(screen.getByLabelText("Plane size"), { target: { value: "12" } });
-    expect(screen.getByText("Plane size 12")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Apply settings" }));
-    expect(screen.getByText("Settings applied")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
-    expect(screen.getByText("Plane size 8")).toBeInTheDocument();
-    expect(screen.getByText("Controls reset")).toBeInTheDocument();
+    const position = screen.getByLabelText("Position (m) X");
+    await user.click(position);
+    await user.clear(position);
+    expect(state().document.objects[1].position[0]).toBe(0);
+    await user.type(position, "12");
+    expect(state().document.objects[1].position[0]).toBe(12);
+    expect(state().history.past).toHaveLength(0);
+    await user.keyboard("{Enter}");
+    expect(state().history.past).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(position).toHaveValue(0);
+    await user.click(screen.getByRole("button", { name: "Redo" }));
+    expect(position).toHaveValue(12);
+    const rotation = screen.getByLabelText("Rotation (°) Y");
+    await user.clear(rotation);
+    await user.type(rotation, "180{Enter}");
+    expect(state().document.objects[1].rotation[1]).toBe(Math.PI);
+  });
+  it("reflects scene selection and handles an empty selection", () => {
+    render(<App />);
+    act(() => state().selectObject("plane"));
+    expect(screen.getByLabelText("Object")).toHaveValue("plane");
+    expect(screen.getByLabelText("Position (m) Y")).toHaveValue(0);
+    act(() => state().selectObject(null));
+    expect(screen.getByText(/No object selected/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Object"), { target: { value: "cube" } });
+    expect(state().editor.selectedObjectId).toBe("cube");
+  });
+  it("rejects invalid scale and Escape cancels a numeric edit", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const scale = screen.getByLabelText("Scale X");
+    await user.clear(scale);
+    await user.type(scale, "-1{Enter}");
+    expect(scale).toHaveValue(1);
+    await user.clear(scale);
+    await user.type(scale, "3{Escape}");
+    expect(scale).toHaveValue(1);
+    expect(state().history.past).toHaveLength(0);
+  });
+  it("collapses by keyboard, retains content, and commits active edits", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const heading = screen.getByRole("button", { name: "Inspector" });
+    const position = screen.getByLabelText("Position (m) X");
+    await user.clear(position);
+    await user.type(position, "4");
+    await user.click(heading);
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(position).not.toBeVisible();
+    expect(state().history.baseline).toBeNull();
+    await user.keyboard("{Enter}");
+    expect(heading).toHaveAttribute("aria-expanded", "true");
+    expect(position).toHaveValue(4);
+  });
+  it("groups held slider keys and preserves native input shortcuts", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Scene" }));
+    const slider = screen.getByLabelText("Light intensity");
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.change(slider, { target: { value: "66" } });
+    fireEvent.keyDown(slider, { key: "ArrowRight", repeat: true });
+    fireEvent.change(slider, { target: { value: "67" } });
+    fireEvent.keyUp(slider, { key: "ArrowRight" });
+    expect(state().history.past).toHaveLength(1);
+    fireEvent.keyDown(screen.getByLabelText("Position (m) X"), { key: "z", ctrlKey: true });
+    expect(state().document.light).toBe(67);
+    fireEvent.keyDown(document.body, { key: "z", ctrlKey: true });
+    expect(state().document.light).toBe(65);
+    fireEvent.keyDown(document.body, { key: "z", metaKey: true, shiftKey: true });
+    expect(state().document.light).toBe(67);
+  });
+  it("groups pointer changes, cancels gestures, and exposes the live debug document", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Scene" }));
+    const slider = screen.getByLabelText("Light intensity");
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: "20" } });
+    fireEvent.change(slider, { target: { value: "30" } });
+    fireEvent.pointerUp(slider);
+    expect(state().history.past).toHaveLength(1);
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: "40" } });
+    fireEvent.pointerCancel(slider);
+    expect(state().document.light).toBe(30);
+    await user.click(screen.getByRole("button", { name: "Debug" }));
+    expect(JSON.parse(screen.getByLabelText("Scene document").textContent!).light).toBe(30);
+    await user.click(screen.getByRole("button", { name: "Reset scene" }));
+    expect(state().document).toEqual(createDocument());
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(state().document.light).toBe(30);
+  });
+  it("edits appearance and restores it with object reset", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.clear(screen.getByLabelText("Color hex"));
+    await user.type(screen.getByLabelText("Color hex"), "#7788ee{Enter}");
+    await user.selectOptions(screen.getByLabelText("Material"), "metal");
+    await user.click(screen.getByLabelText("Wireframe"));
+    expect(state().document.objects[1]).toMatchObject({ color: "#7788ee", material: "metal", wireframe: true });
+    expect(state().history.past).toHaveLength(3);
+    await user.click(screen.getByRole("button", { name: "Reset object" }));
+    expect(state().document.objects[1]).toEqual(createDocument().objects[1]);
   });
 });

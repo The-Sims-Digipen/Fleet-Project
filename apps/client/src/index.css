@@ -172,3 +172,38 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
+
+/* Modules keep the viewport fixed while the inspector scrolls independently. */
+.workspace { height: calc(100dvh - 72px); min-height: 0; grid-template-columns: minmax(0, 1fr) 420px; }
+.scene-panel { min-height: 0; }
+.control-panel { overflow-y: auto; padding: 28px; }
+.control-intro { padding-bottom: 20px; }
+.history-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+button:disabled { opacity: 0.4; cursor: default; }
+.module { border-top: 1px solid var(--border); }
+.module-heading { margin: 0; }
+.module-heading button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 58px; padding: 10px 0; border: 0; background: none; color: var(--text); font-size: 0.9rem; font-weight: 650; }
+.module-heading button span:last-child { color: var(--accent); font-size: 1.2rem; }
+.module-content { padding: 0 0 24px; }
+.module-description { color: var(--text-secondary); font-size: 0.76rem; line-height: 1.6; margin: 0 0 16px; }
+.inspector-fields { display: grid; gap: 20px; margin-top: 22px; }
+.vector-control { min-width: 0; padding: 0; margin: 0; border: 0; }
+.vector-control legend { margin-bottom: 10px; font-size: 0.78rem; color: var(--text-secondary); }
+.vector-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.number-field { min-width: 0; }
+.number-field span { font-size: 0.62rem; }
+.number-field input { width: 100%; min-width: 0; min-height: 42px; border: 1px solid var(--border-strong); border-radius: 7px; padding: 6px 8px; color: var(--text); background: var(--control); cursor: text; }
+.debug-json { max-height: 360px; overflow: auto; font-size: 0.7rem; line-height: 1.6; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.debug-json:focus-visible { outline: 2px solid var(--accent); }
+.color-input .hex-input { min-width: 0; width: 100%; height: 32px; flex: 1; color: var(--text-secondary); font-family: Consolas, monospace; font-size: 0.75rem; cursor: text; }
+.scene-fallback { padding: 32px; text-align: center; }
+.action-row { grid-template-columns: 1fr 1fr; }
+@media (max-width: 900px) {
+  .workspace { height: auto; grid-template-columns: 1fr; }
+  .scene-panel { min-height: 58dvh; }
+  .control-panel { overflow: visible; min-height: 0; }
+}
+@media (max-width: 560px) {
+  .control-panel { padding: 24px 20px; }
+  .field-grid { grid-template-columns: 1fr 1fr; }
+}

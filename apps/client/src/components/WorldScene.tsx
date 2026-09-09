@@ -1,56 +1,57 @@
-import { OrbitControls } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { Edges, OrbitControls } from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
+import { DoubleSide } from "three";
+import { useSceneStore, type MaterialPreset } from "../state/sceneStore";
 
-type Material = "matte" | "glossy" | "metal";
-
-const materialValues: Record<Material, { roughness: number; metalness: number }> = {
-  matte: { roughness: 0.9, metalness: 0 },
-  glossy: { roughness: 0.18, metalness: 0.1 },
-  metal: { roughness: 0.3, metalness: 0.85 },
+const materialValues: Record<MaterialPreset, { roughness: number; metalness: number }> = {
+  matte: { roughness: 0.9, metalness: 0 }, glossy: { roughness: 0.18, metalness: 0.1 }, metal: { roughness: 0.3, metalness: 0.85 },
 };
 
-export function WorldScene({
-  size,
-  rotation,
-  light,
-  color,
-  material,
-  wireframe,
-}: {
-  size: number;
-  rotation: number;
-  light: number;
-  color: string;
-  material: Material;
-  wireframe: boolean;
-}) {
-  return (
-    <div className="scene-canvas">
-      <p className="sr-only">Interactive 3D world containing one plane.</p>
-      <Canvas
-        dpr={[1, 1.5]}
-        camera={{ position: [8, 7, 9], fov: 42, near: 0.1, far: 60 }}
-        fallback={<div className="scene-fallback">WebGL is unavailable.</div>}
-      >
-        <color attach="background" args={["#07100f"]} />
-        <ambientLight intensity={0.35 + light / 100} />
-        <directionalLight position={[6, 9, 5]} intensity={0.5 + light / 45} color="#ffffff" />
+function SceneObjectMesh({ id, isClick }: { id: string; isClick: () => boolean }) {
+  const object = useSceneStore((state) => state.document.objects.find((item) => item.id === id)!);
+  const selected = useSceneStore((state) => state.editor.selectedObjectId === id);
+  const selectObject = useSceneStore((state) => state.selectObject);
+  return <group position={object.position} rotation={object.rotation} scale={object.scale} onClick={(event) => {
+    event.stopPropagation();
+    if (isClick()) selectObject(id);
+  }}>
+    <mesh rotation={object.type === "plane" ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}>
+      {object.type === "plane" ? <planeGeometry args={[8, 8]} /> : <boxGeometry args={[2, 2, 2]} />}
+      <meshStandardMaterial color={object.color} wireframe={object.wireframe} side={DoubleSide} {...materialValues[object.material]} />
+      {selected && <Edges color="#ffffff" raycast={() => {}} />}
+    </mesh>
+  </group>;
+}
 
-        <mesh rotation={[-Math.PI / 2, rotation * (Math.PI / 180), 0]}>
-          <planeGeometry args={[size, size]} />
-          <meshStandardMaterial color={color} wireframe={wireframe} {...materialValues[material]} />
-        </mesh>
+function Lighting() {
+  const light = useSceneStore((state) => state.document.light);
+  return <><ambientLight intensity={0.35 + light / 100} /><directionalLight position={[6, 9, 5]} intensity={0.5 + light / 45} /></>;
+}
 
-        <OrbitControls
-          makeDefault
-          enableDamping
-          dampingFactor={0.06}
-          minDistance={4}
-          maxDistance={24}
-          maxPolarAngle={Math.PI / 2.02}
-          target={[0, 0, 0]}
-        />
-      </Canvas>
-    </div>
-  );
+function CameraControls({ reset }: { reset: number }) {
+  const camera = useThree((state) => state.camera);
+  useEffect(() => { camera.position.set(8, 7, 9); camera.lookAt(0, 0, 0); }, [camera, reset]);
+  return <OrbitControls key={reset} makeDefault enableDamping dampingFactor={0.06} minDistance={2} maxDistance={60} maxPolarAngle={Math.PI / 2.02} target={[0, 0, 0]} />;
+}
+
+export function WorldScene({ cameraReset }: { cameraReset: number }) {
+  // Track the full pointer path: returning to the start after orbiting is still a drag.
+  const gesture = useRef({ x: 0, y: 0, dragged: false, primary: false });
+  const isClick = () => gesture.current.primary && !gesture.current.dragged;
+  return <div className="scene-canvas"
+    onPointerDownCapture={(event) => { gesture.current = { x: event.clientX, y: event.clientY, dragged: false, primary: event.button === 0 }; }}
+    onPointerMoveCapture={(event) => { if (Math.hypot(event.clientX - gesture.current.x, event.clientY - gesture.current.y) > 4) gesture.current.dragged = true; }}
+    onPointerCancelCapture={() => { gesture.current.dragged = true; }}>
+    <p className="sr-only">Interactive 3D world containing a plane and cube. The Object selector provides keyboard selection.</p>
+    <Canvas dpr={[1, 1.5]} camera={{ position: [8, 7, 9], fov: 42, near: 0.1, far: 200 }}
+      fallback={<div className="scene-fallback">WebGL is unavailable. The sidebar remains usable.</div>}
+      onPointerMissed={() => { if (isClick()) useSceneStore.getState().selectObject(null); }}>
+      <color attach="background" args={["#07100f"]} />
+      <Lighting />
+      <SceneObjectMesh id="plane" isClick={isClick} />
+      <SceneObjectMesh id="cube" isClick={isClick} />
+      <CameraControls reset={cameraReset} />
+    </Canvas>
+  </div>;
 }

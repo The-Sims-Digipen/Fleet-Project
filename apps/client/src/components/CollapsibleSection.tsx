@@ -1,0 +1,26 @@
+import { useId, useState, type ReactNode } from "react";
+
+export function CollapsibleSection({ title, description, defaultOpen = false, children, onBeforeCollapse }: {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+  onBeforeCollapse?: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const id = useId();
+  return <section className="module">
+    <h3 className="module-heading">
+      <button type="button" id={`${id}-heading`} aria-expanded={open} aria-controls={id} onClick={() => {
+        if (open) onBeforeCollapse?.();
+        setOpen(!open);
+      }}>
+        <span>{title}</span><span aria-hidden="true">{open ? "−" : "+"}</span>
+      </button>
+    </h3>
+    <div id={id} role="region" aria-labelledby={`${id}-heading`} hidden={!open} className="module-content">
+      {description && <p className="module-description">{description}</p>}
+      {children}
+    </div>
+  </section>;
+}
