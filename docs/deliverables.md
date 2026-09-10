@@ -1,5 +1,7 @@
 # Deliverables, ownership, and milestones
 
+> The project now runs through M6. See the [feature inventory and M1–M6 roadmap](features.md) for the current final scope and proposed sequencing. The original milestone targets below are retained as initial planning history and must be revised before use as the delivery schedule. M1 is 4 October 2026 at 23:59, M2 is 8 November 2026 at 23:59, and M3 is 30 November 2026 (Singapore time; M3 cutoff unspecified). M4–M6 dates are not decided.
+
 Status: initial proposed targets. M1, M2, and M3 dates are **unset**. Jira project details and issue keys are pending; no issues have been created by this repository setup.
 
 The [proposal](proposal.md) informs the [architecture](architecture.md), which informs these deliverables. Each deliverable maps to one proposed Jira Epic. Initial tasks below inherit the named owner's responsibility; agree any reassignment explicitly in Jira and update this document.
