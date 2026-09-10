@@ -4,15 +4,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { createDocument, useSceneStore } from "./state/sceneStore";
 
+vi.mock("./components/ModelStatus", () => ({ ModelStatus: () => <span>Model ready</span> }));
 vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
 beforeEach(() => {
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
-  useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "cube" }, history: { past: [], future: [], baseline: null } });
+  useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "sample" }, history: { past: [], future: [], baseline: null } });
 });
 afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
+  it("adds and deletes catalog instances with undoable edits and appearance restoration", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Add Object" }));
+    const id = state().editor.selectedObjectId;
+    expect(state().document.objects).toHaveLength(2);
+    expect(id).not.toBe("sample");
+    await user.selectOptions(screen.getByLabelText("Material"), "metal");
+    expect(state().document.objects[1].appearance.material).toBe("metal");
+    expect(state().document.objects[0].appearance).toEqual({});
+    await user.click(screen.getByRole("button", { name: "Restore Appearance" }));
+    expect(state().document.objects[1].appearance).toEqual({});
+    await user.click(screen.getByRole("button", { name: "Delete Object" }));
+    expect(state().document.objects).toHaveLength(1);
+    expect(state().editor.selectedObjectId).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(state().document.objects[1].id).toBe(id);
+  });
   it("resizes the desktop sidebar with the keyboard and limits its size", () => {
     render(<App />);
     const divider = screen.getByRole("separator", { name: "Resize sidebar" });
@@ -43,9 +62,9 @@ describe("inspector architecture", () => {
     const position = screen.getByLabelText("Position (m) X");
     await user.click(position);
     await user.clear(position);
-    expect(state().document.objects[1].position[0]).toBe(0);
+    expect(state().document.objects[0].transform.position[0]).toBe(0);
     await user.type(position, "12");
-    expect(state().document.objects[1].position[0]).toBe(12);
+    expect(state().document.objects[0].transform.position[0]).toBe(12);
     expect(state().history.past).toHaveLength(0);
     await user.keyboard("{Enter}");
     expect(state().history.past).toHaveLength(1);
@@ -56,17 +75,17 @@ describe("inspector architecture", () => {
     const rotation = screen.getByLabelText("Rotation (°) Y");
     await user.clear(rotation);
     await user.type(rotation, "180{Enter}");
-    expect(state().document.objects[1].rotation[1]).toBe(Math.PI);
+    expect(state().document.objects[0].transform.rotation[1]).toBe(Math.PI);
   });
   it("reflects scene selection and handles an empty selection", () => {
     render(<App />);
-    act(() => state().selectObject("plane"));
-    expect(screen.getByLabelText("Object")).toHaveValue("plane");
+    act(() => state().addObject("bollard"));
+    expect(screen.getByLabelText("Object")).toHaveValue(state().editor.selectedObjectId);
     expect(screen.getByLabelText("Position (m) Y")).toHaveValue(0);
     act(() => state().selectObject(null));
     expect(screen.getByText(/No object selected/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Object"), { target: { value: "cube" } });
-    expect(state().editor.selectedObjectId).toBe("cube");
+    fireEvent.change(screen.getByLabelText("Object"), { target: { value: "sample" } });
+    expect(state().editor.selectedObjectId).toBe("sample");
   });
   it("rejects invalid scale and Escape cancels a numeric edit", async () => {
     const user = userEvent.setup();
@@ -137,13 +156,13 @@ describe("inspector architecture", () => {
   it("edits appearance and restores it with object reset", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.clear(screen.getByLabelText("Color hex"));
-    await user.type(screen.getByLabelText("Color hex"), "#7788ee{Enter}");
+    await user.clear(screen.getByLabelText("Tint hex"));
+    await user.type(screen.getByLabelText("Tint hex"), "#7788ee{Enter}");
     await user.selectOptions(screen.getByLabelText("Material"), "metal");
     await user.click(screen.getByLabelText("Wireframe"));
-    expect(state().document.objects[1]).toMatchObject({ color: "#7788ee", material: "metal", wireframe: true });
+    expect(state().document.objects[0]).toMatchObject({ appearance: { tint: "#7788ee", material: "metal", wireframe: true } });
     expect(state().history.past).toHaveLength(3);
     await user.click(screen.getByRole("button", { name: "Reset object" }));
-    expect(state().document.objects[1]).toEqual(createDocument().objects[1]);
+    expect(state().document.objects[0]).toEqual(createDocument().objects[0]);
   });
 });

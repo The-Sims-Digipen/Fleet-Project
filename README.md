@@ -4,6 +4,8 @@ A browser-based fleet electrification planning project covering transition sched
 
 **Current implementation:** an in-memory 3D scene-editor prototype and basic Fastify API. The product features described in the documentation are the M1–M6 delivery scope.
 
+The scene editor loads bundled GLB models from a typed developer catalog. Add/delete instances, edit transforms, optionally override their original materials, and undo/redo edits. The starter asset is an original multi-mesh bollard. See [registering models](docs/tech/extending-the-editor.md) to add your own GLB without changing viewport code.
+
 Project documentation is indexed in [docs/README.md](docs/README.md).
 
 ## Prerequisites
@@ -80,6 +82,8 @@ pnpm verify
 This runs type checking, Vitest tests, and both production builds. Individual checks are available as `pnpm typecheck`, `pnpm test`, and `pnpm build`; start either application separately with `pnpm dev:client` or `pnpm dev:server`. Browser interaction and WebGL rendering still require real-browser checks.
 
 Initial setup verification on 2026-09-10 in the local Windows environment (Node.js 26.5.0, pnpm 11.24.0): `pnpm verify` passed type checking, all 13 tests, and both production builds. Vite reported a non-failing warning for the large 3D scene chunk. Ubuntu/macOS builds, clean-environment installation, deployment, and browser visual checks were not performed in this verification.
+
+Typed-model verification on 2026-09-11 (Windows): client TypeScript check, all 26 client tests, and the client production build passed using the installed `tsc`, `vitest`, and `vite` binaries directly from `apps/client/node_modules/.bin`. The pinned pnpm launcher's registry verification was unavailable, so dependency installation and `pnpm verify` were not repeated. Real-browser checks confirmed the bundled GLB, multiple instances, independent tint, material restoration, child-mesh picking, and orbiting without selection changes. No browser errors were logged; Three.js emitted a clock deprecation warning. Vite retained a non-failing large-chunk warning. Server and cross-platform checks were not repeated for this client-only change.
 
 ## Production
 

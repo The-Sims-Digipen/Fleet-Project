@@ -1,5 +1,5 @@
 import { useId, useState, type CSSProperties } from "react";
-import type { Vector3 } from "../state/sceneStore";
+import type { Vector3 } from "../scene/types";
 
 export type EditLifecycle = { beginEdit: () => void; commitEdit: () => void; cancelEdit: () => void };
 

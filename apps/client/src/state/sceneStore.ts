@@ -1,29 +1,13 @@
 import { create } from "zustand";
 
-export type Vector3 = [number, number, number];
-export type MaterialPreset = "matte" | "glossy" | "metal";
-export type SceneObject = {
-  id: string;
-  name: string;
-  type: "plane" | "cube";
-  position: Vector3;
-  rotation: Vector3;
-  scale: Vector3;
-  color: string;
-  material: MaterialPreset;
-  wireframe: boolean;
-};
-export type SceneDocument = { version: 1; objects: SceneObject[]; light: number };
-export type TransformProperty = "position" | "rotation" | "scale";
+import { createObject, getDefinition } from "../scene/catalog";
+import { copyTransform, type Appearance, type SceneDocument, type SceneObject, type TransformProperty, type Vector3 } from "../scene/types";
 
 export function createDocument(): SceneDocument {
   return {
-    version: 1,
+    version: 2,
     light: 65,
-    objects: [
-      { id: "plane", name: "Plane", type: "plane", position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], color: "#55d6be", material: "matte", wireframe: false },
-      { id: "cube", name: "Cube", type: "cube", position: [0, 1, 0], rotation: [0, 0, 0], scale: [1, 1, 1], color: "#e8ba78", material: "matte", wireframe: false },
-    ],
+    objects: [createObject("bollard", "sample")!],
   };
 }
 
@@ -34,7 +18,10 @@ type SceneState = {
   history: History;
   selectObject: (id: string | null) => void;
   updateTransform: (id: string, property: TransformProperty, value: Vector3) => void;
-  updateAppearance: (id: string, patch: Partial<Pick<SceneObject, "color" | "material" | "wireframe">>) => void;
+  updateAppearance: (id: string, patch: Appearance) => void;
+  restoreAppearance: (id: string) => void;
+  addObject: (definitionId: string) => void;
+  deleteObject: (id: string) => void;
   setLight: (value: number) => void;
   resetObject: (id: string) => void;
   resetScene: () => void;
@@ -51,10 +38,11 @@ const push = (items: SceneDocument[], item: SceneDocument) => [...items, item].s
 // Immutable snapshots are sufficient for this deliberately small document.
 // Gesture previews change the document but do not enter history until committed.
 export const useSceneStore = create<SceneState>((set, get) => {
+  const validEditor = (document: SceneDocument) => ({ selectedObjectId: document.objects.some((object) => object.id === get().editor.selectedObjectId) ? get().editor.selectedObjectId : null });
   const change = (next: SceneDocument) => {
     const { document, history } = get();
     if (equal(document, next)) return;
-    set({ document: next, history: history.baseline ? history : { past: push(history.past, document), future: [], baseline: null } });
+    set({ document: next, editor: validEditor(next), history: history.baseline ? history : { past: push(history.past, document), future: [], baseline: null } });
   };
   const changeObject = (id: string, patch: Partial<SceneObject>) => {
     const document = get().document;
@@ -62,28 +50,52 @@ export const useSceneStore = create<SceneState>((set, get) => {
   };
   return {
     document: createDocument(),
-    editor: { selectedObjectId: "cube" },
+    editor: { selectedObjectId: "sample" },
     history: { past: [], future: [], baseline: null },
     selectObject: (id) => {
       get().commitEdit();
       if (id === null || get().document.objects.some((object) => object.id === id)) set({ editor: { selectedObjectId: id } });
     },
     updateTransform: (id, property, value) => {
-      if (!value.every(Number.isFinite) || (property === "scale" && value.some((axis) => axis <= 0))) return;
-      changeObject(id, { [property]: [...value] });
+      if (!["position", "rotation", "scale"].includes(property) || value.length !== 3 || !value.every(Number.isFinite) || (property === "scale" && value.some((axis) => axis <= 0))) return;
+      const object = get().document.objects.find((item) => item.id === id);
+      if (object) changeObject(id, { transform: { ...object.transform, [property]: [...value] } });
     },
     updateAppearance: (id, patch) => {
-      if (patch.color !== undefined && !/^#[0-9a-f]{6}$/i.test(patch.color)) return;
+      if (patch.tint !== undefined && !/^#[0-9a-f]{6}$/i.test(patch.tint)) return;
       if (patch.material !== undefined && !["matte", "glossy", "metal"].includes(patch.material)) return;
-      changeObject(id, patch);
+      if (patch.wireframe !== undefined && typeof patch.wireframe !== "boolean") return;
+      const object = get().document.objects.find((item) => item.id === id);
+      if (!object) return;
+      const appearance = { ...object.appearance };
+      for (const key of ["tint", "material", "wireframe"] as const) {
+        if (Object.hasOwn(patch, key)) {
+          if (patch[key] === undefined) delete appearance[key];
+          else Object.assign(appearance, { [key]: patch[key] });
+        }
+      }
+      changeObject(id, { appearance });
+    },
+    restoreAppearance: (id) => { get().commitEdit(); changeObject(id, { appearance: {} }); },
+    addObject: (definitionId) => {
+      const object = createObject(definitionId, crypto.randomUUID());
+      if (!object) return;
+      get().commitEdit();
+      change({ ...get().document, objects: [...get().document.objects, object] });
+      set({ editor: { selectedObjectId: object.id } });
+    },
+    deleteObject: (id) => {
+      get().commitEdit();
+      change({ ...get().document, objects: get().document.objects.filter((object) => object.id !== id) });
     },
     setLight: (light) => {
       if (Number.isFinite(light) && light >= 0 && light <= 100) change({ ...get().document, light });
     },
     resetObject: (id) => {
       get().commitEdit();
-      const object = createDocument().objects.find((item) => item.id === id);
-      if (object) changeObject(id, object);
+      const object = get().document.objects.find((item) => item.id === id);
+      const definition = object && getDefinition(object.definitionId);
+      if (definition) changeObject(id, { transform: copyTransform(definition.transform), appearance: {} });
     },
     resetScene: () => { get().commitEdit(); change(createDocument()); },
     beginEdit: () => {
@@ -98,19 +110,19 @@ export const useSceneStore = create<SceneState>((set, get) => {
     },
     cancelEdit: () => {
       const { history } = get();
-      if (history.baseline) set({ document: history.baseline, history: { ...history, baseline: null } });
+      if (history.baseline) set({ document: history.baseline, editor: validEditor(history.baseline), history: { ...history, baseline: null } });
     },
     undo: () => {
       get().commitEdit();
       const { document, history } = get();
       const previous = history.past.at(-1);
-      if (previous) set({ document: previous, history: { past: history.past.slice(0, -1), future: push(history.future, document), baseline: null } });
+      if (previous) set({ document: previous, editor: validEditor(previous), history: { past: history.past.slice(0, -1), future: push(history.future, document), baseline: null } });
     },
     redo: () => {
       get().commitEdit();
       const { document, history } = get();
       const next = history.future.at(-1);
-      if (next) set({ document: next, history: { past: push(history.past, document), future: history.future.slice(0, -1), baseline: null } });
+      if (next) set({ document: next, editor: validEditor(next), history: { past: push(history.past, document), future: history.future.slice(0, -1), baseline: null } });
     },
   };
 });

@@ -2,29 +2,76 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createDocument, useSceneStore } from "./sceneStore";
 
 const state = useSceneStore.getState;
-beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "cube" }, history: { past: [], future: [], baseline: null } }));
+beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "sample" }, history: { past: [], future: [], baseline: null } }));
 
 describe("scene document and history", () => {
-  it("updates one object immutably and keeps selection outside history", () => {
-    const plane = state().document.objects[0];
-    state().updateTransform("cube", "position", [2, 3, 4]);
-    state().selectObject("plane");
-    expect(state().document.objects[0]).toBe(plane);
-    expect(state().document.objects[1].position).toEqual([2, 3, 4]);
+  it("creates unique instances and supports undo/redo of creation, deletion and selection cleanup", () => {
+    state().addObject("bollard");
+    const first = state().editor.selectedObjectId!;
+    state().addObject("bollard");
+    const second = state().editor.selectedObjectId!;
+    expect(new Set(state().document.objects.map((object) => object.id)).size).toBe(3);
+    expect(state().history.past).toHaveLength(2);
     state().undo();
-    expect(state().document.objects[1].position).toEqual([0, 1, 0]);
-    expect(state().editor.selectedObjectId).toBe("plane");
+    expect(state().editor.selectedObjectId).toBeNull();
     state().redo();
-    expect(state().document.objects[1].position).toEqual([2, 3, 4]);
+    state().selectObject(first);
+    state().deleteObject(first);
+    expect(state().editor.selectedObjectId).toBeNull();
+    state().undo();
+    expect(state().document.objects.some((object) => object.id === first)).toBe(true);
+    state().selectObject(first);
+    state().redo();
+    expect(state().editor.selectedObjectId).toBeNull();
+    expect(state().document.objects.some((object) => object.id === second)).toBe(true);
+  });
+  it("resets dynamic instances without changing identity and restores appearance separately", () => {
+    state().addObject("bollard");
+    const id = state().editor.selectedObjectId!;
+    const original = state().document.objects[1];
+    state().updateTransform(id, "position", [3, 2, 1]);
+    state().updateAppearance(id, { tint: "#ff0000", material: "metal" });
+    state().restoreAppearance(id);
+    expect(state().document.objects[1].appearance).toEqual({});
+    expect(state().document.objects[1].transform.position).toEqual([3, 2, 1]);
+    state().undo();
+    expect(state().document.objects[1].appearance.tint).toBe("#ff0000");
+    state().resetObject(id);
+    expect(state().document.objects[1]).toEqual(original);
+    state().resetScene();
+    expect(state().editor.selectedObjectId).toBeNull();
+    state().undo();
+    expect(state().document.objects[1]).toEqual(original);
+  });
+  it("rejects unknown definitions and removes optional overrides from JSON", () => {
+    state().addObject("missing");
+    expect(state().history.past).toHaveLength(0);
+    state().updateAppearance("sample", { material: "metal" });
+    state().updateAppearance("sample", { material: undefined });
+    expect(state().document.objects[0].appearance).toEqual({});
+    expect(JSON.parse(JSON.stringify(state().document))).toEqual(state().document);
+  });
+  it("updates one object immutably and keeps selection outside history", () => {
+    state().addObject("bollard");
+    const other = state().document.objects[1];
+    state().updateTransform("sample", "position", [2, 3, 4]);
+    state().selectObject(other.id);
+    expect(state().document.objects[1]).toBe(other);
+    expect(state().document.objects[0].transform.position).toEqual([2, 3, 4]);
+    state().undo();
+    expect(state().document.objects[0].transform.position).toEqual([0, 0, 0]);
+    expect(state().editor.selectedObjectId).toBe(other.id);
+    state().redo();
+    expect(state().document.objects[0].transform.position).toEqual([2, 3, 4]);
     expect(JSON.parse(JSON.stringify(state().document))).toEqual(state().document);
   });
   it("rejects invalid values and ignores no-ops and unknown objects", () => {
-    state().updateTransform("cube", "scale", [0, 1, 1]);
-    state().updateTransform("cube", "scale", [-1, 1, 1]);
-    state().updateTransform("cube", "position", [NaN, 1, 1]);
-    state().updateTransform("cube", "rotation", [Infinity, 0, 0]);
+    state().updateTransform("sample", "scale", [0, 1, 1]);
+    state().updateTransform("sample", "scale", [-1, 1, 1]);
+    state().updateTransform("sample", "position", [NaN, 1, 1]);
+    state().updateTransform("sample", "rotation", [Infinity, 0, 0]);
     state().updateTransform("missing", "position", [1, 1, 1]);
-    state().updateAppearance("cube", { color: "invalid" });
+    state().updateAppearance("sample", { tint: "invalid" });
     state().setLight(101);
     state().setLight(65);
     expect(state().history.past).toHaveLength(0);
@@ -52,12 +99,12 @@ describe("scene document and history", () => {
   });
   it("commits on selection, reset and undo, with undoable object and scene resets", () => {
     state().beginEdit();
-    state().updateAppearance("cube", { wireframe: true });
+    state().updateAppearance("sample", { wireframe: true });
     state().selectObject(null);
     expect(state().history.baseline).toBeNull();
-    state().resetObject("cube");
+    state().resetObject("sample");
     state().undo();
-    expect(state().document.objects[1].wireframe).toBe(true);
+    expect(state().document.objects[0].appearance.wireframe).toBe(true);
     state().setLight(10);
     state().resetScene();
     expect(state().document).toEqual(createDocument());

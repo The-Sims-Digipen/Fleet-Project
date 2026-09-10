@@ -76,3 +76,9 @@ The deployment design uses a local API and database, with no account system or p
 - Model versions, explicit assumptions, and worked examples make results explainable and reproducible.
 
 The [simulation model](simulation.md), [depot editor](depot-editor.md), and [acceptance criteria](verification.md) define the detailed behavior and release gates.
+
+## Current scene-editor architecture
+
+The current prototype implements an in-memory version 2 scene document, separate editor selection, and snapshot undo history in Zustand. Serializable types live in `apps/client/src/scene/types.ts`; the developer catalog maps object definitions to bundled GLB assets. The viewport iterates document objects and dispatches through a typed renderer registry rather than depending on particular object IDs or primitive shapes.
+
+Model asset loading is a separate session cache. React subscribes to per-URL loading/ready/error snapshots; each rendered instance owns its hierarchy, material overrides, and bounding outline while sharing immutable asset geometry/textures. Inspector editing changes document data only. Fleet business types, persistent projects, and simulation remain future work. See [extending the editor](extending-the-editor.md) for catalog registration and resource ownership.
