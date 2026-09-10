@@ -1,12 +1,12 @@
 # Freeform depot editor specification
 
-Owners: Tan Wei Jun (viewport), Chew Shee Yang (geometry/history), Dayton Ng Zhi Jie (panels), Jarrel Tay Wee Han (assets), Yap Zhi Kai (bay assignments). Covers DE-01–DE-07, FL-05, VI-01/02, and CH-07. See [contracts](contracts.md) for the persisted shapes.
+The depot editor supports freeform site design, obstacle placement, bay/charger editing, and vehicle assignment. It covers DE-01–DE-07, FL-05, VI-01/02, and CH-07. [Data relationships](contracts.md) define how layouts are saved.
 
 ## Geometry and coordinate conventions
 
 Use a flat XZ plane in metres with Y-up rendering. Site/obstacle polygons contain at least three vertices, no holes, and an implicit closing edge. Store counterclockwise rings after valid creation; do not reverse or repair invalid authored rings silently. Coordinates remain full precision; input display defaults to two decimal metres. Rectangle footprints use centre, positive width/depth, and Y-axis rotation in radians. Convert degrees at the UI boundary.
 
-Grid snapping defaults to 0.25 m and rotation snapping to 15 degrees, each toggleable. Numeric inputs allow unsnapped values. Do not round the persisted scene on every render. Geometry epsilon is 1e-6 m for point/boundary distance checks; use a consistent scaled tolerance for orientation/cross-product predicates and test near-collinear cases. The validator is a pure module with no Three.js dependency.
+Grid snapping defaults to 0.25 m and rotation snapping to 15 degrees, each toggleable. Numeric inputs allow unsnapped values. Do not round the persisted scene on every render. Geometry checks account for numerical tolerance at boundaries and near-collinear edges.
 
 ## Tools and interactions
 
@@ -23,7 +23,7 @@ Grid snapping defaults to 0.25 m and rotation snapping to 15 degrees, each toggl
 | Assign vehicle | Choose bay from selected vehicle or assign via bay panel | One vehicle per bay and one bay per vehicle; reject a second occupant until explicitly reassigned |
 | Undo/redo | Toolbar and Ctrl/Cmd+Z / redo shortcuts | Restore complete document transaction and reference changes, excluding camera/year/save status |
 
-Enter commits a valid numeric draft; Escape restores its previous value. Pointer cancellation restores the transaction baseline. Finish pending edits before selection, scenario switching, or save; ask the user to resolve invalid numeric drafts instead of dropping them. A new edit after undo discards redo. Loading a project resets history; switching scenarios does not mix unrelated partial gestures.
+Enter commits a valid numeric draft; Escape restores its previous value. Pointer cancellation restores the transaction baseline. Finish active edits before selection, scenario switching, or save; ask the user to resolve invalid numeric drafts instead of dropping them. A new edit after undo discards redo. Loading a project resets history; switching scenarios does not mix unrelated partial gestures.
 
 ## Validation and issue policy
 

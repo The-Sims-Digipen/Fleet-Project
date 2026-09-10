@@ -1,10 +1,10 @@
 # Deliverables and ownership
 
-The [weekly delivery plan](weekly-plan.md) is the authoritative task allocation and schedule for M1–M6. It replaces the initial M1–M3-only targets. The [feature inventory](features.md) defines the final application scope; final acceptance is at M6.
+The project is delivered across M1–M6, with final acceptance at M6. The [feature inventory](features.md) defines scope, and the [weekly plan](weekly-plan.md) assigns each task, completion week, and dependency.
 
-## Technical deliverables / Jira Epics
+## Technical deliverables
 
-Each row is an Epic-ready workstream. Weekly task IDs are document identifiers, not created Jira issues. Integration tasks may reference features across multiple workstreams; the task table names one accountable owner for each task.
+Each workstream maps to a Jira Epic. Individual task ownership and acceptance evidence appear in the weekly plan.
 
 | Deliverable / Epic title | Accountable owner | Responsibility |
 |---|---|---|
@@ -17,32 +17,23 @@ Each row is an Epic-ready workstream. Weekly task IDs are document identifiers, 
 | Vehicle systems | Yap Zhi Kai | Fleet domain/fixtures, schedules/groups, annual counts, bay assignment, suitability rules, and domain testing. |
 | Backend | Brandon Koh Kai Yang | Local PostgreSQL schema/migrations, fleet/scenario/layout persistence, failure handling, and Ubuntu verification. |
 
-Suitability ownership is split deliberately: Zhi Kai owns ranking and vehicle reason codes; Elijah provides economic and charging inputs. Geometry ownership is also explicit: Shee Yang owns pure validation and history integration; Wei Jun owns viewport authoring; Dayton owns DOM panels; Jarrel owns asset footprints.
 
-## Milestone dates and gates
+## Milestone gates
 
 | Milestone | Deadline / scheduling basis | Gate |
 |---|---|---|
 | M1 | 4 October 2026, 23:59 Singapore time | Sample fleet → transition edit → cost result → updated depot. |
 | M2 | 8 November 2026, 23:59 Singapore time | Editable fleet/plans, financial/emissions results, and reliable save/load. |
-| M3 | 30 November 2026; official cutoff unspecified | Charging and power feedback, two-plan comparison, initial suitability. Build ready by 29 November. |
-| M4 | Date undecided; four provisional active weeks | Integrated freeform depot editing, validation, history, and layout persistence. |
-| M5 | Date undecided; four provisional active weeks | All features integrated, final constraint/ranking explanations, usability and performance work. |
-| M6 | Date undecided; four provisional active weeks | Final numerical/domain/browser/platform acceptance and handover. |
+| M3 | 30 November 2026 | Charging and power feedback, two-plan comparison, initial suitability. Build ready by 29 November. |
+| M4 | Relative weeks 1–4 | Integrated freeform depot editing, validation, history, and layout persistence. |
+| M5 | Relative weeks 1–4 | All features integrated, final constraint/ranking explanations, usability and performance work. |
+| M6 | Relative weeks 1–4 | Final numerical/domain/browser/platform acceptance and handover. |
 
-The weekly plan records dependencies, completion evidence, risks, and owners. Relative weeks must be mapped to actual dates once the remaining course schedule is known. Do not interpret the four-week allocation as confirmed course duration.
 
-## Jira, PRs, and engineering evidence
+M1–M3 dates are in Singapore time. M4–M6 use four-week planning blocks; their calendar dates are not set.
 
-Create the Epics above and the 88 tasks in the weekly plan in the team's Jira project when access is available. Preserve task/feature IDs and predecessor relationships. Add actual Jira links only after creation. Split work into smaller implementation tasks as needed without dropping acceptance criteria or changing accountability silently.
+## Accountability and evidence
 
-Reference Jira work in PRs, attach relevant test/review evidence, and update documentation with contract changes. GitHub holds implementation and evidence; Jira holds live task status. CI begins at M1, and testing accompanies each implementation task rather than being deferred to M6.
+Zhi Kai owns suitability rankings, supported by Elijah's economic and charging calculations. Shee Yang owns geometry validation/history integration, Wei Jun viewport tools, Dayton interface panels, and Jarrel asset footprints.
 
-## Outstanding handoff steps
-
-- Ooi Ming Thong: confirm scope against the submitted proposal and any sponsor/course feedback; keep the final feature inventory synchronized.
-- Ooi Ming Thong: obtain Jira project details, the Excel sheet location/fields, M3 cutoff, and M4–M6 dates; coordinate the corresponding updates and record completion.
-- Chew Shee Yang: review/publish repository changes through the team's PR process and arrange collaborator access for `giraphics` with a repository administrator; verify access rather than assuming an invitation succeeded.
-- All owners: confirm weekly capacity and record evidence for completed tasks. Platform verification owners are specified in the weekly plan.
-
-External Jira creation, Excel updates, repository publication, and collaborator access have not been performed or verified by this documentation change.
+GitHub contains source, design, tests, and review evidence. Jira tracks delivery work. Each task is complete when its output meets the stated criteria, relevant checks pass, and the result is integrated and reviewed. CI and testing accompany development from M1 through M6.

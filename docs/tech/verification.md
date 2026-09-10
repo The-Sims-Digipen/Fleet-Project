@@ -1,6 +1,6 @@
 # Verification and acceptance plan
 
-This specifies required evidence for the target application; it does not report product tests as passing. Existing starter test evidence remains in the root README. The [weekly plan](../weekly-plan.md) defines owners and deadlines, and the feature matrix below ensures all 55 committed features have an acceptance route.
+Release acceptance criteria for the M1–M6 application. The [weekly plan](../weekly-plan.md) assigns owners and deadlines. The matrix below maps all 55 features to acceptance checks; measured prototype results are reported in the [repository README](../../README.md).
 
 ## Acceptance scenarios
 
@@ -23,33 +23,31 @@ This specifies required evidence for the target application; it does not report 
 | AT15 | Clean clone/install/build/test on exact required operating systems; new and upgraded DB setup, local server readiness, restart persistence, and documented recovery. | Shee Yang / T079; Brandon / T080; Dayton / T081 |
 | AT16 | Final demo/reset works from instructions; CI/PR evidence, asset provenance, feature audit, limitations, and handover are complete. | Jarrel / T082; Ming Thong / T084, T088; Shee Yang / T087 |
 
-## Test layers and fixtures
+## Verification coverage
 
-- **Pure domain/simulation:** Vitest reference and boundary tests with immutable input fixtures; evaluate twice for determinism and check inputs are unchanged. Use the [F01–F05 worked values](simulation.md#synthetic-worked-fixtures) rather than copying implementation formulas into expected values.
-- **Geometry:** pure polygon/rectangle fixtures, including concave corner-inside/edge-outside, edge contact, tiny gaps, zero area, repeated vertices, rotation, and out-of-bounds obstacles. Invalid geometry must not reach triangulation.
-- **API/database:** Fastify injection for validation/status contracts and a real disposable PostgreSQL database for transactions, revisions, round trips, new migrations, and upgrades. Test stored values after failures, not just HTTP status.
-- **UI:** existing Testing Library/Vitest for forms, selection, grouped edits, dirty/save states, comparison year controls, and keyboard behavior. Use contract fixtures; add integration tests once the API is available.
-- **Browser:** use a real WebGL-capable browser for picking, orbiting, polygon tools, ghost chargers, dual scenes, and frame profiling. Add browser automation when workflows stabilize; retain visual/manual evidence for rendering conditions automation cannot establish. DOM success alone is not 3D evidence.
-
-Run relevant checks with each task and the integrated `pnpm verify` gate before merge. The current command covers starter checks only; as implementation adds packages/integration tests, include them in root verification and CI under T005/T034. Do not claim those extensions already exist.
+| Layer | Evidence |
+|---|---|
+| Calculations | Independent [worked examples](simulation.md#synthetic-worked-fixtures), deterministic results, boundary cases, and unchanged inputs |
+| Geometry | Concave boundaries, edge contact, intersections, rotated footprints, and invalid-shape handling |
+| Persistence | Save/load equality, transactions, revision conflicts, error recovery, and database upgrades |
+| Interface | Forms, selection, edit history, save states, keyboard access, and comparison controls |
+| Browser | Actual WebGL picking, camera interaction, polygon tools, dual scenes, and rendering performance |
 
 ## Reference workload and performance targets
 
-Initial engineering acceptance targets (not measured results): 100 individual vehicles, 10 analysis years, two scenarios shown together, 200 bays, 20 chargers, and 20 obstacles of up to 20 vertices each, at 1920×1080 CSS pixels with device pixel ratio capped at 1 for measurement. This is a reproducible test fixture, not an application fleet-size restriction. Create the workload synthetically and save the fixture/version with results.
+Acceptance workload: 100 individual vehicles, 10 analysis years, two scenarios shown together, 200 bays, 20 chargers, and 20 obstacles of up to 20 vertices each, at 1920×1080 CSS pixels with device pixel ratio capped at 1 for measurement. This is a reproducible test fixture, not an application fleet-size restriction. The workload uses synthetic data.
 
 After five warmup evaluations, measure 100 committed input changes. Target simulation p95 <= 100 ms and edit-to-visible-results p95 <= 250 ms on the recorded reference machine. During a 60-second orbit/timeline interaction, target median >= 30 FPS with no application-caused stall > 1 second. Report browser/version, OS, CPU, RAM, GPU, power mode, viewport, dataset, and raw samples. Profile repeated project/scene switches over 20 cycles for retained scenes/listeners; investigate monotonic growth after warmup.
 
-T063 confirms access to the reference hardware and feasibility of these initial budgets; if measurements justify a change, record the reason and obtain the product/technical leads' agreement before revising the acceptance target. Do not lower thresholds silently to make a test pass. No particular machine has yet been verified.
-
 ## Milestone gates and evidence
 
-M1 proves the sample-to-result-to-scene slice. M2 adds fleet editing, financial/emissions results, and reliable persistence. M3 proves charging and two-plan comparison. M4 proves freeform editing/history/layout persistence. M5 completes the feature inventory and performance/usability work. M6 runs final acceptance/platform evidence and handover. Exact dates and provisional relative weeks remain solely in the [weekly plan](../weekly-plan.md).
+M1 proves the sample-to-result-to-scene slice. M2 adds fleet editing, financial/emissions results, and reliable persistence. M3 proves charging and two-plan comparison. M4 proves freeform editing/history/layout persistence. M5 completes the feature inventory and performance/usability work. M6 runs final acceptance/platform evidence and handover. Dates and relative working weeks are recorded in the [weekly plan](../weekly-plan.md).
 
-For each review, store a dated record containing commit ID, environment, input fixture version, acceptance IDs, expected/actual results, failures with owner/task, and links to screenshots/test output. A requirement passes only when all its associated checks pass in the integrated build. Do not invent review findings. The final T074 feature audit and T084 acceptance review must identify every remaining failure explicitly.
+Acceptance evidence identifies the build, test environment, data version, expected/actual results, and any failures. A requirement passes only when its checks pass in the integrated application. T074 covers feature completeness and T084 final acceptance.
 
 ## Feature-to-test traceability
 
-The matrix names the primary integration task; earlier foundation tasks and later audits remain in the weekly schedule. Its milestone is the target for that integration task, not a claim of completion. Selecting a feature opens its full description.
+Each row identifies a feature, its primary integration task, accountable owner, milestone target, and acceptance checks. Feature links open the full description.
 
 | Feature | Primary task / accountable owner | Integration milestone | Acceptance |
 |---|---|---|---|

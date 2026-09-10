@@ -1,8 +1,8 @@
-# Final application features — M1 to M6
+# Application features — M1 to M6
 
-This is the working feature inventory for the completed Fleet Transition Planner, based on [SPECS.md](SPECS.md) and the team's decisions: a browser application, single-user local demonstration, saved scenarios, side-by-side comparisons, and a freeform depot editor. Features below are planned unless explicitly described as existing. They are not a claim of sponsor approval or completed implementation.
+Product scope for the Fleet Transition Planner: 55 features covering fleet management, transition planning, freeform depot editing, calculations, and comparison. The application is a single-user local browser simulation with saved projects. Final acceptance is M6.
 
-The final product is targeted for **M6**, not M3. The milestone allocation below is a proposed delivery sequence; M4–M6 dates have not been decided. See the [weekly task table](weekly-plan.md) for assigned owners, due weeks, prerequisite tasks, and blockers, and [deliverables](deliverables.md) for workstream ownership.
+[Weekly tasks](weekly-plan.md) provide owners, completion weeks, and dependencies; [deliverables](deliverables.md) summarizes workstreams and milestones.
 
 ## What the final app will be like
 
@@ -54,8 +54,6 @@ The agreed editor is a flat freeform site/layout editor. CAD import, terrain scu
 - <a id="vi-04"></a>**VI-04 — Feasibility overlay:** highlight affected locations and show site demand against the connection limit. Turn the site red on overload and include text feedback so color is not the only signal.
 - <a id="vi-05"></a>**VI-05 — Comparison scenes:** show each plan's depot state at the same selected year alongside its results.
 
-The current plane/cube editor provides selection, property editing, camera interaction, and undo/redo foundations. It does not yet implement the depot features above.
-
 ## 6. Charging strategy and feasibility
 
 - <a id="ch-01"></a>**CH-01 — Strategy selection:** configure depot charging, external network charging, or a mixture with an editable split.
@@ -103,38 +101,32 @@ These are indicative planning checks, not an electrical engineering certificatio
 - <a id="qu-03"></a>**QU-03 — Transparent simulation:** keep assumptions, units, synthetic-data provenance, and the indicative nature of results visible.
 - <a id="qu-04"></a>**QU-04 — Responsive interaction:** verify repeated edits, year navigation, and dual-scene comparison against a documented representative fleet/layout workload.
 - <a id="qu-05"></a>**QU-05 — Verified results:** independent worked calculation examples plus automated scenario, geometry, persistence, and integration checks; real-browser visual verification.
-- <a id="qu-06"></a>**QU-06 — Reproducible local app:** documented install/run/build workflow for the required Windows 11, macOS Tahoe, and Ubuntu 24.04 targets, with Ubuntu server testing. Record actual evidence rather than assuming support.
+- <a id="qu-06"></a>**QU-06 — Reproducible local app:** documented install/run/build workflow for the required Windows 11, macOS Tahoe, and Ubuntu 24.04 targets, with Ubuntu server testing.
 - <a id="qu-07"></a>**QU-07 — Team delivery:** CI checks, PR review, versioned migrations, documented asset provenance, a demonstration dataset, and a final walkthrough/handover.
 
-## Proposed M1–M6 delivery sequence
+## M1–M6 delivery sequence
 
-Each milestone builds on the previous one. Features introduced early continue to be refined and tested through M6. This is sequencing for discussion, not a claim that features are already complete.
+The delivery plan progresses from an integrated planning slice to the complete application and final acceptance.
 
 | Milestone | Date (Singapore time) | Demonstrable outcome |
 |---|---|---|
 | M1 | 4 October 2026, 23:59 | Working vertical slice: sample fleet, editable transition year, basic ICE-versus-EV cost calculation, simple depot reflecting the selected year, and initial automated checks. |
 | M2 | 8 November 2026, 23:59 | Usable planning workflow: editable fleet and assumptions, individual/group schedules, annual roadmap, scenario creation/duplication and save/load, financial and emissions results. |
-| M3 | 30 November 2026; cutoff time unspecified | Integrated charging and comparison: depot/external/mixed strategies, charger timing/costs, indicative power feedback, two-plan results and depot comparison, initial suitability explanations. |
-| M4 | Date not decided | Complete freeform authoring: site polygons, obstacles, bay/charger editing, snapping, vehicle assignments, undo/redo, boundary/overlap validation, and persisted scenario layouts. |
-| M5 | Date not decided | Complete the remaining inventory and integrate it: charging/dwell/space constraints, ranking and assumption explanations, consistent comparison behavior, finished assets, and usability/performance improvements. |
-| M6 | Date not decided | Final acceptance and handover: all committed features demonstrated, calculation/geometry/persistence tests passing, platform evidence recorded, final usability fixes, reproducible demo and documentation. |
+| M3 | 30 November 2026 | Integrated charging and comparison: depot/external/mixed strategies, charger timing/costs, indicative power feedback, two-plan results and depot comparison, initial suitability explanations. |
+| M4 | Relative weeks 1–4 | Complete freeform authoring: site polygons, obstacles, bay/charger editing, snapping, vehicle assignments, undo/redo, boundary/overlap validation, and persisted scenario layouts. |
+| M5 | Relative weeks 1–4 | Complete the remaining inventory and integrate it: charging/dwell/space constraints, ranking and assumption explanations, consistent comparison behavior, finished assets, and usability/performance improvements. |
+| M6 | Relative weeks 1–4 | Final acceptance and handover: all committed features demonstrated, calculation/geometry/persistence tests passing, platform evidence recorded, final usability fixes, reproducible demo and documentation. |
 
-Freeform editor design and technical investigation should begin before M4; M4 is its complete integration target, not its start date. Infrastructure, testing, and CI begin at M1 and continue throughout.
+M4–M6 calendar dates are not set; relative weeks describe the scheduling estimate. Freeform editor investigation begins at M2 and integration is targeted for M4. Testing and CI span M1–M6.
 
-## Optional extensions — not committed for M6
+## Scope boundaries
 
-- Automated sensitivity sweeps, uncertainty ranges, and advanced sensitivity charts.
-- Regional assumption presets beyond the editable core inputs.
-
-The existing specification identifies these as optional. Do not count them as promised features without a separate scope decision.
-
-## Outside the agreed final scope
-
+- Advanced sensitivity sweeps, uncertainty analysis, and regional presets.
 - Multi-user accounts, team permissions, live collaboration, and publicly hosted service operation.
 - Native mobile/desktop apps; the deliverable is a browser application for local demonstration.
 - Route optimisation, citywide energy simulation, live telemetry, and real charging-network control/integration.
 - Exhaustive tax, subsidy, financing, battery-degradation, or engineering-grade power-flow models.
 - CAD/GIS import, terrain modelling, detailed cable routing, and automatic depot-layout optimisation.
-- Production integration into ChargedUp Nexus; keep the calculation foundation reusable, but an actual integration is a separate project.
+- Production integration into ChargedUp Nexus.
 
-CSV imports, report/PDF exports, and live data feeds have not been requested and are not included in the committed inventory.
+CSV imports, report/PDF exports, and live data feeds are outside the M1–M6 scope.

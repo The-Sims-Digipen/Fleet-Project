@@ -1,8 +1,8 @@
 # Fleet Transition Planner
 
-A browser-based simulation for fleet operators to compare vehicle electrification schedules, charging strategies, costs, emissions, and depot feasibility. The product is planned; the current implementation is a pnpm monorepo starter with a React/TypeScript 3D client and minimal Fastify/Drizzle server.
+A browser-based fleet electrification planning project covering transition schedules, charging strategies, costs, emissions, and depot feasibility.
 
-The starter is a generic scene-editor architecture demo: select a plane or cube in the viewport, edit it through collapsible sidebar modules, and undo or redo changes. It contains no product-specific functionality.
+**Current implementation:** an in-memory 3D scene-editor prototype and basic Fastify API. The product features described in the documentation are the M1–M6 delivery scope.
 
 Project documentation is indexed in [docs/README.md](docs/README.md).
 
@@ -29,7 +29,7 @@ pnpm --version
 
 Ensure pnpm reports `11.24.0` and ports `5173` and `3001` are available for the development servers.
 
-Required development/build targets are Ubuntu 24.04, macOS Tahoe, and Windows 11. Server deployment and testing must at minimum support Ubuntu 24.04. These targets are not a claim that all platforms have been tested; record platform evidence in the project handoff. The commands below work in PowerShell and POSIX shells unless labeled otherwise.
+Required development/build targets are Ubuntu 24.04, macOS Tahoe, and Windows 11. Server deployment and testing must at minimum support Ubuntu 24.04. The verified local environment is listed below. The commands below work in PowerShell and POSIX shells unless labeled otherwise.
 
 ## Development
 
@@ -57,7 +57,7 @@ Ubuntu/macOS:
 cp apps/server/.env.example apps/server/.env
 ```
 
-Edit `PORT` and, when working on persistence, `DATABASE_URL` in `apps/server/.env`. Its sample database URL is a local placeholder, not a provisioned database. Drizzle commands require `DATABASE_URL` and database access, but the schema is currently empty and no migration is needed to run the demo. Never commit local environment files or credentials; retain safe `.env.example` templates.
+Edit `PORT` in `apps/server/.env` to change the API port. The current prototype does not use a database. Drizzle commands require a configured `DATABASE_URL` and an accessible PostgreSQL database; the example URL does not create one. Local environment files and credentials are excluded from version control.
 
 ### Run and verify
 
@@ -96,5 +96,3 @@ pnpm --filter @starter/server start
 ```
 
 Serve the generated client files from `apps/client/dist` using your production web server or hosting platform.
-
-Deployment and CI/CD are not configured by this initial setup. Publishing these changes, inviting `giraphics`, and updating the instructor's Excel sheet remain tracked in the [handoff checklist](docs/deliverables.md#outstanding-handoff-steps).

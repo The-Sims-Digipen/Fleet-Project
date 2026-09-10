@@ -1,11 +1,11 @@
 # Annual simulation model
 
-Owner: Elijah Chua Jye Kang, with Yap Zhi Kai for vehicle suitability and Chew Shee Yang for integration. This is the implementation specification for model `annual-v1`, not an implemented engine or financial advice. All examples below are deliberately synthetic arithmetic fixtures, not market prices or engineering forecasts.
+Model: `annual-v1`. Owner: Elijah Chua Jye Kang; vehicle suitability: Yap Zhi Kai. The model provides indicative annual cost, energy, emissions, and feasibility comparisons. Worked examples use synthetic values rather than market forecasts.
 
 ## Time, units, and assumptions
 
 - Model whole calendar years from `startYear` through `startYear + years - 1`. Transition, replacement, and charger installation occur at the start of their chosen year; annual operation follows; terminal residual credits occur after the final year's operation.
-- Use km, litres, kWh, kW, hours, kgCO2e, and one project currency. Prices and efficiencies are constant in real nominal input units across the horizon: no inflation, discounting, tax, subsidy, interest, or battery degradation. Do not silently mix currencies or introduce conversion rates.
+- Use km, litres, kWh, kW, hours, kgCO2e, and one project currency. Prices and efficiencies are constant in real nominal input units across the horizon: no inflation, discounting, tax, subsidy, interest, or battery degradation. All comparisons use the project currency.
 - Each vehicle has constant annual distance/maintenance assumptions while using each technology. `utilisation` informs ranking; it does not multiply annualKm again. typicalDailyKm and operatingDays inform charging checks; flag a material mismatch with annualKm rather than silently replacing either input.
 - One scheduled ICE replacement and one optional EV transition are modeled per vehicle. The selected asset is retained through the horizon; no automatic second replacement is inferred. Display this limitation for long horizons. Baseline replacementYear is independent of scenario transition year.
 - Operational emissions include ICE fuel use and electricity supplied to charging, using user factors. Vehicle/battery manufacturing, embodied charger emissions, and disposal emissions are excluded. Grid factors are identical for depot and external charging in this version.
@@ -96,11 +96,11 @@ Score 0–100 as the sum of eight documented factors: range (20), route predicta
 
 Classify an operationally constrained candidate separately before ranking: exceeded daily range, absent required access, or failed charging window is a constraint even if other scores are high. Sort unconstrained candidates first, then score descending, then stable vehicle ID. Show every factor's input, points, and reason. Site geometry/power issues remain prominent site-wide warnings; a ranking never certifies site feasibility.
 
-A candidate with full points in every factor scores 100. Keeping those inputs but failing the aggregate charging window gives 85 and an operationally constrained classification; it sorts after every unconstrained candidate, even one scoring below 85. This is a deterministic rule fixture, not a claim that the chosen weights were empirically calibrated.
+A candidate with full points in every factor scores 100. Keeping those inputs but failing the aggregate charging window gives 85 and an operationally constrained classification; it sorts after every unconstrained candidate, even one scoring below 85. The weights are transparent heuristic rules, not empirically calibrated predictions.
 
 ## Synthetic worked fixtures
 
-All fixtures use owned assets, two vehicles only where stated, no taxes/discounting, and full-year operation. Unspecified costs/residuals are zero. They are arithmetic test inputs, not suggested user defaults. A demonstration dataset may reuse them only with the synthetic label.
+Unless stated otherwise, fixtures use owned assets, two vehicles only where stated, no taxes/discounting, and full-year operation. Unspecified costs/residuals are zero. They are arithmetic test inputs, not suggested user defaults.
 
 ### F01 — four-year single-vehicle transition
 

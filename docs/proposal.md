@@ -1,6 +1,6 @@
 # Fleet Transition Planner — product definition
 
-This is the team's working product definition, grounded in [SPECS.md](SPECS.md) and the scope decisions recorded in the [55-feature inventory](features.md). It is derived from the supplied briefs, not a claimed copy of the original submitted proposal or evidence of sponsor approval. The delivery horizon is M1–M6.
+Project scope and acceptance requirements derived from the supplied briefs, [product specification](SPECS.md), and [feature inventory](features.md). Delivery spans M1–M6.
 
 ## Problem, audience, and outcome
 
@@ -14,7 +14,7 @@ A single-user browser application runs locally with a Fastify API and PostgreSQL
 
 Synthetic sample data provides an immediate demonstration. Fleet size and vehicle type are not restricted to the 100-van example. Sample values are explicitly illustrative. Real operational data requires the approval described in the source specification.
 
-The feature inventory owns exact scope; the [weekly plan](weekly-plan.md) owns task IDs, owners, due weeks, and dependencies. This document groups requirements without duplicating the full backlog.
+The [weekly plan](weekly-plan.md) assigns delivery tasks, owners, completion weeks, and dependencies.
 
 ## Requirements and acceptance scenarios
 
@@ -44,11 +44,11 @@ Additional acceptance cases and evidence expectations are defined in the [verifi
 
 No multi-user accounts, public service hosting, native mobile/desktop clients, live telemetry, charger control, route optimization, citywide energy model, or production ChargedUp Nexus integration is included. The flat editor excludes terrain, CAD/GIS import, site holes, and cable routing. Detailed tax/subsidy/finance models and engineering-grade electrical simulation are excluded. CSV/PDF export is not promised.
 
-Advanced sensitivity sweeps and regional presets remain optional and are not required for M6. Basic manual assumption edits and explanations are required. The calculation foundation stays independent of the UI so it can be reused later.
+Advanced sensitivity sweeps and regional presets are outside M1–M6 scope. Manual assumption edits and explanations are included.
 
 ## Delivery and provenance
 
-M1: 4 October 2026, 23:59; M2: 8 November 2026, 23:59; M3: 30 November 2026, cutoff unspecified. Times are Singapore time. M4–M6 dates are not decided; four active weeks each are planning assumptions. Final validation and handover occur at M6, not M3.
+M1: 4 October 2026, 23:59; M2: 8 November 2026, 23:59; M3: 30 November 2026. Times are Singapore time. M4–M6 use four relative working weeks each; calendar dates are not set. Final validation and handover occur at M6.
 
 - [Detailed project brief: Theme 1 and shared requirements](docx/DigiPen_Upsight_Detailed_Project_1-3.docx)
 - [Industry invitation: Project 1 and shared browser/3D requirements](pdf/Industry_Project_Opportunities_Student_Invitation.pdf)

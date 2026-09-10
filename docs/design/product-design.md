@@ -1,6 +1,6 @@
 # Product design
 
-Owners: Ooi Ming Thong (product/UX) and Dayton Ng Zhi Jie (web implementation), with Tan Wei Jun for viewport interaction. This specifies the target product through M6; it does not describe implemented screens. [Wireframes](ui-ux/wireframes.md) make the layout concrete, and the [feature inventory](../features.md) controls scope.
+Design owners: Ooi Ming Thong (UX), Dayton Ng Zhi Jie (web interface), and Tan Wei Jun (3D interaction). [Wireframes](ui-ux/wireframes.md) illustrate the screens; the [feature inventory](../features.md) defines scope.
 
 ## Navigation and screen responsibilities
 
@@ -36,9 +36,7 @@ flowchart TD
 
 New project creates an empty fleet, one scenario named Plan A, and a 40 m × 30 m rectangular site that can be freely edited. The default analysis starts in 2026 for four years, currency SGD. Do not seed unverified market assumptions as authoritative values: the sample project uses explicitly labeled synthetic values from the [calculation fixtures](../tech/simulation.md#synthetic-worked-fixtures), while blank required economic fields in a newly added vehicle require entry before commitment.
 
-Open sample creates a new unsaved project rather than modifying a shared saved sample. Use the F01 vehicle as the initial economics demonstration and the F03 two-vehicle sample as a charging constraint example; name them so the expected purpose is clear. Include required access/range/operation attributes with the dataset and document them. Selection does not edit data.
-
-For a new empty project, seed common fuel/electricity emissions factors and fuel price from synthetic F01, and Plan A with external-only charging at 0.25/kWh, depot tariff 0.20/kWh, efficiency 1, a 6 kW connection limit, no chargers/bays/obstacles, and no schedules. These visible demonstration assumptions produce zero totals until a vehicle is added. Sample vehicle details not used in F01 arithmetic are 100 km typical daily distance over 100 operating days, assumed EV range 200 km, predictable routes, depot return, two-hour dwell, external charging access, and utilisation 1. Use zero age for the synthetic newly configured record; do not represent it as real fleet data.
+Open sample creates a new unsaved project rather than modifying a shared saved sample. Use the F01 vehicle as the initial economics demonstration and the F03 two-vehicle sample as a charging constraint example; name them so the expected purpose is clear. Both samples identify their operational and charging assumptions. Selection does not edit data.
 
 Fleet rows show ID/name/type, age, annual/daily distance, replacement year, transition year, and current status. Filters support type and age; sorting supports name, year, and suitability once implemented. Shift/range and checkbox selection permit arbitrary combinations; bulk transitions show the selected count before committing. Vehicle creation/editing happens in a labeled form. Removing a vehicle previews all affected scenario schedules/assignments.
 
@@ -85,4 +83,4 @@ A collapsed panel retains its valid state. Undo/redo operates on committed domai
 
 All forms and toolbar commands have visible labels/tooltips, keyboard access, focus indication, and error association. Status and overload are communicated in text as well as color. Numeric transform controls and object lists provide an alternative to pointer-only object movement. Diagram/charts include text summaries and numerical values. Keyboard shortcuts do not steal native form-field undo while text input has focus.
 
-Wireframes in this repository are engineering artifacts, not evidence of a completed user study. Record actual review participants/date, scenarios, findings, and resolved/unresolved issues under ui-ux when review occurs. M1 validates the first slice, M2 planning/save flows, M3 comparisons, M4 the editor, M5 full usability, and M6 final acceptance.
+Usability acceptance covers planning, saving, comparison, depot editing, and final end-to-end operation. The [acceptance criteria](../tech/verification.md) define these checks.

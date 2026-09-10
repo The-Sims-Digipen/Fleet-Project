@@ -1,6 +1,6 @@
 # Workspace wireframes and flows
 
-Author: engineering documentation prepared for Ooi Ming Thong's UX review. Date: 10 September 2026. Status: implementation wireframes, not user-tested designs. Feature and task IDs below are document references, not Jira keys. These text wireframes specify information hierarchy; they are not final visual styling.
+Design reference: 10 September 2026. WF01–WF05 describe the interface layout and interaction states. They specify information hierarchy rather than final visual styling.
 
 ## WF01 — project home (SC-01–SC-04; T001, T019, T025)
 
@@ -93,7 +93,3 @@ Reload confirmation: Unsaved changes will be discarded. [Cancel] [Discard]
 ```
 
 Do not display successful save state until the server acknowledges the captured revision. If editing continued during the request, display unsaved changes for the newer snapshot.
-
-## Review record
-
-During the scheduled reviews, append actual observations to a dated Markdown review file: participant role, wireframe/feature IDs, task attempted, observed failure, severity, assigned owner, and verification evidence after resolution. No participant findings or approval are claimed by these wireframes.
