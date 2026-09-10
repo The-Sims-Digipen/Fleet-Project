@@ -2,6 +2,8 @@
 
 This is the working task schedule for all 55 committed features in the [feature inventory](features.md). It replaces the initial three-milestone schedule. Tasks are planned, not completed; prerequisite IDs identify dependencies, not verified current failures. Document task IDs are not Jira issue keys.
 
+Implementation specifications: [contracts](contracts.md), [calculations](simulation.md), [editor behavior](design/depot-editor.md), [acceptance criteria](verification.md), and [engineering workflow](engineering-workflow.md). These define the engineering baseline; writing the specifications does not complete the implementation/review tasks below.
+
 ## Scheduling assumptions
 
 - All dates are in 2026 and Singapore time. W01 starts on 10 September, the planning date, and is a short week. Subsequent dated weeks run Monday–Sunday.
@@ -111,7 +113,7 @@ This is the working task schedule for all 55 committed features in the [feature 
 |---|---|---|---|---|---|
 | M5-W1 · date unassigned | T061 | Elijah | Implement dwell-time, charger-availability, and installation-readiness checks with worked constraint cases. | [CH-06](features.md#ch-06) | T036, T041 |
 | M5-W1 · date unassigned | T062 | Shee Yang | Translate layout conflicts and bay/charger shortages into scenario-level space feasibility results. | [CH-07](features.md#ch-07) | T048, T053, T060 |
-| M5-W1 · date unassigned | T063 | Ming Thong | Agree a measured acceptance workload and numeric interaction/rendering budgets with technical owners; document test hardware. | [QU-04](features.md#qu-04) | T044, T060 |
+| M5-W1 · date unassigned | T063 | Ming Thong | Confirm the documented reference workload and initial numeric budgets with technical owners against available hardware; record justified changes and the test environment. | [QU-04](features.md#qu-04) | T044, T060 |
 | M5-W1 · date unassigned | T064 | Brandon | Verify local server/database setup and tests on Ubuntu 24.04; document prerequisites and recovery steps. | [QU-06](features.md#qu-06) | T058 |
 | M5-W2 · date unassigned | T065 | Zhi Kai | Complete suitability scoring/reasons using charging access, dwell, timing, utilisation, and economics; test rankings. | [SU-01](features.md#su-01), [SU-02](features.md#su-02) | T038, T061, T062 |
 | M5-W2 · date unassigned | T066 | Elijah | Implement assumption-impact explanations and reconcile plus/minus 20% price cases with reference results. | [SU-03](features.md#su-03), [FI-06](features.md#fi-06) | T041, T061 |
@@ -158,7 +160,7 @@ These are known planning dependencies or risks. Their presence is not proof work
 | Freeform geometry/edit history may exceed the allocated effort | Wei Jun | T048–T060 | Use T023 prototype and T028 review to expose complexity before M4; Shee Yang owns geometry functions/history so Wei Jun can focus on viewport tools. |
 | Core UI and viewport integration concentrate on Dayton and Wei Jun | Shee Yang | T042–T044, T051–T060, T069–T074 | Review these weeks for capacity; arrange contributor help and early reviews, preserving one accountable owner per task. |
 | Suitable macOS Tahoe, Windows 11, and Ubuntu 24.04 environments may be unavailable | Shee Yang | T064, T079–T083 | Confirm access during M1 setup and book machines before M5. Dayton owns macOS evidence, Brandon Ubuntu, Shee Yang Windows. |
-| No measurable performance workload/budget exists yet | Ming Thong | T067–T074 | Agree workload and thresholds with Shee Yang/Wei Jun in T063 before judging performance acceptance. |
+| Initial performance budgets are specified but not yet measured on reference hardware | Ming Thong | T067–T074 | Confirm the workload and thresholds from the verification plan with Shee Yang/Wei Jun in T063 before judging performance acceptance. |
 | Asset footprint/provenance mismatch | Jarrel | T011, T049, T068, T082 | Validate scale/bounds and licensing before asset integration; use simple temporary geometry only for development. |
 | Jira project access, instructor repository access, and Excel sheet location are unverified | Ming Thong | Administrative handoff | Obtain Jira/Excel details; Shee Yang arranges repository publication and giraphics access with an administrator. These do not block local implementation. |
 

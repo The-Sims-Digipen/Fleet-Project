@@ -1,29 +1,88 @@
-# Product design and initial flows
+# Product design
 
-Status: proposed flows based on the [specification](../SPECS.md); these are not implemented screens. Ooi Ming Thong owns product/UX design, with Dayton Ng Zhi Jie owning web implementation.
+Owners: Ooi Ming Thong (product/UX) and Dayton Ng Zhi Jie (web implementation), with Tan Wei Jun for viewport interaction. This specifies the target product through M6; it does not describe implemented screens. [Wireframes](ui-ux/wireframes.md) make the layout concrete, and the [feature inventory](../features.md) controls scope.
 
-## Fleet setup
+## Navigation and screen responsibilities
 
-Create a fleet or select realistic sample data. Inspect vehicles or groups with age, mileage, route/duty cycle, depot return, utilisation, and replacement timing. Explain units and assumptions near inputs. A sample fleet provides an immediate starting point without requiring operational data uploads.
+The application has a project home screen and a project workspace. The workspace offers Plan, Depot, and Compare views without navigating away from the current document. Its header always shows project/scenario names, saved/unsaved state, Save, and the simulation label. Common analysis settings and scenario-specific charging settings must be visibly distinguished.
 
-## Transition planning
+| View | Primary content | Main actions |
+|---|---|---|
+| Home | Saved project list and synthetic sample entry | New project, Open, Open sample, delete project with confirmation |
+| Plan | Fleet table, scenario depot, selected vehicle inspector, result panel | Vehicle CRUD, filters/groups, transition year, assumptions, results |
+| Depot | Large scene, object list, editing tools, properties and validation issues | Site/obstacle authoring, bays/chargers, assignment, transforms, undo/redo |
+| Compare | Plan A and B scenes/results, shared year selector and baseline description | Choose two scenarios, inspect differences, change year, return to edit |
 
-Select individual vehicles, arbitrary groups, or categories and assign transition years. Retain unselected vehicles as ICE. Show yearly transition counts and a roadmap alongside suitability explanations so users can understand why one vehicle may be a better early candidate.
+At desktop widths of at least 1280 CSS px, Plan uses a roughly 280 px fleet pane, flexible scene, and 320 px inspector; results below the scene can collapse. Compare shows two equal columns. Below 1280 px, collapse the inspector into a drawer and allow comparison columns to scroll horizontally without hiding one plan's identity. At smaller widths, forms remain usable but precision authoring is designed for desktop pointer/keyboard use; no native mobile deliverable is implied.
 
-## Charging configuration
+## Main user journey
 
-Choose depot, external, or mixed charging. Edit charger quantity, power/type, installation year, tariffs, and charging split, together with depot space and connection capacity. Refresh infrastructure costs and feasibility feedback when these choices change.
+```mermaid
+flowchart TD
+  Home[Project home] --> Choice{New or existing?}
+  Choice -->|New or sample| Fleet[Review fleet and common assumptions]
+  Choice -->|Open| Workspace[Restore saved inputs]
+  Workspace --> Fleet
+  Fleet --> Plan[Select vehicles and assign transition years]
+  Plan --> Charging[Choose charging strategy and installation timing]
+  Charging --> Depot[Edit depot and inspect feasibility]
+  Depot --> Results[Inspect annual costs and emissions]
+  Results --> Compare[Duplicate a plan and compare alternatives]
+  Compare --> Save[Save the project]
+  Save --> Home
+```
 
-## Year timeline and depot
+### Start and fleet setup
 
-Scrub through years to inspect the depot with camera controls. Vehicles become electric and chargers appear according to the selected plan. Show selected-year demand beside the connection limit. When demand exceeds the limit, show red site feedback and a readable overload explanation; do not rely on color alone. Make insufficient charger space visible.
+New project creates an empty fleet, one scenario named Plan A, and a 40 m × 30 m rectangular site that can be freely edited. The default analysis starts in 2026 for four years, currency SGD. Do not seed unverified market assumptions as authoritative values: the sample project uses explicitly labeled synthetic values from the [calculation fixtures](../simulation.md#synthetic-worked-fixtures), while blank required economic fields in a newly added vehicle require entry before commitment.
 
-## Side-by-side comparison
+Open sample creates a new unsaved project rather than modifying a shared saved sample. Use the F01 vehicle as the initial economics demonstration and the F03 two-vehicle sample as a charging constraint example; name them so the expected purpose is clear. Include required access/range/operation attributes with the dataset and document them. Selection does not edit data.
 
-Compare two plans on the same screen, including their depot states, transition roadmap, total cost, CAPEX, annual operating cost, emissions, and indicative payback. Make the shared ICE baseline and analysis period visible. Changing vehicle ordering, charging strategy, or prices updates the relevant results and explains the drivers. Explicitly display when breakeven is not reached within the period.
+For a new empty project, seed common fuel/electricity emissions factors and fuel price from synthetic F01, and Plan A with external-only charging at 0.25/kWh, depot tariff 0.20/kWh, efficiency 1, a 6 kW connection limit, no chargers/bays/obstacles, and no schedules. These visible demonstration assumptions produce zero totals until a vehicle is added. Sample vehicle details not used in F01 arithmetic are 100 km typical daily distance over 100 operating days, assumed EV range 200 km, predictable routes, depot return, two-hour dwell, external charging access, and utilisation 1. Use zero age for the synthetic newly configured record; do not represent it as real fleet data.
 
-## Design acceptance and assets
+Fleet rows show ID/name/type, age, annual/daily distance, replacement year, transition year, and current status. Filters support type and age; sorting supports name, year, and suitability once implemented. Shift/range and checkbox selection permit arbitrary combinations; bulk transitions show the selected count before committing. Vehicle creation/editing happens in a labeled form. Removing a vehicle previews all affected scenario schedules/assignments.
 
-Keep the simulation label and editable assumptions visible. Provide labels, keyboard-accessible controls, and understandable empty/invalid-input states. Review these flows against all five [proposal acceptance scenarios](../proposal.md#acceptance-scenarios).
+### Plan a transition
 
-Store wireframes, user flows, mockups, and review notes in [ui-ux](ui-ux/README.md). M1 establishes initial designs, M2 reviews integrated usability, and M3 completes the usability review and handover.
+Choose one or more vehicles and assign a year within the analysis period. Clear transition retains ICE. Update annual counts and the scene immediately after valid edits. A user can duplicate Plan A as Plan B and change ordering without changing A. Shared fleet edits affect both and are explicitly labeled “Applies to all scenarios.”
+
+The year slider has discrete integer steps, accessible arrow-key behavior, and a numeric/year dropdown alternative. Changing the selected year does not change the plan. Charts show the full horizon and mark the selected year; scene state and selected-year KPIs use the same index.
+
+### Charging and layout
+
+The charging panel selects Depot, External, or Mixed. Depot forces share 100%; External forces 0%; Mixed accepts strictly between 0% and 100%. Show depot/external tariffs, efficiency, site limit, and charger inventory. A quantity increase previews new instances in a row near the site origin; the user can move them before committing. Do not silently resolve spatial conflicts. Quantity reduction asks which instances to remove, with their locations and installation years.
+
+Each charger has a visible installation year and power. Selecting a year before installation shows the planned charger as a dashed/ghost object only in Depot authoring mode, labeled “Not installed this year”; Plan/Compare render installed infrastructure only. Show financial and feasibility consequences even when a financially cheap plan is operationally constrained.
+
+Full editing behavior is in [depot editor](depot-editor.md). In Plan view, clicking a mesh selects the corresponding fleet/object row; clicking a row frames/highlights that item without changing the schedule.
+
+### Results and comparisons
+
+Show TCO, CAPEX, annual OPEX, baseline savings, operational emissions, and payback with units and short explanations. Use annual stacked cost bars, cumulative cash cost lines, annual emissions bars, and the transition roadmap. Show terminal residual credit separately so cumulative cash charts and residual-adjusted TCO are not confused.
+
+Compare requires two distinct scenarios in the same project. If only one exists, offer Duplicate current plan. Both columns display the shared fleet/analysis revision and ICE baseline. Controls in Compare inspect rather than edit scenarios; use Edit A/Edit B to return to the chosen Plan. Year selection is shared; cameras are independent with a Reset view command. No mandatory camera synchronization is added.
+
+Each column includes scene, selected-year counts/demand, full-horizon financial/emissions KPIs, and warnings. Differences are labeled in direction (B minus A) with positive/negative meaning written out. Suitability appears as a sortable list of candidates with factor/reason details and site-wide constraint notices. It never automatically assigns transition years.
+
+## State, validation, and recovery
+
+| State | Required response |
+|---|---|
+| Blank/nonnumeric field draft | Keep locally, show a specific error on commit, and leave the last valid domain value unchanged; label displayed results as based on the last valid inputs. |
+| Out-of-range/domain-invalid value | Block commit/save of that draft, focus the error, and explain the permitted range. Never render NaN totals. |
+| Geometrically infeasible layout | Keep/edit/save the representable layout, highlight affected objects, and label calculations indicative/infeasible. |
+| Empty fleet/results | Show zero totals with a prompt to add/load vehicles; ratios/payback that are undefined show an explanation rather than a misleading zero. |
+| Unsaved project | Header shows Unsaved changes; leaving/reloading asks Save, Discard, or Cancel. Browser close uses the supported native warning. |
+| Save in flight | Disable duplicate saves, allow editing, and retain dirty status for edits newer than the saved snapshot. |
+| Save failure/offline backend | Keep all edits, display retry guidance and failure state; never clear dirty status. |
+| Stale revision | Offer reload with discard confirmation or save as new project; no silent overwrite. |
+| Unknown saved version | Keep the stored document intact, explain unsupported version, and offer return to project list. |
+| Destructive change | Confirm deletion and list affected references; last scenario cannot be deleted. |
+
+A collapsed panel retains its valid state. Undo/redo operates on committed domain edits, including geometry transactions, with up to 100 entries. A shared fleet edit undoes its coordinated scenario reference changes atomically. Camera, selection, active year, and saved revision are not undo entries.
+
+## Accessibility and review
+
+All forms and toolbar commands have visible labels/tooltips, keyboard access, focus indication, and error association. Status and overload are communicated in text as well as color. Numeric transform controls and object lists provide an alternative to pointer-only object movement. Diagram/charts include text summaries and numerical values. Keyboard shortcuts do not steal native form-field undo while text input has focus.
+
+Wireframes in this repository are engineering artifacts, not evidence of a completed user study. Record actual review participants/date, scenarios, findings, and resolved/unresolved issues under ui-ux when review occurs. M1 validates the first slice, M2 planning/save flows, M3 comparisons, M4 the editor, M5 full usability, and M6 final acceptance.
