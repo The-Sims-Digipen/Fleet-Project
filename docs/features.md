@@ -2,7 +2,7 @@
 
 This is the working feature inventory for the completed Fleet Transition Planner, based on [SPECS.md](SPECS.md) and the team's decisions: a browser application, single-user local demonstration, saved scenarios, side-by-side comparisons, and a freeform depot editor. Features below are planned unless explicitly described as existing. They are not a claim of sponsor approval or completed implementation.
 
-The final product is targeted for **M6**, not M3. The milestone allocation below is a proposed delivery sequence; M4–M6 dates have not been decided. It supersedes the three-milestone completion assumption in the initial deliverables document.
+The final product is targeted for **M6**, not M3. The milestone allocation below is a proposed delivery sequence; M4–M6 dates have not been decided. See the [weekly task table](weekly-plan.md) for assigned owners, due weeks, prerequisite tasks, and blockers, and [deliverables](deliverables.md) for workstream ownership.
 
 ## What the final app will be like
 
