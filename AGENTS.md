@@ -14,6 +14,13 @@
 - Preserve existing behavior unless a behavior change is explicitly requested.
 - Prefer existing project conventions over introducing new ones.
 
+## Web Frontend
+
+- Prefer Tailwind utility classes for component and feature styling.
+- Keep `index.css` limited to application-wide CSS: Tailwind imports, global element/root defaults, fonts, shared CSS variables/design tokens, global behaviors, and necessary third-party overrides.
+- Do not add component-specific classes to `index.css` when Tailwind utilities can express them cleanly.
+- Keep feature styling local so changes to one feature do not unnecessarily affect others.
+
 ## Verification
 
 - Do not claim a change works without validating it.
