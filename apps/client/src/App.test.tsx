@@ -7,6 +7,9 @@ import { createDocument, useSceneStore } from "./state/sceneStore";
 vi.mock("./components/ModelStatus", () => ({ ModelStatus: () => <span>Model ready</span> }));
 vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
 beforeEach(() => {
+  // jsdom has no native dialog top layer; browser checks cover focus trapping.
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "sample" }, history: { past: [], future: [], baseline: null } });
 });
@@ -18,6 +21,11 @@ describe("inspector architecture", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Add Object" }));
+    expect(state().document.objects).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Add Object" })).toBeInTheDocument();
+    fireEvent(screen.getByRole("dialog"), new Event("close"));
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
+    await user.click(screen.getByRole("button", { name: "Create Object" }));
     const id = state().editor.selectedObjectId;
     expect(state().document.objects).toHaveLength(2);
     expect(id).not.toBe("sample");
@@ -77,15 +85,36 @@ describe("inspector architecture", () => {
     await user.type(rotation, "180{Enter}");
     expect(state().document.objects[0].transform.rotation[1]).toBe(Math.PI);
   });
-  it("reflects scene selection and handles an empty selection", () => {
+  it("reflects scene selection in the world list and supports keyboard selection and an empty world", async () => {
+    const user = userEvent.setup();
     render(<App />);
     act(() => state().addObject("bollard"));
-    expect(screen.getByLabelText("Object")).toHaveValue(state().editor.selectedObjectId);
+    expect(screen.getByRole("button", { name: "Select Bollard, object 2" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Position (m) Y")).toHaveValue(0);
-    act(() => state().selectObject(null));
+    await user.click(screen.getByRole("button", { name: "Clear selection" }));
     expect(screen.getByText(/No object selected/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Object"), { target: { value: "sample" } });
+    expect(screen.getByRole("button", { name: "Delete Object" })).toBeDisabled();
+    screen.getByRole("button", { name: "Select Bollard, object 1" }).focus();
+    await user.keyboard("{Enter}");
     expect(state().editor.selectedObjectId).toBe("sample");
+    expect(screen.getByRole("button", { name: "Select Bollard, object 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("combobox", { name: "Object" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete Object" }));
+    await user.click(screen.getByRole("button", { name: "Select Bollard, object 1" }));
+    await user.click(screen.getByRole("button", { name: "Delete Object" }));
+    expect(screen.getByText(/No objects in the world/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add Object" }));
+    await user.click(screen.getByRole("button", { name: "Create Object" }));
+    expect(screen.getByRole("button", { name: "Select Bollard, object 1" })).toHaveAttribute("aria-pressed", "true");
+  });
+  it("cancels object creation without changing the scene or history", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Add Object" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(state().document).toEqual(createDocument());
+    expect(state().history.past).toHaveLength(0);
   });
   it("rejects invalid scale and Escape cancels a numeric edit", async () => {
     const user = userEvent.setup();

@@ -27,7 +27,7 @@ The editor uses a developer-defined catalog in `apps/client/src/scene/catalog.ts
    },
    ```
 
-4. Choose **Delivery van** in the catalog and click **Add Object**, or call `useSceneStore.getState().addObject("parked-van")`. Each call creates a separately editable instance with a unique ID and one undo step. Instances start at their definition's default position; move overlapping instances with the inspector.
+4. Click **Add Object** in **World Objects**, choose **Delivery van** in the modal, and click **Create Object**, or call `useSceneStore.getState().addObject("parked-van")`. Each call creates a separately editable instance with a unique ID and one undo step. Instances start at their definition's default position; move overlapping instances with the inspector. The compact World Objects list has a fixed-height scrollable area and shows every instance with a numbered row, highlights the current selection, and supports mouse or keyboard selection. Use **Delete Object** to remove the selected instance or **Clear selection** to deselect it. The Inspector only edits the selected object's properties.
 
 Asset correction is an inner transform, applied before the instance's editable transform. Use it to correct units, orientation, or an inconvenient origin without changing defaults for every instance. For example, `scale: [0.01, 0.01, 0.01]` converts a model authored in centimetres to metres. Positions are metres and rotations are radians. Models are never automatically resized or centred. Different definitions can share an asset while using different default placements.
 

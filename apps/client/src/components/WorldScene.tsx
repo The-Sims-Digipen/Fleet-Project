@@ -24,7 +24,7 @@ export function WorldScene({ cameraReset }: { cameraReset: number }) {
     onPointerDownCapture={(event) => { gesture.current = { x: event.clientX, y: event.clientY, dragged: false, primary: event.button === 0 }; }}
     onPointerMoveCapture={(event) => { if (Math.hypot(event.clientX - gesture.current.x, event.clientY - gesture.current.y) > 4) gesture.current.dragged = true; }}
     onPointerCancelCapture={() => { gesture.current.dragged = true; }}>
-    <p className="sr-only">Interactive 3D world containing catalog models. The Object selector provides keyboard selection.</p>
+    <p className="sr-only">Interactive 3D world containing catalog models. The World Objects list provides keyboard selection.</p>
     <Canvas dpr={[1, 1.5]} camera={{ position: [8, 7, 9], fov: 42, near: 0.1, far: 200 }}
       fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">WebGL is unavailable. The sidebar remains usable.</div>}
       onPointerMissed={() => { if (isClick()) useSceneStore.getState().selectObject(null); }}>
