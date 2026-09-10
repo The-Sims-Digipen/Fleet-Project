@@ -5,11 +5,38 @@ import App from "./App";
 import { createDocument, useSceneStore } from "./state/sceneStore";
 
 vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
-beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "cube" }, history: { past: [], future: [], baseline: null } }));
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+  useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "cube" }, history: { past: [], future: [], baseline: null } });
+});
 afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
+  it("resizes the desktop sidebar with the keyboard and limits its size", () => {
+    render(<App />);
+    const divider = screen.getByRole("separator", { name: "Resize sidebar" });
+    expect(divider).toHaveAttribute("aria-orientation", "vertical");
+    fireEvent.keyDown(divider, { key: "ArrowLeft" });
+    expect(divider).toHaveAttribute("aria-valuetext", "440 pixel sidebar width");
+    fireEvent.keyDown(divider, { key: "Home" });
+    fireEvent.keyDown(divider, { key: "ArrowRight" });
+    expect(divider).toHaveAttribute("aria-valuetext", "280 pixel sidebar width");
+  });
+  it("resizes the mobile bottom panel while reserving space for the world", () => {
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    render(<App />);
+    const divider = screen.getByRole("separator");
+    expect(divider).toHaveAttribute("aria-orientation", "horizontal");
+    fireEvent.keyDown(divider, { key: "ArrowUp" });
+    expect(divider).toHaveAttribute("aria-valuenow", "44");
+    fireEvent.keyDown(divider, { key: "End" });
+    fireEvent.keyDown(divider, { key: "ArrowUp" });
+    expect(divider).toHaveAttribute("aria-valuenow", "70");
+    fireEvent.keyDown(divider, { key: "Home" });
+    fireEvent.keyDown(divider, { key: "ArrowDown" });
+    expect(divider).toHaveAttribute("aria-valuenow", "25");
+  });
   it("edits live, groups typing, converts degrees, and supports undo/redo", async () => {
     const user = userEvent.setup();
     render(<App />);
