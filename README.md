@@ -1,43 +1,20 @@
-# 3D App Starter
+# Fleet Transition Planner
 
-A neutral pnpm monorepo starter. It includes a React, TypeScript, Vite, Tailwind CSS, and React Three Fiber client plus a minimal Fastify and Drizzle server setup.
+A browser-based fleet electrification planning project covering transition schedules, charging strategies, costs, emissions, and depot feasibility.
 
-The starter is a generic scene-editor architecture demo: select a plane or cube in the viewport, edit it through collapsible sidebar modules, and undo or redo changes. It contains no product-specific functionality.
+**Current implementation:** an in-memory 3D scene-editor prototype and basic Fastify API. The product features described in the documentation are the M1–M6 delivery scope.
 
-## Architecture
-
-`src/state/sceneStore.ts` in the client owns three separate concerns: a versioned, JSON-compatible scene document; editor selection; and up to 100 immutable undo snapshots. Three.js objects and camera controls stay in the viewport. State is in memory only and resets on reload.
-
-Both interaction directions share the same actions:
-
-- Inspector → transform/appearance action → document → subscribed scene mesh.
-- Viewport click → selection action → editor selection → inspector and selection outline.
-
-Coordinates use metres, Y-up, and XYZ Euler angles stored in radians; the inspector converts degrees at its boundary. The plane starts as an 8 × 8 XZ surface and the cube has 2 metre sides. Scale is applied to the parent transform, including the plane's Y axis. Objects do not have physics or collision constraints.
-
-### Editing and history
-
-`beginEdit`, `commitEdit`, and `cancelEdit` group continuous changes into one undo step. Number fields preview valid values while typing, commit on blur or Enter, and cancel on Escape. Sliders group pointer drags and held arrow keys; pointer cancellation restores the starting value. Color edits group until the picker loses focus. Presets and checkboxes are discrete edits. Blank or invalid numeric drafts stay local to their control.
-
-Selection, reset actions, panel collapse, and history navigation finish pending edits. Undo includes object properties, lighting, and resets; selection, camera movement, and panel expansion are excluded. New edits discard redo, and no-op edits add no history. Ctrl/Cmd+Z undoes, Ctrl+Y or Ctrl/Cmd+Shift+Z redoes; focused form fields retain native shortcuts.
-
-### Adding a module or object type
-
-Compose another `CollapsibleSection` in `Sidebar`, supplying a title, optional description, `defaultOpen`, and children. Its accessible disclosure preserves mounted child state. Modules with editable controls should pass `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`, passing values, change callbacks, and edit lifecycle callbacks; the controls themselves do not depend on Zustand.
-
-To add an object type, extend `SceneObject.type`, add its initial document data, and render its geometry in `SceneObjectMesh`. Add an instance to the viewport. The inspector already handles the shared transform and appearance fields; add explicit type-specific fields when needed. Use store actions rather than mutating document data or Three.js meshes directly. Keep future saved document data separate from editor preferences and runtime refs.
-
-The Debug module exposes the document without editing it. Persistence, gizmos, object creation, and backend integration are intentionally future additions. DOM tests verify controls and state; real-browser checks are required for picking, orbiting, outlines, and WebGL rendering.
+Project documentation is indexed in [docs/README.md](docs/README.md).
 
 ## Prerequisites
 
 Required:
 
-- [Node.js 22 or newer](https://nodejs.org/en/download) (install an LTS release).
-- pnpm. After installing Node.js, install pnpm with:
+- [Node.js](https://nodejs.org/en/download). The local verification environment uses Node.js 26.5.0; other versions are not established by this setup.
+- pnpm **11.24.0**, pinned in `package.json`. After installing Node.js, install the matching version with:
 
   ```bash
-  npx get-pnpm
+  npm install --global pnpm@11.24.0
   ```
 
 - [Git](https://git-scm.com/downloads), if you need to clone the repository.
@@ -50,15 +27,39 @@ node --version
 pnpm --version
 ```
 
-The Node.js version should be 22 or newer and the pnpm version should be 11.24.0 or newer. Also ensure ports `5173` and `3001` are available for the development servers.
+Ensure pnpm reports `11.24.0` and ports `5173` and `3001` are available for the development servers.
+
+Required development/build targets are Ubuntu 24.04, macOS Tahoe, and Windows 11. Server deployment and testing must at minimum support Ubuntu 24.04. The verified local environment is listed below. The commands below work in PowerShell and POSIX shells unless labeled otherwise.
 
 ## Development
 
-Install dependencies:
+Clone the repository and install locked dependencies:
 
 ```bash
-pnpm install
+git clone https://github.com/The-Sims-Digipen/Fleet-Project.git
+cd Fleet-Project
+pnpm install --frozen-lockfile
 ```
+
+### Environment configuration
+
+The current demo runs without a database or `.env` file and defaults to API port `3001`. For local overrides, copy the server template:
+
+PowerShell (Windows):
+
+```powershell
+Copy-Item apps/server/.env.example apps/server/.env
+```
+
+Ubuntu/macOS:
+
+```bash
+cp apps/server/.env.example apps/server/.env
+```
+
+Edit `PORT` in `apps/server/.env` to change the API port. The current prototype does not use a database. Drizzle commands require a configured `DATABASE_URL` and an accessible PostgreSQL database; the example URL does not create one. Local environment files and credentials are excluded from version control.
+
+### Run and verify
 
 Start the client and server:
 
@@ -75,6 +76,10 @@ Run verification:
 ```bash
 pnpm verify
 ```
+
+This runs type checking, Vitest tests, and both production builds. Individual checks are available as `pnpm typecheck`, `pnpm test`, and `pnpm build`; start either application separately with `pnpm dev:client` or `pnpm dev:server`. Browser interaction and WebGL rendering still require real-browser checks.
+
+Initial setup verification on 2026-09-10 in the local Windows environment (Node.js 26.5.0, pnpm 11.24.0): `pnpm verify` passed type checking, all 13 tests, and both production builds. Vite reported a non-failing warning for the large 3D scene chunk. Ubuntu/macOS builds, clean-environment installation, deployment, and browser visual checks were not performed in this verification.
 
 ## Production
 

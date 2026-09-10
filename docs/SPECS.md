@@ -2,18 +2,18 @@
 
 ## Purpose and scope
 
-Help fleet operators decide which vehicles and routes to electrify first, when to transition them, and how those choices affect whole-fleet cost and emissions. Build a useful decision-support product with a reusable foundation for a future ChargedUp Nexus module.
+Help fleet operators decide which vehicles and routes to electrify first, when to transition them, and how those choices affect whole-fleet cost and emissions. Provide a decision-support product with clear, reusable calculation components.
 
 A fleet of 100 vans with different ages and daily distances is an illustrative scenario, not a fixed fleet size or vehicle-type restriction. Vehicle utilisation, replacement timing and charging access can make different transition choices appropriate for different vehicles.
 
-This specification combines the two project briefs; final MVP scope remains subject to DigiPen and ChargedUp approval.
+This specification combines the two project briefs. The [feature inventory](features.md) defines the M1–M6 scope.
 
 ## Platform and simulation
 
 - Run as a normal browser-based application, not a downloaded application or a Unity/Unreal project.
 - Clearly label the experience as a simulation. Use realistic synthetic or historical data unless ChargedUp approves other data.
 - Include a custom-built scenario engine that immediately recalculates fleet costs, payback, emissions and transition priority when vehicle selections, transition years, charging strategies or assumptions change.
-- Start with manageable inputs and allow richer data later. Keep important assumptions visible and editable, with explanations of why results change and which factors drive recommendations.
+- Use clearly defined fleet, economic, and charging inputs. Keep important assumptions visible and editable, with explanations of why results change and which factors drive recommendations.
 - Keep calculations and interactions responsive under repeated changes. Charts and comparisons must be understandable and trustworthy to a non-technical professional; results are indicative, without claiming engineering precision.
 
 ## Fleet and transition planning
@@ -50,11 +50,11 @@ Recalculate and present these outputs for each scenario:
 - Number and type of vehicles transitioned each year and a visual roadmap of vehicles/groups in each phase.
 - Indicative depot charging infrastructure requirements and costs, external charging costs, and the depot/external charging mix.
 - Estimated fuel displaced, electricity consumed and emissions reduction against the ICE baseline.
-- Vehicle/route suitability ranking and explanations of which assumptions most affect the result. Include basic assumption-impact visibility; advanced sensitivity analysis is optional.
+- Vehicle/route suitability ranking and explanations of which assumptions most affect the result. Include basic assumption-impact visibility; advanced sensitivity analysis is outside M1–M6 scope.
 
 ## Boundaries and acceptance scenarios
 
-Keep the first version focused on scenario flexibility. Advanced sensitivity/uncertainty analysis and regional parameters are optional. Do not attempt exhaustive tax, subsidy, financing or route-detail models. Project 2 route optimisation and Project 3 citywide energy simulation are outside scope.
+Keep the first version focused on scenario flexibility. Advanced sensitivity/uncertainty analysis and regional presets are outside M1–M6 scope. Do not attempt exhaustive tax, subsidy, financing or route-detail models. Project 2 route optimisation and Project 3 citywide energy simulation are outside scope.
 
 The application must support these acceptance scenarios:
 
