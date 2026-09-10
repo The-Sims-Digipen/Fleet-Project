@@ -1,6 +1,6 @@
 # Domain and local API contracts
 
-Target contracts for T004, T008, T017, T028, and T050 in the [weekly plan](weekly-plan.md). These are not existing exported types or endpoints. Implement runtime Zod schemas first and infer the TypeScript types. All persisted numbers must be finite; JSON must contain no runtime objects, functions, NaN, or Infinity.
+Target contracts for T004, T008, T017, T028, and T050 in the [weekly plan](../weekly-plan.md). These are not existing exported types or endpoints. Implement runtime Zod schemas first and infer the TypeScript types. All persisted numbers must be finite; JSON must contain no runtime objects, functions, NaN, or Infinity.
 
 ## Shared document types
 
@@ -89,7 +89,7 @@ A scenario's own chargers are its infrastructure inventory, including when exter
 - A project contains at least one scenario. Disable deleting the last scenario. Duplicating a scenario generates a new scenario ID and deep-copies schedules/layouts; object IDs may remain the same inside the new scenario namespace. Fleet IDs remain common.
 - Removing a vehicle lists and confirms the removal of its schedules and assignments in every scenario. Removing a bay lists and confirms its assignments becoming unassigned. Do not leave dangling references.
 - Structurally invalid inputs or references prevent saving and calculation. Blank/nonnumeric form drafts stay outside the domain document. Geometric infeasibility is different: a finite structurally representable self-intersecting polygon or overlap can be saved, with derived issues; do not certify it as valid or invent a corrected polygon.
-- A site/obstacle ring has at least three finite vertices and does not repeat the closing vertex. Invalid rings never enter the mesh triangulator. Authoring vertices not yet forming a ring are transient and cannot be saved until committed/canceled. Geometry rules are in the [editor specification](design/depot-editor.md).
+- A site/obstacle ring has at least three finite vertices and does not repeat the closing vertex. Invalid rings never enter the mesh triangulator. Authoring vertices not yet forming a ring are transient and cannot be saved until committed/canceled. Geometry rules are in the [editor specification](depot-editor.md).
 
 Analysis and fleet economics are common to all scenarios. Editing fuel prices, emissions factors, or a vehicle affects both comparison plans and their baseline. Depot/external electricity tariffs, charging mix, and infrastructure costs are scenario-specific. UI labels must state the scope before an edit.
 

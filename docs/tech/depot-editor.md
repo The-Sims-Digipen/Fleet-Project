@@ -1,6 +1,6 @@
 # Freeform depot editor specification
 
-Owners: Tan Wei Jun (viewport), Chew Shee Yang (geometry/history), Dayton Ng Zhi Jie (panels), Jarrel Tay Wee Han (assets), Yap Zhi Kai (bay assignments). Covers DE-01–DE-07, FL-05, VI-01/02, and CH-07. See [contracts](../contracts.md) for the persisted shapes.
+Owners: Tan Wei Jun (viewport), Chew Shee Yang (geometry/history), Dayton Ng Zhi Jie (panels), Jarrel Tay Wee Han (assets), Yap Zhi Kai (bay assignments). Covers DE-01–DE-07, FL-05, VI-01/02, and CH-07. See [contracts](contracts.md) for the persisted shapes.
 
 ## Geometry and coordinate conventions
 
@@ -39,7 +39,7 @@ Boundary contact is allowed within epsilon. Positive-area overlaps between bays,
 | FOOTPRINT_OVERLAP | Highlight both object IDs and name the conflict |
 | UNASSIGNED_VEHICLE | Show vehicle in the unassigned list; do not place it in a fabricated bay |
 
-Geometry-invalid but structurally representable documents can be saved so users can return to repair them. Finite coordinates/minimum vertex counts still apply. Invalid layouts never become a “feasible” result, but planned numeric costs/charger inventory remain available with the warning described in [simulation](../simulation.md). Do not remove an overlapping charger from CAPEX or silently recalculate it as nonexistent.
+Geometry-invalid but structurally representable documents can be saved so users can return to repair them. Finite coordinates/minimum vertex counts still apply. Invalid layouts never become a “feasible” result, but planned numeric costs/charger inventory remain available with the warning described in [simulation](simulation.md). Do not remove an overlapping charger from CAPEX or silently recalculate it as nonexistent.
 
 ## Rendering and persistence
 
@@ -47,4 +47,4 @@ Mesh bounds/footprints agree with persisted metre dimensions. Use visible ICE/EV
 
 Each scenario saves its own layout and assignments. Duplicate scenario deep-copies the layout, preserving internal references within the new namespace. Save inputs only, not meshes or undo stacks. Comparison views read independent snapshots and must not share mutable geometry objects.
 
-Required checks include concave boundaries, bow-tie polygons, repeated/collinear vertices, edge contact, containment crossing, rotated rectangles, overlap pairs, assignment removal, and undo/redo across deletion. See [verification](../verification.md) for acceptance IDs and deadlines.
+Required checks include concave boundaries, bow-tie polygons, repeated/collinear vertices, edge contact, containment crossing, rotated rectangles, overlap pairs, assignment removal, and undo/redo across deletion. See [verification](verification.md) for acceptance IDs and deadlines.

@@ -38,7 +38,7 @@ The five source acceptance scenarios retain their meaning:
 4. **AT04:** change fuel/electricity prices by plus/minus 20%; recalculate and explain the changed economics without silently altering the transition schedule.
 5. **AT05:** change charger quantities/years; update costs, visibility, space feedback, and red/text overload warnings.
 
-Additional acceptance cases and evidence expectations are defined in the [verification plan](verification.md).
+Additional acceptance cases and evidence expectations are defined in the [verification plan](tech/verification.md).
 
 ## Boundaries
 
@@ -52,4 +52,4 @@ M1: 4 October 2026, 23:59; M2: 8 November 2026, 23:59; M3: 30 November 2026, cut
 
 - [Detailed project brief: Theme 1 and shared requirements](docx/DigiPen_Upsight_Detailed_Project_1-3.docx)
 - [Industry invitation: Project 1 and shared browser/3D requirements](pdf/Industry_Project_Opportunities_Student_Invitation.pdf)
-- [Architecture](architecture.md), [product design](design/product-design.md), and [ownership](deliverables.md)
+- [Architecture](tech/architecture.md), [product design](design/product-design.md), and [ownership](deliverables.md)

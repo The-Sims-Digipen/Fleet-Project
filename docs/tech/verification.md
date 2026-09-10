@@ -1,6 +1,6 @@
 # Verification and acceptance plan
 
-This specifies required evidence for the target application; it does not report product tests as passing. Existing starter test evidence remains in the root README. The [weekly plan](weekly-plan.md) defines owners and deadlines, and the feature matrix below ensures all 55 committed features have an acceptance route.
+This specifies required evidence for the target application; it does not report product tests as passing. Existing starter test evidence remains in the root README. The [weekly plan](../weekly-plan.md) defines owners and deadlines, and the feature matrix below ensures all 55 committed features have an acceptance route.
 
 ## Acceptance scenarios
 
@@ -43,7 +43,7 @@ T063 confirms access to the reference hardware and feasibility of these initial 
 
 ## Milestone gates and evidence
 
-M1 proves the sample-to-result-to-scene slice. M2 adds fleet editing, financial/emissions results, and reliable persistence. M3 proves charging and two-plan comparison. M4 proves freeform editing/history/layout persistence. M5 completes the feature inventory and performance/usability work. M6 runs final acceptance/platform evidence and handover. Exact dates and provisional relative weeks remain solely in the [weekly plan](weekly-plan.md).
+M1 proves the sample-to-result-to-scene slice. M2 adds fleet editing, financial/emissions results, and reliable persistence. M3 proves charging and two-plan comparison. M4 proves freeform editing/history/layout persistence. M5 completes the feature inventory and performance/usability work. M6 runs final acceptance/platform evidence and handover. Exact dates and provisional relative weeks remain solely in the [weekly plan](../weekly-plan.md).
 
 For each review, store a dated record containing commit ID, environment, input fixture version, acceptance IDs, expected/actual results, failures with owner/task, and links to screenshots/test output. A requirement passes only when all its associated checks pass in the integrated build. Do not invent review findings. The final T074 feature audit and T084 acceptance review must identify every remaining failure explicitly.
 
@@ -53,58 +53,58 @@ The matrix names the primary integration task; earlier foundation tasks and late
 
 | Feature | Primary task / accountable owner | Integration milestone | Acceptance |
 |---|---|---|---|
-| [SC-01 — Start a project](features.md#sc-01) | T025 / Dayton | M2 | AT01, AT06 |
-| [SC-02 — Manage scenarios](features.md#sc-02) | T025 / Dayton | M2 | AT06 |
-| [SC-03 — Save and reopen](features.md#sc-03) | T050 / Brandon | M4 | AT07, AT09 |
-| [SC-04 — Reliable editing](features.md#sc-04) | T058 / Brandon | M4 | AT07, AT13 |
-| [FL-01 — Fleet list](features.md#fl-01) | T020 / Dayton | M2 | AT01, AT02 |
-| [FL-02 — Operational attributes](features.md#fl-02) | T020 / Dayton | M2 | AT01, AT13 |
-| [FL-03 — Selection and grouping](features.md#fl-03) | T021 / Zhi Kai | M2 | AT02 |
-| [FL-04 — ICE and EV assumptions](features.md#fl-04) | T020 / Dayton | M2 | AT11 |
-| [FL-05 — Depot assignment](features.md#fl-05) | T056 / Dayton | M4 | AT09 |
-| [TR-01 — Assign transition years](features.md#tr-01) | T021 / Zhi Kai | M2 | AT01, AT02 |
-| [TR-02 — Partial and staged adoption](features.md#tr-02) | T027 / Zhi Kai | M2 | AT02 |
-| [TR-03 — Annual roadmap](features.md#tr-03) | T029 / Dayton | M2 | AT01, AT02 |
-| [TR-04 — Year navigation](features.md#tr-04) | T012 / Dayton | M1 | AT01, AT10 |
-| [DE-01 — Site boundary](features.md#de-01) | T051 / Wei Jun | M4 | AT08 |
-| [DE-02 — Obstacles](features.md#de-02) | T051 / Wei Jun | M4 | AT08 |
-| [DE-03 — Layout objects](features.md#de-03) | T054 / Wei Jun | M4 | AT09 |
-| [DE-04 — Precise placement](features.md#de-04) | T054 / Wei Jun | M4 | AT09, AT13 |
-| [DE-05 — Geometry feedback](features.md#de-05) | T056 / Dayton | M4 | AT08, AT09 |
-| [DE-06 — Edit recovery](features.md#de-06) | T057 / Wei Jun | M4 | AT09 |
-| [DE-07 — Scenario layouts](features.md#de-07) | T058 / Brandon | M4 | AT07, AT09 |
-| [VI-01 — Depot scene](features.md#vi-01) | T068 / Jarrel | M5 | AT05, AT09, AT16 |
-| [VI-02 — Camera and selection](features.md#vi-02) | T073 / Wei Jun | M5 | AT09, AT14 |
-| [VI-03 — Scenario-driven changes](features.md#vi-03) | T040 / Wei Jun | M3 | AT01, AT05 |
-| [VI-04 — Feasibility overlay](features.md#vi-04) | T067 / Wei Jun | M5 | AT05, AT09 |
-| [VI-05 — Comparison scenes](features.md#vi-05) | T057 / Wei Jun | M4 | AT09, AT10 |
-| [CH-01 — Strategy selection](features.md#ch-01) | T039 / Dayton | M3 | AT03 |
-| [CH-02 — Charger configuration](features.md#ch-02) | T039 / Dayton | M3 | AT03, AT05 |
-| [CH-03 — Charging prices](features.md#ch-03) | T039 / Dayton | M3 | AT03, AT04 |
-| [CH-04 — Energy requirements](features.md#ch-04) | T041 / Elijah | M3 | AT03, AT11 |
-| [CH-05 — Power constraints](features.md#ch-05) | T040 / Wei Jun | M3 | AT05 |
-| [CH-06 — Operational constraints](features.md#ch-06) | T069 / Dayton | M5 | AT05 |
-| [CH-07 — Space constraints](features.md#ch-07) | T069 / Dayton | M5 | AT08, AT09 |
-| [FI-01 — Editable assumptions](features.md#fi-01) | T020 / Dayton | M2 | AT04, AT11 |
-| [FI-02 — ICE baseline](features.md#fi-02) | T033 / Elijah | M2 | AT11 |
-| [FI-03 — Cost results](features.md#fi-03) | T033 / Elijah | M2 | AT01, AT11 |
-| [FI-04 — Cost breakdown](features.md#fi-04) | T036 / Elijah | M3 | AT03, AT11 |
-| [FI-05 — Payback](features.md#fi-05) | T033 / Elijah | M2 | AT11 |
-| [FI-06 — Immediate recalculation](features.md#fi-06) | T070 / Shee Yang | M5 | AT04, AT14 |
-| [EM-01 — Energy totals](features.md#em-01) | T029 / Dayton | M2 | AT03, AT11 |
-| [EM-02 — Emissions comparison](features.md#em-02) | T033 / Elijah | M2 | AT11 |
-| [EM-03 — Explain boundaries](features.md#em-03) | T029 / Dayton | M2 | AT11, AT13 |
-| [SU-01 — Transition ranking](features.md#su-01) | T069 / Dayton | M5 | AT12 |
-| [SU-02 — Explain recommendations](features.md#su-02) | T069 / Dayton | M5 | AT12 |
-| [SU-03 — Assumption impact](features.md#su-03) | T069 / Dayton | M5 | AT04, AT12 |
-| [CO-01 — Choose two plans](features.md#co-01) | T039 / Dayton | M3 | AT06, AT10 |
-| [CO-02 — Compare outcomes](features.md#co-02) | T069 / Dayton | M5 | AT03, AT10 |
-| [CO-03 — Readable charts](features.md#co-03) | T042 / Dayton | M3 | AT10, AT13 |
-| [CO-04 — Inspect the same year](features.md#co-04) | T043 / Wei Jun | M3 | AT10 |
-| [QU-01 — Accessible controls](features.md#qu-01) | T086 / Dayton | M6 | AT13 |
-| [QU-02 — Safe input handling](features.md#qu-02) | T086 / Dayton | M6 | AT07, AT13 |
-| [QU-03 — Transparent simulation](features.md#qu-03) | T084 / Ming Thong | M6 | AT11, AT13, AT16 |
-| [QU-04 — Responsive interaction](features.md#qu-04) | T073 / Wei Jun | M5 | AT14 |
-| [QU-05 — Verified results](features.md#qu-05) | T087 / Shee Yang | M6 | AT01–AT16 |
-| [QU-06 — Reproducible local app](features.md#qu-06) | T083 / Shee Yang | M6 | AT15 |
-| [QU-07 — Team delivery](features.md#qu-07) | T088 / Ming Thong | M6 | AT16 |
+| [SC-01 — Start a project](../features.md#sc-01) | T025 / Dayton | M2 | AT01, AT06 |
+| [SC-02 — Manage scenarios](../features.md#sc-02) | T025 / Dayton | M2 | AT06 |
+| [SC-03 — Save and reopen](../features.md#sc-03) | T050 / Brandon | M4 | AT07, AT09 |
+| [SC-04 — Reliable editing](../features.md#sc-04) | T058 / Brandon | M4 | AT07, AT13 |
+| [FL-01 — Fleet list](../features.md#fl-01) | T020 / Dayton | M2 | AT01, AT02 |
+| [FL-02 — Operational attributes](../features.md#fl-02) | T020 / Dayton | M2 | AT01, AT13 |
+| [FL-03 — Selection and grouping](../features.md#fl-03) | T021 / Zhi Kai | M2 | AT02 |
+| [FL-04 — ICE and EV assumptions](../features.md#fl-04) | T020 / Dayton | M2 | AT11 |
+| [FL-05 — Depot assignment](../features.md#fl-05) | T056 / Dayton | M4 | AT09 |
+| [TR-01 — Assign transition years](../features.md#tr-01) | T021 / Zhi Kai | M2 | AT01, AT02 |
+| [TR-02 — Partial and staged adoption](../features.md#tr-02) | T027 / Zhi Kai | M2 | AT02 |
+| [TR-03 — Annual roadmap](../features.md#tr-03) | T029 / Dayton | M2 | AT01, AT02 |
+| [TR-04 — Year navigation](../features.md#tr-04) | T012 / Dayton | M1 | AT01, AT10 |
+| [DE-01 — Site boundary](../features.md#de-01) | T051 / Wei Jun | M4 | AT08 |
+| [DE-02 — Obstacles](../features.md#de-02) | T051 / Wei Jun | M4 | AT08 |
+| [DE-03 — Layout objects](../features.md#de-03) | T054 / Wei Jun | M4 | AT09 |
+| [DE-04 — Precise placement](../features.md#de-04) | T054 / Wei Jun | M4 | AT09, AT13 |
+| [DE-05 — Geometry feedback](../features.md#de-05) | T056 / Dayton | M4 | AT08, AT09 |
+| [DE-06 — Edit recovery](../features.md#de-06) | T057 / Wei Jun | M4 | AT09 |
+| [DE-07 — Scenario layouts](../features.md#de-07) | T058 / Brandon | M4 | AT07, AT09 |
+| [VI-01 — Depot scene](../features.md#vi-01) | T068 / Jarrel | M5 | AT05, AT09, AT16 |
+| [VI-02 — Camera and selection](../features.md#vi-02) | T073 / Wei Jun | M5 | AT09, AT14 |
+| [VI-03 — Scenario-driven changes](../features.md#vi-03) | T040 / Wei Jun | M3 | AT01, AT05 |
+| [VI-04 — Feasibility overlay](../features.md#vi-04) | T067 / Wei Jun | M5 | AT05, AT09 |
+| [VI-05 — Comparison scenes](../features.md#vi-05) | T057 / Wei Jun | M4 | AT09, AT10 |
+| [CH-01 — Strategy selection](../features.md#ch-01) | T039 / Dayton | M3 | AT03 |
+| [CH-02 — Charger configuration](../features.md#ch-02) | T039 / Dayton | M3 | AT03, AT05 |
+| [CH-03 — Charging prices](../features.md#ch-03) | T039 / Dayton | M3 | AT03, AT04 |
+| [CH-04 — Energy requirements](../features.md#ch-04) | T041 / Elijah | M3 | AT03, AT11 |
+| [CH-05 — Power constraints](../features.md#ch-05) | T040 / Wei Jun | M3 | AT05 |
+| [CH-06 — Operational constraints](../features.md#ch-06) | T069 / Dayton | M5 | AT05 |
+| [CH-07 — Space constraints](../features.md#ch-07) | T069 / Dayton | M5 | AT08, AT09 |
+| [FI-01 — Editable assumptions](../features.md#fi-01) | T020 / Dayton | M2 | AT04, AT11 |
+| [FI-02 — ICE baseline](../features.md#fi-02) | T033 / Elijah | M2 | AT11 |
+| [FI-03 — Cost results](../features.md#fi-03) | T033 / Elijah | M2 | AT01, AT11 |
+| [FI-04 — Cost breakdown](../features.md#fi-04) | T036 / Elijah | M3 | AT03, AT11 |
+| [FI-05 — Payback](../features.md#fi-05) | T033 / Elijah | M2 | AT11 |
+| [FI-06 — Immediate recalculation](../features.md#fi-06) | T070 / Shee Yang | M5 | AT04, AT14 |
+| [EM-01 — Energy totals](../features.md#em-01) | T029 / Dayton | M2 | AT03, AT11 |
+| [EM-02 — Emissions comparison](../features.md#em-02) | T033 / Elijah | M2 | AT11 |
+| [EM-03 — Explain boundaries](../features.md#em-03) | T029 / Dayton | M2 | AT11, AT13 |
+| [SU-01 — Transition ranking](../features.md#su-01) | T069 / Dayton | M5 | AT12 |
+| [SU-02 — Explain recommendations](../features.md#su-02) | T069 / Dayton | M5 | AT12 |
+| [SU-03 — Assumption impact](../features.md#su-03) | T069 / Dayton | M5 | AT04, AT12 |
+| [CO-01 — Choose two plans](../features.md#co-01) | T039 / Dayton | M3 | AT06, AT10 |
+| [CO-02 — Compare outcomes](../features.md#co-02) | T069 / Dayton | M5 | AT03, AT10 |
+| [CO-03 — Readable charts](../features.md#co-03) | T042 / Dayton | M3 | AT10, AT13 |
+| [CO-04 — Inspect the same year](../features.md#co-04) | T043 / Wei Jun | M3 | AT10 |
+| [QU-01 — Accessible controls](../features.md#qu-01) | T086 / Dayton | M6 | AT13 |
+| [QU-02 — Safe input handling](../features.md#qu-02) | T086 / Dayton | M6 | AT07, AT13 |
+| [QU-03 — Transparent simulation](../features.md#qu-03) | T084 / Ming Thong | M6 | AT11, AT13, AT16 |
+| [QU-04 — Responsive interaction](../features.md#qu-04) | T073 / Wei Jun | M5 | AT14 |
+| [QU-05 — Verified results](../features.md#qu-05) | T087 / Shee Yang | M6 | AT01–AT16 |
+| [QU-06 — Reproducible local app](../features.md#qu-06) | T083 / Shee Yang | M6 | AT15 |
+| [QU-07 — Team delivery](../features.md#qu-07) | T088 / Ming Thong | M6 | AT16 |

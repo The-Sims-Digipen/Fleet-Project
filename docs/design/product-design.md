@@ -34,7 +34,7 @@ flowchart TD
 
 ### Start and fleet setup
 
-New project creates an empty fleet, one scenario named Plan A, and a 40 m × 30 m rectangular site that can be freely edited. The default analysis starts in 2026 for four years, currency SGD. Do not seed unverified market assumptions as authoritative values: the sample project uses explicitly labeled synthetic values from the [calculation fixtures](../simulation.md#synthetic-worked-fixtures), while blank required economic fields in a newly added vehicle require entry before commitment.
+New project creates an empty fleet, one scenario named Plan A, and a 40 m × 30 m rectangular site that can be freely edited. The default analysis starts in 2026 for four years, currency SGD. Do not seed unverified market assumptions as authoritative values: the sample project uses explicitly labeled synthetic values from the [calculation fixtures](../tech/simulation.md#synthetic-worked-fixtures), while blank required economic fields in a newly added vehicle require entry before commitment.
 
 Open sample creates a new unsaved project rather than modifying a shared saved sample. Use the F01 vehicle as the initial economics demonstration and the F03 two-vehicle sample as a charging constraint example; name them so the expected purpose is clear. Include required access/range/operation attributes with the dataset and document them. Selection does not edit data.
 
@@ -54,7 +54,7 @@ The charging panel selects Depot, External, or Mixed. Depot forces share 100%; E
 
 Each charger has a visible installation year and power. Selecting a year before installation shows the planned charger as a dashed/ghost object only in Depot authoring mode, labeled “Not installed this year”; Plan/Compare render installed infrastructure only. Show financial and feasibility consequences even when a financially cheap plan is operationally constrained.
 
-Full editing behavior is in [depot editor](depot-editor.md). In Plan view, clicking a mesh selects the corresponding fleet/object row; clicking a row frames/highlights that item without changing the schedule.
+Full editing behavior is in [depot editor](../tech/depot-editor.md). In Plan view, clicking a mesh selects the corresponding fleet/object row; clicking a row frames/highlights that item without changing the schedule.
 
 ### Results and comparisons
 

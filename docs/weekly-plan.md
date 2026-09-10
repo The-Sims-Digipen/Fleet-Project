@@ -2,7 +2,7 @@
 
 This is the working task schedule for all 55 committed features in the [feature inventory](features.md). It replaces the initial three-milestone schedule. Tasks are planned, not completed; prerequisite IDs identify dependencies, not verified current failures. Document task IDs are not Jira issue keys.
 
-Implementation specifications: [contracts](contracts.md), [calculations](simulation.md), [editor behavior](design/depot-editor.md), [acceptance criteria](verification.md), and [engineering workflow](engineering-workflow.md). These define the engineering baseline; writing the specifications does not complete the implementation/review tasks below.
+Implementation specifications: [contracts](tech/contracts.md), [calculations](tech/simulation.md), [editor behavior](tech/depot-editor.md), and [acceptance criteria](tech/verification.md). These define the engineering baseline; writing the specifications does not complete the implementation/review tasks below.
 
 ## Scheduling assumptions
 

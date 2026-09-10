@@ -1,6 +1,6 @@
 # System architecture
 
-This document specifies the target implementation for the [product definition](proposal.md). Contracts and behaviors below are engineering decisions for implementation; they are not implemented merely because they are documented. Feature scope and schedule remain in [features](features.md) and the [weekly plan](weekly-plan.md).
+This document specifies the target implementation for the [product definition](../proposal.md). Contracts and behaviors below are engineering decisions for implementation; they are not implemented merely because they are documented. Feature scope and schedule remain in [features](../features.md) and the [weekly plan](../weekly-plan.md).
 
 ## Current implementation
 
@@ -73,7 +73,7 @@ Results are derived, not saved. Persist inputs and version information; rebuild 
 
 The existing `sceneStore.ts` owns a versioned scene document, selection, and up to 100 immutable undo snapshots. Three.js objects and camera controls remain runtime references in the viewport. Coordinates use metres, Y-up, and XYZ Euler angles in radians, with degree conversion in the inspector. The plane is an 8 × 8 XZ surface; the cube has 2 metre sides. State resets on reload and objects have no physical constraints.
 
-Reuse the existing `beginEdit`/`commitEdit`/`cancelEdit` conventions for target layout gestures. Target undo stores document changes but excludes camera, selected year, save revision, and query state. Saving does not clear history; loading/replacing a project does. See [editing/history](editing-and-history.md), [extension guidance](extending-the-editor.md), and the [target editor specification](design/depot-editor.md).
+Reuse the existing `beginEdit`/`commitEdit`/`cancelEdit` conventions for target layout gestures. Target undo stores document changes but excludes camera, selected year, save revision, and query state. Saving does not clear history; loading/replacing a project does. See [editing/history](editing-and-history.md), [extension guidance](extending-the-editor.md), and the [target editor specification](depot-editor.md).
 
 ## Persistence and interfaces
 
@@ -83,6 +83,6 @@ No authentication, multi-user permissions, realtime collaboration, or public ser
 
 ## Quality and delivery
 
-[Calculation rules](simulation.md) define deterministic outputs and numerical fixtures. [Product design](design/product-design.md) and [wireframes](design/ui-ux/wireframes.md) define user behavior. [Verification](verification.md) provides all feature-to-test mappings, workloads, and milestone gates. [Engineering workflow](engineering-workflow.md) specifies local setup, CI, PRs, migrations, and evidence.
+[Calculation rules](simulation.md) define deterministic outputs and numerical fixtures. [Product design](../design/product-design.md) and [wireframes](../design/ui-ux/wireframes.md) define user behavior. [Verification](verification.md) provides all feature-to-test mappings, workloads, and milestone gates. [Deliverables](../deliverables.md) records delivery ownership, milestone gates, and the Jira/PR workflow.
 
 Ubuntu 24.04, macOS Tahoe, and Windows 11 are required development/build targets. Server execution/testing on Ubuntu 24.04 is required; a local demonstration is the delivery target. M6 closes acceptance. No cloud deployment or account setup is introduced by this design.
