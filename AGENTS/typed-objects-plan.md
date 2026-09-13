@@ -74,7 +74,7 @@ Three.js objects, loaded textures, Files, Blob URLs, and loading state never bel
 
 - Add vehicle, charger, bay, and obstacle types using the existing project/scenario contracts as those features are built.
 - A model is presentation, not domain identity. Different vehicle models may use the same vehicle kind; a charger remains a charger when its model changes.
-- Derive year-dependent visibility and ICE/EV presentation from scenario inputs. Do not replace persisted objects merely because the selected year changes.
+- Derive year-dependent visibility and vehicle-preset presentation from scenario inputs. Do not replace persisted objects merely because the selected year changes.
 - Permit procedural visuals for authored site polygons and footprints. They are domain geometry, not fixed demo objects.
 - Keep geometry validation and financial calculations independent of the renderer and asset loader. Model-load failure must not erase a planned charger from cost calculations.
 
@@ -100,4 +100,4 @@ Keep the work within the current client initially. Add a shared package when the
 - Use small checked-in GLB fixtures with documented reuse rights; include a nested/multi-material model and a skinned fixture if skinned assets are accepted.
 - Run the repository's type checks, relevant automated tests, and production build. DOM tests alone do not validate WebGL rendering.
 
-Related design: [data contracts](contracts.md), [depot editor](depot-editor.md), [architecture](architecture.md), and [current extension guide](extending-the-editor.md).
+Related design: [data contracts](../docs/tech/contracts.md), [depot editor](../docs/tech/depot-editor.md), [architecture](../docs/tech/architecture.md), and [current extension guide](../docs/tech/extending-the-editor.md).

@@ -6,15 +6,15 @@ Model: `annual-v1`. Owner: Elijah Chua Jye Kang; vehicle suitability: Yap Zhi Ka
 
 - Model whole calendar years from `startYear` through `startYear + years - 1`. Transition, replacement, and charger installation occur at the start of their chosen year; annual operation follows; terminal residual credits occur after the final year's operation.
 - Use km, litres, kWh, kW, hours, kgCO2e, and one project currency. Prices and efficiencies are constant in real nominal input units across the horizon: no inflation, discounting, tax, subsidy, interest, or battery degradation. All comparisons use the project currency.
-- Each vehicle has constant annual distance/maintenance assumptions while using each technology. `utilisation` informs ranking; it does not multiply annualKm again. typicalDailyKm and operatingDays inform charging checks; flag a material mismatch with annualKm rather than silently replacing either input.
-- One scheduled ICE replacement and one optional EV transition are modeled per vehicle. The selected asset is retained through the horizon; no automatic second replacement is inferred. Display this limitation for long horizons. Baseline replacementYear is independent of scenario transition year.
-- Operational emissions include ICE fuel use and electricity supplied to charging, using user factors. Vehicle/battery manufacturing, embodied charger emissions, and disposal emissions are excluded. Grid factors are identical for depot and external charging in this version.
+- Each vehicle has constant annual-distance/operational assumptions; maintenance and energy behavior come from the active vehicle preset. `utilisation` informs ranking; it does not multiply annualKm again. typicalDailyKm and operatingDays inform charging checks; flag a material mismatch with annualKm rather than silently replacing either input.
+- One baseline replacement using the vehicle's current preset and one optional scenario transition to a user-selected target preset are modeled per vehicle. The active preset after acquisition/transition is retained through the horizon; no automatic second scenario transition is inferred. Display this limitation for long horizons. baseline replacementYear is independent of scenario transition year.
+- Operational emissions include the active preset's supported fuel/electric energy use using user factors. Vehicle/battery manufacturing, embodied charger emissions, and disposal emissions are excluded. Grid factors are identical for depot and external charging in this version.
 
 ## Annual fleet state and baseline
 
-A missing transition entry means ICE for the entire horizon. For a transition at t, a vehicle is ICE for years < t and EV for years >= t. Count a transition only in t. Each scenario uses the same project fleet and analysis settings for its ICE baseline.
+A missing transition entry means the vehicle keeps its current preset for the entire horizon, subject only to its baseline replacement assumption. For a transition at t, the active preset is the current preset for years < t and the scenario's selected target preset for years >= t. Count a transition only in t. Each scenario uses the same project fleet and analysis settings for its no-transition/current-fleet baseline.
 
-In the baseline, acquire a replacement ICE at replacementYear r, if set. In the scenario: if t <= r, skip that ICE replacement and acquire the EV at t; if r < t, acquire the replacement ICE at r and later replace it with the EV at t. If no t exists, follow baseline replacement behavior. Exactly one vehicle exists per fleet ID in each year; purchasing does not add to fleet count.
+In the baseline, acquire a replacement using the current preset at replacementYear r, if set. In the scenario: if t <= r, skip that baseline replacement and acquire the target preset at t; if r < t, acquire the replacement current-preset vehicle at r and later replace it with the target preset at t. If no t exists, follow baseline replacement behavior. Exactly one vehicle exists per fleet ID in each year; purchasing does not add to fleet count.
 
 Existing owned vehicles are sunk assets: do not charge their historic purchase cost. Their initial market value is used for sale interpolation, not as new CAPEX. Leased vehicles incur the supplied annual lease payment while active. An owned acquisition incurs purchaseCost once; a leased acquisition incurs no purchase CAPEX and pays its annualPayment each active year. Maintenance and energy are additional; lease payments are assumed to exclude both. Charge a leased holding's exitFee when it is replaced/transitioned; use zero when no fee is intended. Do not charge exit fees merely because the analysis horizon ends.
 
@@ -32,19 +32,19 @@ Charger purchase and installation costs are CAPEX in the installation year regar
 
 For annual distance D:
 
-- ICE fuel litres = `D * litresPer100Km / 100`.
-- EV battery energy = `D * kWhPer100Km / 100`.
+- For a fuel-consuming preset, fuel litres = `D * litresPer100Km / 100`.
+- For an electric preset, battery energy = `D * kWhPer100Km / 100`.
 - Supplied charging energy = `battery energy / chargingEfficiency`.
 - Depot supplied energy = supplied energy × depotShare; external energy is the remainder.
-- Fuel cost = litres × project fuel price. Electricity costs use the scenario's respective depot/external tariffs.
-- Annual operating cost = fuel + depot energy + external energy + active-technology maintenance + active lease payments.
+- Fuel cost = litres × the applicable project fuel price. Electricity costs use the scenario's respective depot/external tariffs.
+- Annual operating cost = applicable energy cost + active-preset maintenance + active lease payments.
 - Annual net cash cost = acquisition CAPEX + lease exit fees + operating cost − disposal credits.
 - Cumulative cost is the running sum of annual net cash cost, excluding terminal credit.
 - TCO = sum of annual net cash cost − final owned-vehicle terminal credits.
-- Total transition-plan CAPEX = all actual owned vehicle acquisitions plus charger purchase/installation; report EV, retained/replacement ICE, and charger contributions separately so “transition CAPEX” is not mistaken for incremental cost. Lease payments remain OPEX.
+- Total transition-plan CAPEX = all actual owned vehicle acquisitions plus charger purchase/installation; report target-preset vehicle, retained/replacement current-preset vehicle, and charger contributions separately so “transition CAPEX” is not mistaken for incremental cost. Lease payments remain OPEX.
 - Savings = baseline TCO − scenario TCO; positive values mean the plan costs less. Also show scenario-minus-baseline cost difference with an explicit label.
 - Fleet cost/km = fleet TCO / sum of all annual fleet km. Mean fleet cost/vehicle = fleet TCO / fleet size. Return null for zero denominators. Per-vehicle TCO excludes shared charger costs and is labeled accordingly; fleet totals include them.
-- Fuel displaced = baseline litres − scenario litres. Emissions = ICE litres × fuel factor + supplied electricity × electricity factor. Reduction = baseline emissions − scenario emissions; percentage = reduction / baseline emissions × 100, or null when baseline emissions is zero. Negative reduction is valid and must be shown.
+- Fuel displaced = baseline litres − scenario litres where fuel-based presets are involved. Emissions = fuel litres × fuel factor + supplied electricity × electricity factor for the supported energy-source model. Reduction = baseline emissions − scenario emissions; percentage = reduction / baseline emissions × 100, or null when baseline emissions is zero. Negative reduction is valid and must be shown.
 
 Keep full numeric precision during calculation; round only display amounts to two decimal currency places and suitable metric precision. Numerical reference tests compare within 1e-6 currency/metric units for these small fixtures.
 
@@ -58,11 +58,11 @@ Assumption impact compares the before/after input snapshots, lists changed field
 
 ## Charging and physical feasibility
 
-For each EV/year, typical depot supplied daily kWh = typicalDailyKm × EV kWh/km × depotShare / efficiency. Sum across EVs requesting depot charging. Installed capacity P is the sum of powerKW for chargers with installationYear <= selected year; chargers must also have a valid finite numeric configuration. Placement conflicts do not secretly remove planned chargers from cost/power calculations: return infeasibility alongside indicative results.
+For each electric active-preset vehicle/year, typical depot supplied daily kWh = typicalDailyKm × active-preset kWh/km × depotShare / efficiency. Sum across electric vehicles requesting depot charging. Installed capacity P is the sum of powerKW for chargers with installationYear <= selected year; chargers must also have a valid finite numeric configuration. Placement conflicts do not secretly remove planned chargers from cost/power calculations: return infeasibility alongside indicative results.
 
 Use a deliberately conservative shared charging window H: the minimum depotDwellHours among EVs requesting depot charging. Required aggregate charging power is daily depot energy / H when H > 0. If P=0 with positive depot demand, report `NO_DEPOT_CHARGER`. If H=0, report `NO_DEPOT_DWELL`. If daily depot energy > P×H, report `INSUFFICIENT_CHARGING_WINDOW` with energy shortfall. This is a shared-window approximation, not vehicle-level charging-session scheduling; do not imply a connection assignment has been simulated.
 
-For a selected-year overload view, indicative demand is full installed nameplate power P when any EV requests depot energy, otherwise zero. If demand > connectionLimitKW, report `SITE_POWER_OVERLOAD`. This tests conservative simultaneous charger use, not optimized load management. Show both the nameplate demand and energy/dwell check; passing one does not guarantee the other.
+For a selected-year overload view, indicative demand is full installed nameplate power P when any electric active-preset vehicle requests depot energy, otherwise zero. If demand > connectionLimitKW, report `SITE_POWER_OVERLOAD`. This tests conservative simultaneous charger use, not optimized load management. Show both the nameplate demand and energy/dwell check; passing one does not guarantee the other.
 
 Report required aggregate kW and installed charger count. If chargers exist, an indicative count can be displayed using the mean installed charger power and `ceil(requiredKW / meanPowerKW)`, labeled as assuming identical average-power units. With no chargers or zero dwell, show the kW requirement/issue and ask the user to choose a charger type; do not invent a hardware recommendation.
 
@@ -72,7 +72,7 @@ Additional year-dependent issues:
 |---|---|
 | NO_DEPOT_RETURN | A vehicle requests depot charging but does not return to depot. |
 | NO_EXTERNAL_ACCESS | External share > 0 for a vehicle lacking external charging access. |
-| DAILY_RANGE_EXCEEDED | Typical daily distance exceeds assumed EV range. |
+| DAILY_RANGE_EXCEEDED | Typical daily distance exceeds the active/target electric preset range. |
 | ANNUAL_DAILY_MISMATCH | abs(annualKm − typicalDailyKm×operatingDays) exceeds 20% of max(annualKm, impliedKm); informational warning. |
 | UNASSIGNED_VEHICLE | Depot-returning vehicle has no bay in that scenario. |
 | LAYOUT_INFEASIBLE | Site/object geometry validation has blocking issues; show their object IDs and specific reasons. |
@@ -81,7 +81,7 @@ An infeasible plan may still display financial results, prominently labeled “I
 
 ## Suitability ranking
 
-Zhi Kai owns the ranking using the current selected year as the candidate EV transition year. It does not modify the plan. Candidates are vehicles still ICE immediately before that year's transitions; vehicles already transitioned in an earlier year are shown separately. In a copied scenario, substitute the candidate's transition year with the selected year and retain other vehicles' schedules. Evaluate its operational factors, the resulting aggregate charging window, and a hypothetical per-vehicle EV-now versus ICE cost comparison; exclude shared charger CAPEX from the economic factor and label this limitation.
+Zhi Kai owns the ranking using the current selected year as the candidate transition year to the user-selected target preset. It does not modify the plan. Candidates are vehicles still on their current preset immediately before that year's transitions; vehicles already transitioned in an earlier year are shown separately. In a copied scenario, substitute the candidate's transition year with the selected year and retain other vehicles' schedules. Evaluate its operational factors, the resulting aggregate charging window, and a hypothetical per-vehicle target-preset-now versus current-preset cost comparison; exclude shared charger CAPEX from the economic factor and label this limitation.
 
 Score 0–100 as the sum of eight documented factors: range (20), route predictability (10), depot return/available external access (10), selected charging strategy access (10), available charging window (15), replacement timing (10), utilisation (10), and economics (15).
 
@@ -102,7 +102,7 @@ A candidate with full points in every factor scores 100. Keeping those inputs bu
 
 Unless stated otherwise, fixtures use owned assets, two vehicles only where stated, no taxes/discounting, and full-year operation. Unspecified costs/residuals are zero. They are arithmetic test inputs, not suggested user defaults.
 
-### F01 — four-year single-vehicle transition
+### SIM01 — four-year single-vehicle transition
 
 Years 2026–2029; annual distance 10,000 km; ICE 10 L/100 km at 2 currency/L; ICE maintenance 500/year. No baseline replacement. Existing ICE current/end values are zero. EV bought in 2026 for 12,000, end residual 2,000; 20 kWh/100 km; efficiency 1; external-only tariff 0.25/kWh; EV maintenance 200/year. Emissions factors: fuel 2 kg/L and electricity 0.5 kg/kWh.
 
@@ -118,7 +118,7 @@ Years 2026–2029; annual distance 10,000 km; ICE 10 L/100 km at 2 currency/L; I
 
 Savings = −2,800; EV cost/km = 0.32; total fuel displaced = 4,000 L; electricity = 8,000 kWh; emissions reduction = 4,000 kg (50%). Payback is not reached. Dropping EV purchase cost to 6,000 gives cumulative cash savings −4,200, −2,400, −600, +1,200 and payback at end-2029; TCO becomes 6,800 and savings 3,200.
 
-### F02 — replacement and sale without double counting
+### SIM02 — replacement and sale without double counting
 
 Three years 2026–2028. Existing ICE value 6,000, terminal residual 0; baseline replacement in 2027 costs 9,000 with terminal residual 3,000. Both technologies have zero operating cost in this fixture. Transition instead to an EV in 2027 costing 12,000 with terminal residual 4,000.
 
@@ -126,7 +126,7 @@ Existing disposal value at 2027 = 6,000×(1−1/3) = 4,000. Baseline net acquisi
 
 If transition is delayed until 2028, buy replacement ICE in 2027 and dispose of it in 2028 for 9,000+(3,000−9,000)×1/2 = 6,000. Scenario TCO = 9,000−4,000+12,000−6,000−4,000 = 7,000. Do not also credit the disposed ICE's 3,000 terminal residual.
 
-### F03 — charging split and feasibility
+### SIM03 — charging split and feasibility
 
 Two EVs, each 10,000 annual km and 100 typical daily km over 100 operating days, 20 kWh/100 km, efficiency 1. Depot share 0.5, depot tariff 0.20, external tariff 0.40. Each returns to depot with a two-hour dwell and external access. One 7 kW charger costs 1,000 plus 500 installation; connection limit 6 kW.
 
@@ -134,10 +134,10 @@ Annual fleet energy = 4,000 kWh; depot/external each 2,000 kWh. Energy cost = 40
 
 For the same fleet, depot-only energy costs 800/year and external-only 1,600/year; planned installed charger CAPEX is retained until the user removes it. Delaying installation while keeping the EV schedule returns NO_DEPOT_CHARGER before installation and moves the 1,500 CAPEX to the installation year.
 
-### F04 — price impacts
+### SIM04 — price impacts
 
-Using F01, raising fuel price by 20% adds 400/year to baseline cost and 1,600 over four years; EV scenario cost is unchanged and savings improve from −2,800 to −1,200. Raising external electricity tariff by 20% adds 100/year and 400 to scenario TCO; baseline is unchanged and savings fall to −3,200. Lowering these prices by 20% gives savings −4,400 and −2,400 respectively.
+Using SIM01, raising fuel price by 20% adds 400/year to baseline cost and 1,600 over four years; EV scenario cost is unchanged and savings improve from −2,800 to −1,200. Raising external electricity tariff by 20% adds 100/year and 400 to scenario TCO; baseline is unchanged and savings fall to −3,200. Lowering these prices by 20% gives savings −4,400 and −2,400 respectively.
 
-### F05 — owned versus leased, empty and zero cases
+### SIM05 — owned versus leased, empty and zero cases
 
 For two years, an initially leased ICE at 1,000/year with exitFee 100, replaced by a leased EV at 800/year in year one, has baseline TCO 2,000 and scenario TCO 1,700 (100+800+800); CAPEX and residual credit are zero. Zero fuel/emission factors produce zero relevant totals and null percentage reduction when the baseline is zero. An empty fleet has zero cost and null per-vehicle/per-km ratios. No test may accept NaN or Infinity.

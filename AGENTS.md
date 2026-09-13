@@ -33,3 +33,8 @@
 - Be concise.
 - State important assumptions.
 - Surface significant tradeoffs before making irreversible architectural decisions.
+
+## Project Context
+
+For project planning/source constraints and detailed agent-only implementation context, read `AGENTS/README.md`.
+

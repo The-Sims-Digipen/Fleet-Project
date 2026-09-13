@@ -1,6 +1,6 @@
 # Product design
 
-Design owners: Ooi Ming Thong (UX), Dayton Ng Zhi Jie (web interface), and Tan Wei Jun (3D interaction). [Wireframes](ui-ux/wireframes.md) illustrate the screens; the [feature inventory](../features.md) defines scope.
+Design owners: Ooi Ming Thong (UX), Dayton Ng Zhi Jie (web interface), and Tan Wei Jun (3D interaction). [Wireframes](ui-ux/wireframes.md) illustrate the screens; the [implementation features](../features/README.md) defines scope.
 
 ## Navigation and screen responsibilities
 
@@ -36,13 +36,13 @@ flowchart TD
 
 New project creates an empty fleet, one scenario named Plan A, and a 40 m × 30 m rectangular site that can be freely edited. The default analysis starts in 2026 for four years, currency SGD. Do not seed unverified market assumptions as authoritative values: the sample project uses explicitly labeled synthetic values from the [calculation fixtures](../tech/simulation.md#synthetic-worked-fixtures), while blank required economic fields in a newly added vehicle require entry before commitment.
 
-Open sample creates a new unsaved project rather than modifying a shared saved sample. Use the F01 vehicle as the initial economics demonstration and the F03 two-vehicle sample as a charging constraint example; name them so the expected purpose is clear. Both samples identify their operational and charging assumptions. Selection does not edit data.
+Open sample creates a new unsaved project rather than modifying a shared saved sample. Use the SIM01 vehicle fixture as the initial economics demonstration and the SIM03 two-vehicle fixture as a charging constraint example; name them so the expected purpose is clear. Both samples identify their operational and charging assumptions. Selection does not edit data.
 
 Fleet rows show ID/name/type, age, annual/daily distance, replacement year, transition year, and current status. Filters support type and age; sorting supports name, year, and suitability once implemented. Shift/range and checkbox selection permit arbitrary combinations; bulk transitions show the selected count before committing. Vehicle creation/editing happens in a labeled form. Removing a vehicle previews all affected scenario schedules/assignments.
 
 ### Plan a transition
 
-Choose one or more vehicles and assign a year within the analysis period. Clear transition retains ICE. Update annual counts and the scene immediately after valid edits. A user can duplicate Plan A as Plan B and change ordering without changing A. Shared fleet edits affect both and are explicitly labeled “Applies to all scenarios.”
+Choose one or more vehicles and assign a year within the analysis period. Clear transition retains the vehicle's current preset. Update annual counts and the scene immediately after valid edits. A user can duplicate Plan A as Plan B and change ordering without changing A. Shared fleet edits affect both and are explicitly labeled “Applies to all scenarios.”
 
 The year slider has discrete integer steps, accessible arrow-key behavior, and a numeric/year dropdown alternative. Changing the selected year does not change the plan. Charts show the full horizon and mark the selected year; scene state and selected-year KPIs use the same index.
 
@@ -58,7 +58,7 @@ Full editing behavior is in [depot editor](../tech/depot-editor.md). In Plan vie
 
 Show TCO, CAPEX, annual OPEX, baseline savings, operational emissions, and payback with units and short explanations. Use annual stacked cost bars, cumulative cash cost lines, annual emissions bars, and the transition roadmap. Show terminal residual credit separately so cumulative cash charts and residual-adjusted TCO are not confused.
 
-Compare requires two distinct scenarios in the same project. If only one exists, offer Duplicate current plan. Both columns display the shared fleet/analysis revision and ICE baseline. Controls in Compare inspect rather than edit scenarios; use Edit A/Edit B to return to the chosen Plan. Year selection is shared; cameras are independent with a Reset view command. No mandatory camera synchronization is added.
+Compare requires two distinct scenarios in the same project. If only one exists, offer Duplicate current plan. Both columns display the shared fleet/analysis revision and no-transition/current-fleet baseline. Controls in Compare inspect rather than edit scenarios; use Edit A/Edit B to return to the chosen Plan. Year selection is shared; cameras are independent with a Reset view command. No mandatory camera synchronization is added.
 
 Each column includes scene, selected-year counts/demand, full-horizon financial/emissions KPIs, and warnings. Differences are labeled in direction (B minus A) with positive/negative meaning written out. Suitability appears as a sortable list of candidates with factor/reason details and site-wide constraint notices. It never automatically assigns transition years.
 
@@ -83,4 +83,4 @@ A collapsed panel retains its valid state. Undo/redo operates on committed domai
 
 All forms and toolbar commands have visible labels/tooltips, keyboard access, focus indication, and error association. Status and overload are communicated in text as well as color. Numeric transform controls and object lists provide an alternative to pointer-only object movement. Diagram/charts include text summaries and numerical values. Keyboard shortcuts do not steal native form-field undo while text input has focus.
 
-Usability acceptance covers planning, saving, comparison, depot editing, and final end-to-end operation. The [acceptance criteria](../tech/verification.md) define these checks.
+Usability checks cover planning, saving, comparison, depot editing, and the final end-to-end flow.

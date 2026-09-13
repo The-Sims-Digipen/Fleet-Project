@@ -37,7 +37,7 @@ Simulation and geometry are independent of rendering and persistence. The interf
 
 ## Data ownership and interaction
 
-A project shares its fleet, analysis period, fuel price, and emissions factors across all scenarios. Each scenario has its own transition schedule, charging settings, electricity tariffs, and depot layout. Comparison therefore uses one ICE baseline and two independent plans.
+A project shares its vehicle presets, fleet, analysis period, energy-price assumptions, and emissions factors across all scenarios. Each scenario has its own generic target-preset transition schedule, charging settings, relevant energy tariffs, and depot layout. Comparison therefore uses one no-transition/current-fleet baseline and two independent plans.
 
 ```mermaid
 sequenceDiagram
@@ -75,7 +75,7 @@ The deployment design uses a local API and database, with no account system or p
 - Invalid layouts remain editable and visibly constrained; financial results remain labeled indicative.
 - Model versions, explicit assumptions, and worked examples make results explainable and reproducible.
 
-The [simulation model](simulation.md), [depot editor](depot-editor.md), and [acceptance criteria](verification.md) define the detailed behavior and release gates.
+The [simulation model](simulation.md) and [depot editor](depot-editor.md) define the detailed calculation and editing behavior.
 
 ## Current scene-editor architecture
 

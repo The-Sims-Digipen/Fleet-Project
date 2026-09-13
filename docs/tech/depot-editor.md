@@ -1,6 +1,6 @@
 # Freeform depot editor specification
 
-The depot editor supports freeform site design, obstacle placement, bay/charger editing, and vehicle assignment. It covers DE-01–DE-07, FL-05, VI-01/02, and CH-07. [Data relationships](contracts.md) define how layouts are saved.
+The depot editor supports freeform site design, obstacle placement, bay/charger editing, vehicle assignment, scenario-specific layouts, and live 3D feedback. It is implemented by [F13 — Freeform depot geometry and edit-history engine](../features/F13-freeform-depot-geometry-and-edit-history-engine/README.md), [F14 — 3D depot authoring tools](../features/F14-3d-depot-authoring-tools/README.md), [F15 — Depot editor panels, assignments, and issue workflow](../features/F15-depot-editor-panels-assignments-and-issue-workflow/README.md), and [F16 — Scenario layout persistence and isolation](../features/F16-scenario-layout-persistence-and-isolation/README.md). Its output feeds charging/feasibility, 3D visualization, recommendation, and comparison features. [Data relationships](contracts.md) define how layouts are saved.
 
 ## Geometry and coordinate conventions
 
@@ -43,8 +43,8 @@ Geometry-invalid but structurally representable documents can be saved so users 
 
 ## Rendering and persistence
 
-Mesh bounds/footprints agree with persisted metre dimensions. Use visible ICE/EV distinctions plus legends, not color alone. In edit mode, future chargers are ghosts with their installation year. In Plan/Compare, only installed chargers render. Bays, boundary, and obstacles are static across years within one scenario; they vary between scenario layouts rather than acquiring an unrequested construction timeline.
+Mesh bounds/footprints agree with persisted metre dimensions. Use visible distinctions between active vehicle presets plus legends/labels, not color alone. In edit mode, future chargers are ghosts with their installation year. In Plan/Compare, only installed chargers render. Bays, boundary, and obstacles are static across years within one scenario; they vary between scenario layouts rather than acquiring an unrequested construction timeline.
 
 Each scenario saves its own layout and assignments. Duplicate scenario deep-copies the layout, preserving internal references within the new namespace. Save inputs only, not meshes or undo stacks. Comparison views read independent snapshots and must not share mutable geometry objects.
 
-Required checks include concave boundaries, bow-tie polygons, repeated/collinear vertices, edge contact, containment crossing, rotated rectangles, overlap pairs, assignment removal, and undo/redo across deletion. See [verification](verification.md) for acceptance IDs and deadlines.
+Required checks include concave boundaries, bow-tie polygons, repeated/collinear vertices, edge contact, containment crossing, rotated rectangles, overlap pairs, assignment removal, and undo/redo across deletion.

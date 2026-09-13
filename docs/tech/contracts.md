@@ -8,7 +8,8 @@ Technical design for persistent fleet projects. A project contains a shared flee
 |---|---|---|
 | Project | ID, name, revision, schema/model versions, timestamps | One consistent saved workspace |
 | Analysis | Start year, duration, currency, fuel price, emissions factors | Shared baseline for all scenarios |
-| Vehicle | Stable ID, type, age, annual/daily distance, operations, replacement year, ICE/EV economics | Shared fleet record |
+| Vehicle preset | Stable ID, name/category, propulsion/energy source, efficiency/range/charging capability, economics, maintenance, residual assumptions, physical dimensions | Shared project-level reusable preset |
+| Vehicle | Stable ID, current preset reference, age, annual/daily distance, operations, replacement year | Shared fleet record |
 | Scenario | ID, name, vehicle transition years, charging strategy, tariffs, depot | Independent alternative within a project |
 | Site | Boundary polygon, connection limit, obstacle polygons | Physical planning area |
 | Bay | ID, position, dimensions, rotation | One vehicle assignment per bay |
@@ -61,4 +62,4 @@ erDiagram
 
 Shared domain validation runs before writes. Conditional revision checks and transactions prevent partial updates and stale overwrites. Stored documents include schema and calculation-model versions. Database migrations are versioned and tested against new and existing project data.
 
-Camera state, selection, undo history, and derived results are excluded from persistent storage. The [acceptance plan](verification.md) covers save/reopen equality, failure recovery, conflicts, and upgrades.
+Camera state, selection, undo history, and derived results are excluded from persistent storage.
