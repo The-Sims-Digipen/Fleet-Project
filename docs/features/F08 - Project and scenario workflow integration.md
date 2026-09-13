@@ -31,5 +31,5 @@ Cover save while editing, failed save retry, stale conflict paths, unsaved navig
 
 ## Related implementation docs
 
-- [Data model and API](../../tech/contracts.md)
-- [Product design](../../design/product-design.md)
+- [Data model and API](../tech/contracts.md)
+- [Product design](../design/product-design.md)

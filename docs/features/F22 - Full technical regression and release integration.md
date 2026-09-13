@@ -31,5 +31,5 @@ Only tag/accept the engineering release after the affected regression suites pas
 
 ## Related implementation docs
 
-- [Data model and API](../../tech/contracts.md)
-- [Product design](../../design/product-design.md)
+- [Data model and API](../tech/contracts.md)
+- [Product design](../design/product-design.md)

@@ -30,5 +30,5 @@ Compare optimized outputs with reference deterministic results. Add performance 
 
 ## Related implementation docs
 
-- [Annual simulation model](../../tech/simulation.md)
-- [Product design](../../design/product-design.md)
+- [Annual simulation model](../tech/simulation.md)
+- [Product design](../design/product-design.md)

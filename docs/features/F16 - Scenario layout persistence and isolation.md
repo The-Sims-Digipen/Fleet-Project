@@ -30,6 +30,6 @@ Round-trip complex layouts, invalid-but-savable geometry, duplicate/edit isolati
 
 ## Related implementation docs
 
-- [Data model and API](../../tech/contracts.md)
-- [Depot editor](../../tech/depot-editor.md)
-- [Editing and history](../../tech/editing-and-history.md)
+- [Data model and API](../tech/contracts.md)
+- [Depot editor](../tech/depot-editor.md)
+- [Editing and history](../tech/editing-and-history.md)

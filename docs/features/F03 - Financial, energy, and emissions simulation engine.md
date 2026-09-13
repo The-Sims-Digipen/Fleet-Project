@@ -32,4 +32,4 @@ Use independent arithmetic reference fixtures and compare full precision with to
 
 ## Related implementation docs
 
-- [Annual simulation model](../../tech/simulation.md)
+- [Annual simulation model](../tech/simulation.md)

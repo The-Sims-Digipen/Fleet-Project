@@ -31,6 +31,6 @@ After optimization, rerun picking/editor/year/dual-scene correctness tests and c
 
 ## Related implementation docs
 
-- [Architecture](../../tech/architecture.md)
-- [Extending the 3D editor](../../tech/extending-the-editor.md)
-- [Product design](../../design/product-design.md)
+- [Architecture](../tech/architecture.md)
+- [Extending the 3D editor](../tech/extending-the-editor.md)
+- [Product design](../design/product-design.md)

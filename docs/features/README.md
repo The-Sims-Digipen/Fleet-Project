@@ -11,25 +11,25 @@
 ## Features
 | Feature | Implementation | Owner | Active |
 |---|---|---|---|
-| [F01](./F01-core-application-platform-and-integration-architecture/README.md) | Core application platform and integration architecture | Shee Yang | M1 W01-W04, then integration changes as required |
-| [F02](./F02-vehicle-preset-fleet-and-transition-domain-system/README.md) | Vehicle preset, fleet, and transition domain system | Zhi Kai | M1 W01-M2 W03 |
-| [F03](./F03-financial-energy-and-emissions-simulation-engine/README.md) | Financial, energy, and emissions simulation engine | Elijah | M1 W01-M2 W04 |
-| [F04](./F04-planning-workspace-and-analytics-interface/README.md) | Planning workspace and analytics interface | Dayton | M1 W02-M2 W04 |
-| [F05](./F05-data-driven-3d-digital-twin-and-viewport-interaction/README.md) | Data-driven 3D digital twin and viewport interaction | Wei Jun | M1 W02-M3 W04 |
-| [F06](./F06-production-3d-asset-library-and-runtime-asset-pipeline/README.md) | Production 3D asset library and runtime asset pipeline | Jarrel | M1 W01-M5 W03 |
-| [F07](./F07-project-scenario-persistence-backend/README.md) | Project/scenario persistence backend | Brandon | M1 W01-M2 W04 |
-| [F08](./F08-project-and-scenario-workflow-integration/README.md) | Project and scenario workflow integration | Dayton | M2 W01–W04 |
-| [F09](./F09-charging-strategy-and-feasibility-engine/README.md) | Charging strategy and feasibility engine | Elijah | M3 W01–M5 W02 |
-| [F10](./F10-scenario-comparison-and-decision-analytics/README.md) | Scenario comparison and decision analytics | Dayton | M3 W01-W04 |
-| [F11](./F11-vehicle-suitability-and-recommendation-engine/README.md) | Vehicle suitability and recommendation engine | Zhi Kai | M3 W01–M5 W02 |
-| [F12](./F12-dynamic-scenario-visualization-and-dual-scene-comparison/README.md) | Dynamic scenario visualization and dual-scene comparison | Wei Jun | M3 W02–M4 W01 |
-| [F13](./F13-freeform-depot-geometry-and-edit-history-engine/README.md) | Freeform depot geometry and edit-history engine | Shee Yang | M4 W01-W04 |
-| [F14](./F14-3d-depot-authoring-tools/README.md) | 3D depot authoring tools | Wei Jun | M4 W01-W04 |
-| [F15](./F15-depot-editor-panels-assignments-and-issue-workflow/README.md) | Depot editor panels, assignments, and issue workflow | Dayton | M4 W02–M5 W01 |
-| [F16](./F16-scenario-layout-persistence-and-isolation/README.md) | Scenario layout persistence and isolation | Brandon | M4 W01-W04 |
-| [F17](./F17-end-to-end-feasibility-and-recommendation-integration/README.md) | End-to-end feasibility and recommendation integration | Shee Yang | M5 W01–W03 |
-| [F18](./F18-responsive-accessible-and-failure-resilient-application-ui/README.md) | Responsive, accessible, and failure-resilient application UI | Dayton | M5 W01-M6 W02 |
-| [F19](./F19-backend-reliability-migrations-and-platform-hardening/README.md) | Backend reliability, migrations, and platform hardening | Brandon | M5 W02–M6 W02 |
-| [F20](./F20-rendering-and-asset-performance-optimization/README.md) | Rendering and asset performance optimization | Wei Jun | M5 W01-M6 W02 |
-| [F21](./F21-simulation-and-application-performance-engineering/README.md) | Simulation and application performance engineering | Shee Yang | M5 W02-M6 W03 |
-| [F22](./F22-full-technical-regression-and-release-integration/README.md) | Full technical regression and release integration | Shee Yang | M6 W01-W04 |
+| [F01](./F01%20-%20Core%20application%20platform%20and%20integration%20architecture.md) | Core application platform and integration architecture | Shee Yang | M1 W01-W04, then integration changes as required |
+| [F02](./F02%20-%20Vehicle%20preset%2C%20fleet%2C%20and%20transition%20domain%20system.md) | Vehicle preset, fleet, and transition domain system | Zhi Kai | M1 W01-M2 W03 |
+| [F03](./F03%20-%20Financial%2C%20energy%2C%20and%20emissions%20simulation%20engine.md) | Financial, energy, and emissions simulation engine | Elijah | M1 W01-M2 W04 |
+| [F04](./F04%20-%20Planning%20workspace%20and%20analytics%20interface.md) | Planning workspace and analytics interface | Dayton | M1 W02-M2 W04 |
+| [F05](./F05%20-%20Data-driven%203D%20digital%20twin%20and%20viewport%20interaction.md) | Data-driven 3D digital twin and viewport interaction | Wei Jun | M1 W02-M3 W04 |
+| [F06](./F06%20-%20Production%203D%20asset%20library%20and%20runtime%20asset%20pipeline.md) | Production 3D asset library and runtime asset pipeline | Jarrel | M1 W01-M5 W03 |
+| [F07](./F07%20-%20Project%20and%20scenario%20persistence%20backend.md) | Project and scenario persistence backend | Brandon | M1 W01-M2 W04 |
+| [F08](./F08%20-%20Project%20and%20scenario%20workflow%20integration.md) | Project and scenario workflow integration | Dayton | M2 W01–W04 |
+| [F09](./F09%20-%20Charging%20strategy%20and%20feasibility%20engine.md) | Charging strategy and feasibility engine | Elijah | M3 W01–M5 W02 |
+| [F10](./F10%20-%20Scenario%20comparison%20and%20decision%20analytics.md) | Scenario comparison and decision analytics | Dayton | M3 W01-W04 |
+| [F11](./F11%20-%20Vehicle%20suitability%20and%20recommendation%20engine.md) | Vehicle suitability and recommendation engine | Zhi Kai | M3 W01–M5 W02 |
+| [F12](./F12%20-%20Dynamic%20scenario%20visualization%20and%20dual-scene%20comparison.md) | Dynamic scenario visualization and dual-scene comparison | Wei Jun | M3 W02–M4 W01 |
+| [F13](./F13%20-%20Freeform%20depot%20geometry%20and%20edit-history%20engine.md) | Freeform depot geometry and edit-history engine | Shee Yang | M4 W01-W04 |
+| [F14](./F14%20-%203D%20depot%20authoring%20tools.md) | 3D depot authoring tools | Wei Jun | M4 W01-W04 |
+| [F15](./F15%20-%20Depot%20editor%20panels%2C%20assignments%2C%20and%20issue%20workflow.md) | Depot editor panels, assignments, and issue workflow | Dayton | M4 W02–M5 W01 |
+| [F16](./F16%20-%20Scenario%20layout%20persistence%20and%20isolation.md) | Scenario layout persistence and isolation | Brandon | M4 W01-W04 |
+| [F17](./F17%20-%20End-to-end%20feasibility%20and%20recommendation%20integration.md) | End-to-end feasibility and recommendation integration | Shee Yang | M5 W01–W03 |
+| [F18](./F18%20-%20Responsive%2C%20accessible%2C%20and%20failure-resilient%20application%20UI.md) | Responsive, accessible, and failure-resilient application UI | Dayton | M5 W01-M6 W02 |
+| [F19](./F19%20-%20Backend%20reliability%2C%20migrations%2C%20and%20platform%20hardening.md) | Backend reliability, migrations, and platform hardening | Brandon | M5 W02–M6 W02 |
+| [F20](./F20%20-%20Rendering%20and%20asset%20performance%20optimization.md) | Rendering and asset performance optimization | Wei Jun | M5 W01-M6 W02 |
+| [F21](./F21%20-%20Simulation%20and%20application%20performance%20engineering.md) | Simulation and application performance engineering | Shee Yang | M5 W02-M6 W03 |
+| [F22](./F22%20-%20Full%20technical%20regression%20and%20release%20integration.md) | Full technical regression and release integration | Shee Yang | M6 W01-W04 |

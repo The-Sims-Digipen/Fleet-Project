@@ -32,5 +32,5 @@ Support search/filter/group/sort/multiselect and accessible bulk actions. Shared
 
 ## Related implementation docs
 
-- [Annual simulation model](../../tech/simulation.md)
-- [Product design](../../design/product-design.md)
+- [Annual simulation model](../tech/simulation.md)
+- [Product design](../design/product-design.md)

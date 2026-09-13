@@ -31,6 +31,6 @@ Cover bow-tie/repeated/zero-area/near-collinear polygons, concave crossing, edge
 
 ## Related implementation docs
 
-- [Depot editor](../../tech/depot-editor.md)
-- [Editing and history](../../tech/editing-and-history.md)
-- [Product design](../../design/product-design.md)
+- [Depot editor](../tech/depot-editor.md)
+- [Editing and history](../tech/editing-and-history.md)
+- [Product design](../design/product-design.md)

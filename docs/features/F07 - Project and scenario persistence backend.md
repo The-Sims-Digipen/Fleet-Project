@@ -1,4 +1,4 @@
-# F07 — Project/scenario persistence backend
+# F07 — Project and scenario persistence backend
 
 **Owner:** Brandon  
 **Active:** M1 W01-M2 W04
@@ -36,5 +36,5 @@ Cover first-run/empty DB, create/list/read/update/delete, save/reopen equivalenc
 
 ## Related implementation docs
 
-- [Data model and API](../../tech/contracts.md)
-- [Product design](../../design/product-design.md)
+- [Data model and API](../tech/contracts.md)
+- [Product design](../design/product-design.md)

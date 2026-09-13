@@ -33,5 +33,5 @@ Create deterministic fixtures reusable by domain/simulation/API/UI tests. Keep f
 
 ## Related implementation docs
 
-- [Data model and API](../../tech/contracts.md)
-- [Product design](../../design/product-design.md)
+- [Data model and API](../tech/contracts.md)
+- [Product design](../design/product-design.md)

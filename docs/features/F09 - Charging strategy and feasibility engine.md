@@ -33,4 +33,4 @@ Use the SIM03 charging fixture and dedicated tests for strategy swap, external/d
 
 ## Related implementation docs
 
-- [Annual simulation model](../../tech/simulation.md)
+- [Annual simulation model](../tech/simulation.md)

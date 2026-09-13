@@ -32,7 +32,7 @@ Real-browser checks for pointer picking, drag/rotate/resize, polygon creation/ed
 
 ## Related implementation docs
 
-- [Depot editor](../../tech/depot-editor.md)
-- [Editing and history](../../tech/editing-and-history.md)
-- [Architecture](../../tech/architecture.md)
-- [Extending the 3D editor](../../tech/extending-the-editor.md)
+- [Depot editor](../tech/depot-editor.md)
+- [Editing and history](../tech/editing-and-history.md)
+- [Architecture](../tech/architecture.md)
+- [Extending the 3D editor](../tech/extending-the-editor.md)

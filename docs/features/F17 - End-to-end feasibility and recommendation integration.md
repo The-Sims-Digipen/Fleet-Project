@@ -29,5 +29,5 @@ Implement the five product acceptance scenarios plus combined conflicts (e.g. at
 
 ## Related implementation docs
 
-- [Annual simulation model](../../tech/simulation.md)
-- [Product design](../../design/product-design.md)
+- [Annual simulation model](../tech/simulation.md)
+- [Product design](../design/product-design.md)

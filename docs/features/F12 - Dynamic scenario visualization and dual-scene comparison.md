@@ -31,7 +31,7 @@ Independent cameras/selections; shared year only. Reusing asset cache is allowed
 
 ## Related implementation docs
 
-- [Annual simulation model](../../tech/simulation.md)
-- [Architecture](../../tech/architecture.md)
-- [Extending the 3D editor](../../tech/extending-the-editor.md)
-- [Product design](../../design/product-design.md)
+- [Annual simulation model](../tech/simulation.md)
+- [Architecture](../tech/architecture.md)
+- [Extending the 3D editor](../tech/extending-the-editor.md)
+- [Product design](../design/product-design.md)

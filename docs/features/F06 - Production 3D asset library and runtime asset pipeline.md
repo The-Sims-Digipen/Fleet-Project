@@ -28,6 +28,6 @@ Prefer self-contained static GLB assets compatible with the current loader. Avoi
 
 ## Related implementation docs
 
-- [Architecture](../../tech/architecture.md)
-- [Extending the 3D editor](../../tech/extending-the-editor.md)
-- [Product design](../../design/product-design.md)
+- [Architecture](../tech/architecture.md)
+- [Extending the 3D editor](../tech/extending-the-editor.md)
+- [Product design](../design/product-design.md)

@@ -41,4 +41,4 @@ Cover mixed presets, unscheduled vehicles, same/different target preset, first/l
 
 ## Related implementation docs
 
-- [System architecture](../../tech/architecture.md)
+- [System architecture](../tech/architecture.md)

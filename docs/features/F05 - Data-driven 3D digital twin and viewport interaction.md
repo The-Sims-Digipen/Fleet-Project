@@ -31,5 +31,5 @@ Share cached immutable asset geometry/textures; clone per-instance hierarchy/mat
 
 ## Related implementation docs
 
-- [Architecture](../../tech/architecture.md)
-- [Extending the 3D editor](../../tech/extending-the-editor.md)
+- [Architecture](../tech/architecture.md)
+- [Extending the 3D editor](../tech/extending-the-editor.md)

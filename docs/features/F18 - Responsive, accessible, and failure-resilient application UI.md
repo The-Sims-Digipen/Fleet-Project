@@ -30,7 +30,7 @@ Use Testing Library for keyboard/forms/status/destructive flows and real-browser
 
 ## Related implementation docs
 
-- [Data model and API](../../tech/contracts.md)
-- [Depot editor](../../tech/depot-editor.md)
-- [Editing and history](../../tech/editing-and-history.md)
-- [Product design](../../design/product-design.md)
+- [Data model and API](../tech/contracts.md)
+- [Depot editor](../tech/depot-editor.md)
+- [Editing and history](../tech/editing-and-history.md)
+- [Product design](../design/product-design.md)

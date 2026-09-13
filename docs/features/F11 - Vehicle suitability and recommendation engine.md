@@ -31,4 +31,4 @@ Isolate every factor, boundaries at 80%/100% range and replacement-year threshol
 
 ## Related implementation docs
 
-- [Annual simulation model](../../tech/simulation.md)
+- [Annual simulation model](../tech/simulation.md)

@@ -32,4 +32,4 @@ Duplicate/edit one scenario and verify the other result/document remains byte/lo
 
 ## Related implementation docs
 
-- [Product design](../../design/product-design.md)
+- [Product design](../design/product-design.md)

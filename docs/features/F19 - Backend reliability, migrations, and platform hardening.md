@@ -31,5 +31,5 @@ Persistence defects found by full-system regression are fixed at the backend/sto
 
 ## Related implementation docs
 
-- [Data model and API](../../tech/contracts.md)
-- [Product design](../../design/product-design.md)
+- [Data model and API](../tech/contracts.md)
+- [Product design](../design/product-design.md)
