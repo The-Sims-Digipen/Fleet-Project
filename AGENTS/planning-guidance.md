@@ -6,7 +6,7 @@
 - Keep each feature substantial in scope; do not split work into small tickets just to create more rows.
 - Each feature specification should focus on what the feature must accomplish: required behavior, implementation-specific rules, integration behavior, edge cases, and feature-specific tests.
 - Do not add administrative/process tasks such as define, document, agree, meet, review, prepare submission, handover, or acceptance coordination to the technical feature schedule.
-- Keep team-facing files focused on what must be built, when it is needed, ownership, dependencies, constraints, and implementation behavior. Put planning rationale, source traceability, and agent-maintainer notes under `AGENTS/` instead.
+- Keep team-facing files focused on what must be built, when it is needed, dependencies, constraints, and implementation behavior. Add ownership only after assignments are finalized. Put planning rationale, source traceability, and agent-maintainer notes under `AGENTS/` instead.
 
 ## Roles
 

@@ -14,17 +14,17 @@ Synthetic sample data provides an immediate demonstration. Fleet size and vehicl
 
 ## Requirements and acceptance scenarios
 
-| Requirement | Required outcome | Features |
-|---|---|---|
-| R01 — Persistent workspace | Create/open a project and create/rename/duplicate/delete/save/reopen independent scenarios; failed or stale saves preserve the working copy and last valid stored state. | F01, F07, F08, F16, F19 |
-| R02 — Fleet and generic transition planning | Build user-defined vehicle presets and a heterogeneous fleet; filter/group/select vehicles; assign any target preset and transition year; produce correct annual fleet composition. | F02, F04, F15 |
-| R03 — Calculations | Recalculate TCO, CAPEX, OPEX, payback, energy, and emissions from explicit editable assumptions with deterministic annual/cumulative breakdowns. | F03, F04, F21 |
-| R04 — Charging and feasibility | Model depot/external/mixed charging, charger inventory/timing, connection capacity, dwell/readiness, and depot-space constraints. | F09, F12, F17 |
-| R05 — Depot authoring | Build an irregular flat depot with obstacles, bays, and chargers; edit with snapping/numeric properties, assignments, validation, cancel, undo/redo, and scenario-specific persistence. | F13, F14, F15, F16 |
-| R06 — 3D digital twin | Inspect the data-driven depot, selected-year vehicle/charger state, constraint overlays, and independent comparison scenes with full viewport interaction. | F05, F06, F12, F20 |
-| R07 — Explainable choices | Rank transition candidates using operational/economic/feasibility factors and show factor-level reasons and assumption impacts without automatic schedule mutation. | F11, F17 |
-| R08 — Comparison and analytics | Compare two independent plans at the same analysis year using synchronized metrics, charts, roadmaps, feasibility, and 3D state. | F10, F12, F17 |
-| R09 — Technical quality | Keep primary panels reachable responsively, handle invalid/error states safely, meet performance targets, and support reproducible clean builds/database setup. | F01, F18, F19, F20, F21, F22 |
+| Requirement | Required outcome |
+|---|---|
+| R01 — Persistent workspace | Create/open a project and create/rename/duplicate/delete/save/reopen independent scenarios; failed or stale saves preserve the working copy and last valid stored state. |
+| R02 — Fleet and generic transition planning | Build user-defined vehicle presets and a heterogeneous fleet; filter/group/select vehicles; assign any target preset and transition year; produce correct annual fleet composition. |
+| R03 — Calculations | Recalculate TCO, CAPEX, OPEX, payback, energy, and emissions from explicit editable assumptions with deterministic annual/cumulative breakdowns. |
+| R04 — Charging and feasibility | Model depot/external/mixed charging, charger inventory/timing, connection capacity, dwell/readiness, and depot-space constraints. |
+| R05 — Depot authoring | Build an irregular flat depot with obstacles, bays, and chargers; edit with snapping/numeric properties, assignments, validation, cancel, undo/redo, and scenario-specific persistence. |
+| R06 — 3D digital twin | Inspect the data-driven depot, selected-year vehicle/charger state, constraint overlays, and independent comparison scenes with full viewport interaction. |
+| R07 — Explainable choices | Rank transition candidates using operational/economic/feasibility factors and show factor-level reasons and assumption impacts without automatic schedule mutation. |
+| R08 — Comparison and analytics | Compare two independent plans at the same analysis year using synchronized metrics, charts, roadmaps, feasibility, and 3D state. |
+| R09 — Technical quality | Keep primary panels reachable responsively, handle invalid/error states safely, meet performance targets, and support reproducible clean builds/database setup. |
 
 The application must support these end-to-end scenarios using generic preset transitions:
 

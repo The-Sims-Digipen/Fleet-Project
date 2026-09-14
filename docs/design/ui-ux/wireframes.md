@@ -2,7 +2,7 @@
 
 Design reference: 10 September 2026. WF01–WF05 describe the interface layout and interaction states. They specify information hierarchy rather than final visual styling.
 
-## WF01 — project home (F07, F08)
+## WF01 — project home
 
 ```text
 Fleet Transition Planner                              Simulation
@@ -18,7 +18,7 @@ Error: Projects could not be loaded. [Retry]  Your open edits are retained.
 
 New/sample projects begin unsaved. Delete shows the project name and requires confirmation. Home does not require a login.
 
-## WF02 — planning workspace (F02–F04)
+## WF02 — planning workspace
 
 ```text
 Project: Depot transition   Scenario: Plan A v   Unsaved changes [Save]
@@ -43,7 +43,7 @@ SIMULATION · Illustrative inputs                 [Plan] [Depot] [Compare]
 
 An invalid draft leaves results labeled “Last valid inputs.” Shared settings label their effect on both plans. Charts use full-period data and selected-year markers.
 
-## WF03 — depot authoring (F13–F16)
+## WF03 — depot authoring
 
 ```text
 Plan A · Depot                                     Unsaved [Save]
@@ -63,7 +63,7 @@ Plan A · Depot                                     Unsaved [Save]
 
 Numeric controls and the object list supplement viewport tools. Invalid rings show outlines without attempting filled triangulation. Costs remain indicative while layout issues exist.
 
-## WF04 — comparison (F10, F12)
+## WF04 — comparison
 
 ```text
 Compare · Same project fleet and analysis · Baseline TCO: ...
@@ -82,7 +82,7 @@ Shared year: 2027 v                         [Return to Plan]
 
 Selecting a year changes both scenes/results; camera navigation remains independent. One-scenario projects offer duplication instead of an empty second column.
 
-## WF05 — saving and conflict recovery (F07, F08, F19)
+## WF05 — saving and conflict recovery
 
 ```text
 Save failed: Your edits are still available. [Retry]

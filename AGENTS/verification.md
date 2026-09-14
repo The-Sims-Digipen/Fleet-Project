@@ -1,26 +1,26 @@
 # Verification and acceptance plan
 
-Technical acceptance criteria for the M1–M6 application. The [weekly plan](../docs/weekly-plan.md) maps these checks to the implementation features in the [feature catalogue](../docs/features/README.md).
+Technical acceptance criteria for the longer-term M1–M6 application. The current tracked implementation scope is listed in the [feature catalogue](../docs/features/README.md).
 
 ## Acceptance scenarios
 
-| ID | Technical scenario and required evidence | Primary features |
-|---|---|---|
-| AT01 | Create two user-defined vehicle presets and unequal vehicles. Transition A now/B later to selected target presets, reverse/delay the ordering, then clear one transition. Assert annual preset state/counts, cost/emissions changes, 3D state, and save/reload equality. | F02, F03, F04, F05, F07 |
-| AT02 | Select individuals, arbitrary combinations, and filtered/grouped categories; apply partial/staged/full transition strategies and verify unscheduled vehicles remain on their current presets. Include empty fleet/selection and mixed target presets. | F02, F04 |
-| AT03 | Hold the vehicle schedule fixed and compare depot/external/mixed charging. Verify energy allocation, infrastructure CAPEX, operating cost, charger timing, and comparison deltas. | F09, F10 |
-| AT04 | Apply ±20% fuel/electricity price changes and target-preset economic changes. Verify deterministic recalculation and explanation output without mutating transition schedules. | F03, F11, F17 |
-| AT05 | Delay/add chargers and change connection capacity. Verify one-time CAPEX, installation-year visibility, power/dwell/readiness issues, and both visual/text overload feedback. | F09, F12, F17 |
-| AT06 | Create/rename/duplicate/delete scenarios, edit a duplicate, and prove the original remains unchanged. Verify the final scenario cannot be accidentally deleted. | F07, F08 |
-| AT07 | Save/reopen full projects; inject backend unavailability, invalid payloads, oversized bodies, unsupported versions, and stale revisions. Verify working edits survive and the last stored version remains consistent. | F07, F08, F19 |
-| AT08 | Author concave sites, self-intersecting rings, repeated vertices, obstacles, rotated bays/chargers, edge contact, and out-of-bound objects. Verify structured issues and no triangulation/render crash. | F13, F14 |
-| AT09 | Assign/unassign bays, create/duplicate/delete objects, edit numerically, snap, cancel, undo, and redo. Verify reference restoration plus independent persisted layouts across duplicated scenarios. | F13, F14, F15, F16 |
-| AT10 | Select two scenarios and scrub the shared year. Assert charts, annual fleet state, installed chargers, warnings, and each independent 3D scene agree with its own scenario result. | F10, F12, F17 |
-| AT11 | Reproduce independent numerical fixtures for TCO, CAPEX, OPEX, payback, energy, and emissions. Include zero denominators, delayed transitions, residual timing, lease/purchase cases, and unreached payback; reject non-finite output. | F03, F21 |
-| AT12 | Isolate every suitability factor and feasibility influence; verify deterministic tie ordering, explanation contributions, and advisory-only behavior. | F11, F17 |
-| AT13 | Verify keyboard operation, labels/errors, focus visibility, last-valid-result behavior, text warnings, empty/loading/failure states, and that primary panels remain reachable when the layout reflows. | F04, F15, F18 |
-| AT14 | Run the reference workload and record simulation/update latency, frame behavior, and repeated scene/project switching without monotonic resource/listener growth after warmup. | F20, F21 |
-| AT15 | From a clean clone, install, typecheck, test, build, initialize/upgrade the database, start client/server, persist/reopen a project, and run a production smoke test on required environments. | F19, F22 |
+| ID | Technical scenario and required evidence |
+|---|---|
+| AT01 | Create two user-defined vehicle presets and unequal vehicles. Transition A now/B later to selected target presets, reverse/delay the ordering, then clear one transition. Assert annual preset state/counts, cost/emissions changes, 3D state, and save/reload equality. |
+| AT02 | Select individuals, arbitrary combinations, and filtered/grouped categories; apply partial/staged/full transition strategies and verify unscheduled vehicles remain on their current presets. Include empty fleet/selection and mixed target presets. |
+| AT03 | Hold the vehicle schedule fixed and compare depot/external/mixed charging. Verify energy allocation, infrastructure CAPEX, operating cost, charger timing, and comparison deltas. |
+| AT04 | Apply ±20% fuel/electricity price changes and target-preset economic changes. Verify deterministic recalculation and explanation output without mutating transition schedules. |
+| AT05 | Delay/add chargers and change connection capacity. Verify one-time CAPEX, installation-year visibility, power/dwell/readiness issues, and both visual/text overload feedback. |
+| AT06 | Create/rename/duplicate/delete scenarios, edit a duplicate, and prove the original remains unchanged. Verify the final scenario cannot be accidentally deleted. |
+| AT07 | Save/reopen full projects; inject backend unavailability, invalid payloads, oversized bodies, unsupported versions, and stale revisions. Verify working edits survive and the last stored version remains consistent. |
+| AT08 | Author concave sites, self-intersecting rings, repeated vertices, obstacles, rotated bays/chargers, edge contact, and out-of-bound objects. Verify structured issues and no triangulation/render crash. |
+| AT09 | Assign/unassign bays, create/duplicate/delete objects, edit numerically, snap, cancel, undo, and redo. Verify reference restoration plus independent persisted layouts across duplicated scenarios. |
+| AT10 | Select two scenarios and scrub the shared year. Assert charts, annual fleet state, installed chargers, warnings, and each independent 3D scene agree with its own scenario result. |
+| AT11 | Reproduce independent numerical fixtures for TCO, CAPEX, OPEX, payback, energy, and emissions. Include zero denominators, delayed transitions, residual timing, lease/purchase cases, and unreached payback; reject non-finite output. |
+| AT12 | Isolate every suitability factor and feasibility influence; verify deterministic tie ordering, explanation contributions, and advisory-only behavior. |
+| AT13 | Verify keyboard operation, labels/errors, focus visibility, last-valid-result behavior, text warnings, empty/loading/failure states, and that primary panels remain reachable when the layout reflows. |
+| AT14 | Run the reference workload and record simulation/update latency, frame behavior, and repeated scene/project switching without monotonic resource/listener growth after warmup. |
+| AT15 | From a clean clone, install, typecheck, test, build, initialize/upgrade the database, start client/server, persist/reopen a project, and run a production smoke test on required environments. |
 
 ## Verification coverage
 
@@ -50,4 +50,4 @@ After five warmup evaluations, measure 100 committed input changes. Target simul
 
 ## Feature specifications
 
-The implementation contract for each F01–F22 item lives in [`docs/features/`](../docs/features/README.md). Acceptance scenarios above reference those same IDs directly, so no second feature/task mapping is maintained.
+The currently tracked implementation features live in [`docs/features/`](../docs/features/README.md). Future requirements above remain source context and are not assigned feature IDs until they are scheduled.
