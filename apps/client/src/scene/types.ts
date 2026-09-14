@@ -11,8 +11,5 @@ export type SceneObject = {
 };
 export type SceneDocument = { version: 2; objects: SceneObject[]; light: number };
 export type TransformProperty = keyof Transform;
-export type ModelAsset = { url: string; correction: Transform };
-export type ObjectDefinition = { kind: "model"; name: string; assetId: string; transform: Transform };
-
 export const identityTransform = (): Transform => ({ position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
 export const copyTransform = (value: Transform): Transform => ({ position: [...value.position], rotation: [...value.rotation], scale: [...value.scale] });

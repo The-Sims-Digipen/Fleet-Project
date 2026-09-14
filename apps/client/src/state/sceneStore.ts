@@ -7,7 +7,7 @@ export function createDocument(): SceneDocument {
   return {
     version: 2,
     light: 65,
-    objects: [createObject("bollard", "sample")!],
+    objects: [createObject("van", "sample")!],
   };
 }
 

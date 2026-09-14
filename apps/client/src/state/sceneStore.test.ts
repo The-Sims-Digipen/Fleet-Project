@@ -6,9 +6,9 @@ beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: { 
 
 describe("scene document and history", () => {
   it("creates unique instances and supports undo/redo of creation, deletion and selection cleanup", () => {
-    state().addObject("bollard");
+    state().addObject("van");
     const first = state().editor.selectedObjectId!;
-    state().addObject("bollard");
+    state().addObject("van");
     const second = state().editor.selectedObjectId!;
     expect(new Set(state().document.objects.map((object) => object.id)).size).toBe(3);
     expect(state().history.past).toHaveLength(2);
@@ -26,7 +26,7 @@ describe("scene document and history", () => {
     expect(state().document.objects.some((object) => object.id === second)).toBe(true);
   });
   it("resets dynamic instances without changing identity and restores appearance separately", () => {
-    state().addObject("bollard");
+    state().addObject("van");
     const id = state().editor.selectedObjectId!;
     const original = state().document.objects[1];
     state().updateTransform(id, "position", [3, 2, 1]);
@@ -52,7 +52,7 @@ describe("scene document and history", () => {
     expect(JSON.parse(JSON.stringify(state().document))).toEqual(state().document);
   });
   it("updates one object immutably and keeps selection outside history", () => {
-    state().addObject("bollard");
+    state().addObject("van");
     const other = state().document.objects[1];
     state().updateTransform("sample", "position", [2, 3, 4]);
     state().selectObject(other.id);

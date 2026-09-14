@@ -1,7 +1,7 @@
 import { useSceneStore } from "../state/sceneStore";
 import type { MaterialPreset, Vector3 } from "../scene/types";
 import { WorldObjects } from "./WorldObjects";
-import { ModelStatus } from "./ModelStatus";
+import { getDefinition } from "../scene/catalog";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorControl, RangeControl, SelectControl, Vector3Control } from "./controls";
 
@@ -11,7 +11,7 @@ const edit = {
   cancelEdit: () => useSceneStore.getState().cancelEdit(),
 };
 const materialOptions: { value: MaterialPreset | ""; label: string }[] = [
-  { value: "", label: "Original materials" }, { value: "matte", label: "Matte" }, { value: "glossy", label: "Glossy" }, { value: "metal", label: "Metal" },
+  { value: "", label: "Default materials" }, { value: "matte", label: "Matte" }, { value: "glossy", label: "Glossy" }, { value: "metal", label: "Metal" },
 ];
 
 const actionClass = "min-h-11 rounded-lg border border-line-strong px-3 text-xs font-bold text-secondary hover:border-[#668078] hover:text-primary";
@@ -26,7 +26,7 @@ function Inspector() {
   return <CollapsibleSection title="Inspector" defaultOpen description="Edit the selected object's properties. Changes apply live." onBeforeCollapse={edit.commitEdit}>
     {object ? <div className="mt-[22px] grid gap-5" key={object.id}>
       <p className="break-words text-sm font-semibold text-primary">{object.name}</p>
-      <ModelStatus object={object} />
+      {!getDefinition(object.definitionId) && <p role="alert" className="text-xs text-secondary">Unknown object definition. Update the catalog or delete this object.</p>}
       <Vector3Control label="Position (m)" value={object.transform.position} onChange={(value) => updateTransform(object.id, "position", value)} edit={edit} />
       <Vector3Control label="Rotation (°)" value={object.transform.rotation.map((angle) => angle * 180 / Math.PI) as Vector3} step={1} onChange={(value) => updateTransform(object.id, "rotation", value.map((angle) => angle * Math.PI / 180) as Vector3)} edit={edit} />
       <Vector3Control label="Scale" value={object.transform.scale} min={0.01} onChange={(value) => updateTransform(object.id, "scale", value)} edit={edit} />
@@ -34,7 +34,7 @@ function Inspector() {
         <SelectControl label="Material" value={object.appearance.material ?? ""} options={materialOptions} onChange={(material) => { edit.commitEdit(); updateAppearance(object.id, { material: material || undefined }); }} />
         <ColorControl label="Tint" value={object.appearance.tint ?? "#ffffff"} onChange={(tint) => updateAppearance(object.id, { tint })} edit={edit} />
       </div>
-      <p className="text-xs text-secondary">{Object.keys(object.appearance).length ? "Appearance overrides active." : "Using original model materials."} Tint multiplies the original colors; material presets affect PBR surfaces.</p>
+      <p className="text-xs text-secondary">{Object.keys(object.appearance).length ? "Appearance overrides active." : "Using the model's default materials."} Tint multiplies the default colors; material presets affect PBR surfaces.</p>
       <button type="button" className={actionClass} onClick={() => useSceneStore.getState().restoreAppearance(object.id)}>Restore Appearance</button>
       <label className="flex min-h-[52px] cursor-pointer items-center gap-3"><input className="size-[18px] accent-accent" type="checkbox" checked={object.appearance.wireframe ?? false} onChange={(event) => { edit.commitEdit(); updateAppearance(object.id, { wireframe: event.target.checked }); }} /><span>Wireframe</span></label>
       <button type="button" className="min-h-12 rounded-lg border border-line-strong bg-transparent px-[15px] text-xs font-bold text-secondary transition-colors duration-150 enabled:hover:border-[#668078] enabled:hover:text-primary disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none" onClick={() => resetObject(object.id)}>Reset object</button>

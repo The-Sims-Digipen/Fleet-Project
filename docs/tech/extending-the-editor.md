@@ -1,52 +1,57 @@
 # Adding a module or object type
 
-Compose another `CollapsibleSection` in `Sidebar`, supplying a title, optional description, `defaultOpen`, and children. Its accessible disclosure preserves mounted child state. Modules with editable controls should pass `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`, passing values, change callbacks, and edit lifecycle callbacks; the controls themselves do not depend on Zustand.
+Compose another `CollapsibleSection` in `Sidebar`, supplying a title, optional description, `defaultOpen`, and children. Its accessible disclosure preserves mounted child state. Modules with editable controls should pass `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`, passing values, change callbacks, and edit lifecycle callbacks; the controls themselves do not depend on Zustand. Keep feature logic in an isolated component and let `Sidebar` compose panels.
 
-## Register a model
+## Register a procedural model
 
-The editor uses a developer-defined catalog in `apps/client/src/scene/catalog.ts`. An object instance references a definition; that definition references a reusable asset. Adding a model does not require editing the viewport or inspector.
+Scene models are TypeScript factories in `apps/client/src/models/`. Each factory returns a new, self-contained `THREE.Group`. Models use metres, Y-up, and the XZ ground plane. Put the model origin at its ground-contact centre when practical, and name meshes so tests and debugging can identify meaningful parts.
 
-1. Export a static, uncompressed, self-contained GLB with embedded textures and put it in `apps/client/public/models/`. Use metres and Y-up where possible. Animation playback, separate `.gltf` dependencies, compression decoders, user uploads, and external URL entry are not supported in this version.
-2. Add an entry to `modelAssets`, using the Vite base URL so it also works when deployed below a path prefix:
+Create a factory such as:
 
-   ```ts
-   "delivery-van": {
-     url: `${import.meta.env.BASE_URL}models/delivery-van.glb`,
-     correction: identityTransform(),
-   },
-   ```
+```ts
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from "three";
 
-3. Add an entry to `objectDefinitions`:
+export function createChargerModel() {
+  const group = new Group();
+  group.name = "Low-poly charger";
+  const material = new MeshStandardMaterial({ color: "#55d6be" });
+  const body = new Mesh(new BoxGeometry(0.4, 1.4, 0.3), material);
+  body.name = "Charger body";
+  body.position.y = 0.7;
+  group.add(body);
+  return group;
+}
+```
 
-   ```ts
-   "parked-van": {
-     kind: "model",
-     name: "Delivery van",
-     assetId: "delivery-van",
-     transform: identityTransform(),
-   },
-   ```
+Then import the factory in `apps/client/src/scene/catalog.ts` and register a stable definition:
 
-4. Click **Add Object** in **World Objects**, choose **Delivery van** in the modal, and click **Create Object**, or call `useSceneStore.getState().addObject("parked-van")`. Each call creates a separately editable instance with a unique ID and one undo step. Instances start at their definition's default position; move overlapping instances with the inspector. The compact World Objects list has a fixed-height scrollable area and shows every instance with a numbered row, highlights the current selection, and supports mouse or keyboard selection. Use **Delete Object** to remove the selected instance or **Clear selection** to deselect it. The Inspector only edits the selected object's properties.
+```ts
+charger: {
+  kind: "procedural",
+  name: "Low-poly Charger",
+  createModel: createChargerModel,
+  transform: identityTransform(),
+},
+```
 
-Asset correction is an inner transform, applied before the instance's editable transform. Use it to correct units, orientation, or an inconvenient origin without changing defaults for every instance. For example, `scale: [0.01, 0.01, 0.01]` converts a model authored in centimetres to metres. Positions are metres and rotations are radians. Models are never automatically resized or centred. Different definitions can share an asset while using different default placements.
+No viewport, World Objects, or Inspector change is required for another generic procedural model. Click **Add Object** in **World Objects**, choose the definition in the modal, and click **Create Object**, or call `useSceneStore.getState().addObject("charger")`. Each call creates a separate instance with a unique ID and one undo step.
+
+The compact World Objects list has a fixed-height scrollable area and shows every instance, highlights the current selection, and supports mouse or keyboard selection. Use **Delete Object** to remove the selected instance or **Clear selection** to deselect it. The Inspector only edits the selected object's properties.
 
 ## Types, rendering, and ownership
 
-`scene/types.ts` holds serializable types. Version 2 documents contain objects with `id`, `name`, `definitionId`, `transform`, and `appearance`, plus scene lighting. There is no migration from the in-memory version 1 demo because it had no save/load integration. Keep stable catalog keys once persistent projects are introduced.
+`scene/types.ts` contains serializable scene data. Version 2 objects store `id`, `name`, `definitionId`, `transform`, and optional `appearance`; they never store `THREE.Group`, geometry, materials, or factory functions. Catalog definitions are runtime configuration and connect stable definition IDs to factories.
 
-`ObjectDefinition.kind` selects a renderer from the typed registry in `ModelObject.tsx`. Currently only `model` is implemented. Add future procedural/domain kinds with explicit types, renderers, and inspector fields when their behavior is implemented; do not encode business behavior in geometry names or attach fleet/charging data to this generic model foundation.
+`ObjectDefinition.kind` selects a renderer from the typed registry in `ModelObject.tsx`. Currently only `procedural` is implemented. Add future domain kinds with explicit types, renderers, and inspector fields alongside their actual behavior. A model supplies presentation; it does not define fleet, charger, bay, or obstacle business data.
 
-Use store actions rather than mutating document data or Three.js meshes directly. Selection and edit history remain outside the document. Unknown definitions/assets appear as an inspector error and can still be deleted; unknown creation requests are ignored.
+Every call to a procedural factory must return newly owned geometry and materials. Do not reuse mutable `Object3D`, geometry, material, or texture instances across factory calls. `createProceduralInstance` applies appearance overrides, creates the non-interactive selection bounds, and disposes all resources owned by that instance when it unmounts. Factory failures are isolated by the per-object render boundary.
 
-The runtime cache loads once per asset URL, independently of undo. Instance hierarchies and materials are cloned; immutable geometries/textures remain shared. Unmounting disposes instance materials, skeleton resources, and outline resources, never the cached geometry/textures. The asset cache lives for the page session. A model's loading/error state does not block other objects. **Retry** reloads the affected asset for all its instances.
+Generated model materials are used by default. Tint multiplies their colors; material presets override roughness and metalness on PBR materials; wireframe affects supporting mesh materials. **Restore Appearance** clears overrides. **Reset object** restores definition transform defaults and appearance while preserving the ID and name. Creation, deletion, and reset remain undoable. Selection is cleared whenever its object no longer exists; undo does not restore selection.
 
-Original GLB materials are used unless an appearance override is set. Tint multiplies authored colors; a material preset overrides roughness/metalness on standard/physical PBR materials; wireframe affects supporting mesh materials. **Restore Appearance** clears all overrides. **Reset object** also restores definition transform defaults but preserves the instance ID and name. **Delete Object**, **Add Object**, and resets are undoable. Selection is cleared whenever its object no longer exists; undo does not resurrect selection.
+## Low-poly van
 
-## Bundled sample
+`models/van.ts` contains the first procedural object. `createVanModel()` returns a multi-part `THREE.Group` built at metre scale with a body, tapered cab, windows, bumpers, lights, and low-sided wheel cylinders. It uses only generated Three.js geometry and materials; there are no external model files or runtime asset requests.
 
-`public/models/sample-bollard.glb` is an original five-mesh safety bollard created for this repository, with three materials and no third-party assets. Its origin is at the base centre; its height is 2.4 metres. Regenerate it using `python apps/client/scripts/generate-sample-model.py` from the repository root. Python is only required to regenerate the sample, not to run/build the application.
-
-The Debug module exposes the document without editing it. Persistence, gizmos, and backend integration are intentionally future additions. DOM tests verify controls and state; real-browser checks are required for picking, orbiting, outlines, and WebGL rendering.
+The Debug module exposes the document without editing it. Persistence, gizmos, and backend integration are future additions. DOM tests verify controls and state; real-browser checks remain required for picking, orbiting, outlines, and WebGL rendering.
 
 See [editing and history](editing-and-history.md) for edit lifecycle behavior and the [architecture](architecture.md#current-scene-editor-architecture) for state ownership.

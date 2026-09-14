@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { createDocument, useSceneStore } from "./state/sceneStore";
 
-vi.mock("./components/ModelStatus", () => ({ ModelStatus: () => <span>Model ready</span> }));
 vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
 beforeEach(() => {
   // jsdom has no native dialog top layer; browser checks cover focus trapping.
@@ -88,24 +87,24 @@ describe("inspector architecture", () => {
   it("reflects scene selection in the world list and supports keyboard selection and an empty world", async () => {
     const user = userEvent.setup();
     render(<App />);
-    act(() => state().addObject("bollard"));
-    expect(screen.getByRole("button", { name: "Select Bollard, object 2" })).toHaveAttribute("aria-pressed", "true");
+    act(() => state().addObject("van"));
+    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 2" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Position (m) Y")).toHaveValue(0);
     await user.click(screen.getByRole("button", { name: "Clear selection" }));
     expect(screen.getByText(/No object selected/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Object" })).toBeDisabled();
-    screen.getByRole("button", { name: "Select Bollard, object 1" }).focus();
+    screen.getByRole("button", { name: "Select Low-poly Van, object 1" }).focus();
     await user.keyboard("{Enter}");
     expect(state().editor.selectedObjectId).toBe("sample");
-    expect(screen.getByRole("button", { name: "Select Bollard, object 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 1" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("combobox", { name: "Object" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Delete Object" }));
-    await user.click(screen.getByRole("button", { name: "Select Bollard, object 1" }));
+    await user.click(screen.getByRole("button", { name: "Select Low-poly Van, object 1" }));
     await user.click(screen.getByRole("button", { name: "Delete Object" }));
     expect(screen.getByText(/No objects in the world/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add Object" }));
     await user.click(screen.getByRole("button", { name: "Create Object" }));
-    expect(screen.getByRole("button", { name: "Select Bollard, object 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 1" })).toHaveAttribute("aria-pressed", "true");
   });
   it("cancels object creation without changing the scene or history", async () => {
     const user = userEvent.setup();
