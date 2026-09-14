@@ -5,32 +5,10 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   Group,
-  Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
-  type Material,
 } from "three";
-
-function addMesh(
-  group: Group,
-  name: string,
-  geometry: BufferGeometry,
-  material: Material,
-  position: [number, number, number],
-  rotation: [number, number, number] = [0, 0, 0],
-) {
-  const mesh = new Mesh(geometry, material);
-
-  mesh.name = name;
-  mesh.position.set(...position);
-  mesh.rotation.set(...rotation);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-
-  group.add(mesh);
-
-  return mesh;
-}
+import { addMesh } from "./modelBuilder";
 
 /**
  * Cab wedge.
@@ -187,29 +165,26 @@ export function createVanModel() {
    * silhouette look like a single vehicle rather than stacked boxes.
    */
 
-  addMesh(
-    van,
-    "Lower body",
-    new BoxGeometry(1.92, 0.62, 4.55),
-    paint,
-    [0, 0.72, -0.02],
-  );
+  addMesh(van, {
+    name: "Lower body",
+    geometry: new BoxGeometry(1.92, 0.62, 4.55),
+    material: paint,
+    position: [0, 0.72, -0.02],
+  });
 
-  addMesh(
-    van,
-    "Cargo body",
-    new BoxGeometry(1.84, 1.24, 2.6),
-    paint,
-    [0, 1.62, 0.8],
-  );
+  addMesh(van, {
+    name: "Cargo body",
+    geometry: new BoxGeometry(1.84, 1.24, 2.6),
+    material: paint,
+    position: [0, 1.62, 0.8],
+  });
 
-  addMesh(
-    van,
-    "Cab",
-    createCabGeometry(),
-    paint,
-    [0, 1.0, -1.25],
-  );
+  addMesh(van, {
+    name: "Cab",
+    geometry: createCabGeometry(),
+    material: paint,
+    position: [0, 1.0, -1.25],
+  });
 
   /*
    * WINDOWS
@@ -217,58 +192,52 @@ export function createVanModel() {
 
   const windshieldAngle = Math.atan2(0.48, 1.24);
 
-  addMesh(
-    van,
-    "Windshield",
-    new PlaneGeometry(1.58, 0.72),
-    windowMaterial,
-    [0, 1.72, -1.98],
-    [windshieldAngle, 0, 0],
-  );
+  addMesh(van, {
+    name: "Windshield",
+    geometry: new PlaneGeometry(1.58, 0.72),
+    material: windowMaterial,
+    position: [0, 1.72, -1.98],
+    rotation: [windshieldAngle, 0, 0],
+  });
 
-  addMesh(
-    van,
-    "Left cab window",
-    createCabSideWindowGeometry(),
-    windowMaterial,
-    [-0.931, 1.7, -1.25],
-  );
+  addMesh(van, {
+    name: "Left cab window",
+    geometry: createCabSideWindowGeometry(),
+    material: windowMaterial,
+    position: [-0.931, 1.7, -1.25],
+  });
 
-  addMesh(
-    van,
-    "Right cab window",
-    createCabSideWindowGeometry(),
-    windowMaterial,
-    [0.931, 1.7, -1.25],
-  );
+  addMesh(van, {
+    name: "Right cab window",
+    geometry: createCabSideWindowGeometry(),
+    material: windowMaterial,
+    position: [0.931, 1.7, -1.25],
+  });
 
   /*
    * BUMPERS + TRIM
    */
 
-  addMesh(
-    van,
-    "Front bumper",
-    new BoxGeometry(1.98, 0.17, 0.18),
-    darkMaterial,
-    [0, 0.5, -2.34],
-  );
+  addMesh(van, {
+    name: "Front bumper",
+    geometry: new BoxGeometry(1.98, 0.17, 0.18),
+    material: darkMaterial,
+    position: [0, 0.5, -2.34],
+  });
 
-  addMesh(
-    van,
-    "Rear bumper",
-    new BoxGeometry(1.98, 0.17, 0.18),
-    darkMaterial,
-    [0, 0.5, 2.3],
-  );
+  addMesh(van, {
+    name: "Rear bumper",
+    geometry: new BoxGeometry(1.98, 0.17, 0.18),
+    material: darkMaterial,
+    position: [0, 0.5, 2.3],
+  });
 
-  addMesh(
-    van,
-    "Front grille",
-    new BoxGeometry(0.9, 0.25, 0.04),
-    darkMaterial,
-    [0, 0.82, -2.31],
-  );
+  addMesh(van, {
+    name: "Front grille",
+    geometry: new BoxGeometry(0.9, 0.25, 0.04),
+    material: darkMaterial,
+    position: [0, 0.82, -2.31],
+  });
 
   /*
    * WHEELS
@@ -289,33 +258,31 @@ export function createVanModel() {
     const side = x < 0 ? "Left" : "Right";
     const axle = z < 0 ? "front" : "rear";
 
-    addMesh(
-      van,
-      `${side} ${axle} tyre`,
-      new CylinderGeometry(
+    addMesh(van, {
+      name: `${side} ${axle} tyre`,
+      geometry: new CylinderGeometry(
         wheelRadius,
         wheelRadius,
         0.22,
         12,
       ),
-      darkMaterial,
-      [x, wheelY, z],
-      [0, 0, Math.PI / 2],
-    );
+      material: darkMaterial,
+      position: [x, wheelY, z],
+      rotation: [0, 0, Math.PI / 2],
+    });
 
-    addMesh(
-      van,
-      `${side} ${axle} hub`,
-      new CylinderGeometry(
+    addMesh(van, {
+      name: `${side} ${axle} hub`,
+      geometry: new CylinderGeometry(
         0.2,
         0.2,
         0.235,
         12,
       ),
-      metalMaterial,
-      [x, wheelY, z],
-      [0, 0, Math.PI / 2],
-    );
+      material: metalMaterial,
+      position: [x, wheelY, z],
+      rotation: [0, 0, Math.PI / 2],
+    });
   }
 
   /*
@@ -323,44 +290,40 @@ export function createVanModel() {
    */
 
   for (const x of [-0.61, 0.61]) {
-    addMesh(
-      van,
-      x < 0 ? "Left headlight" : "Right headlight",
-      new BoxGeometry(0.4, 0.2, 0.045),
-      headlightMaterial,
-      [x, 0.95, -2.3],
-    );
+    addMesh(van, {
+      name: x < 0 ? "Left headlight" : "Right headlight",
+      geometry: new BoxGeometry(0.4, 0.2, 0.045),
+      material: headlightMaterial,
+      position: [x, 0.95, -2.3],
+    });
   }
 
   for (const x of [-0.73, 0.73]) {
-    addMesh(
-      van,
-      x < 0 ? "Left rear light" : "Right rear light",
-      new BoxGeometry(0.19, 0.38, 0.045),
-      rearLightMaterial,
-      [x, 1.04, 2.12],
-    );
+    addMesh(van, {
+      name: x < 0 ? "Left rear light" : "Right rear light",
+      geometry: new BoxGeometry(0.19, 0.38, 0.045),
+      material: rearLightMaterial,
+      position: [x, 1.04, 2.12],
+    });
   }
 
   /*
    * SIDE DETAILS
    */
 
-  addMesh(
-    van,
-    "Left sliding door handle",
-    new BoxGeometry(0.025, 0.06, 0.28),
-    darkMaterial,
-    [-0.931, 1.48, 0.48],
-  );
+  addMesh(van, {
+    name: "Left sliding door handle",
+    geometry: new BoxGeometry(0.025, 0.06, 0.28),
+    material: darkMaterial,
+    position: [-0.931, 1.48, 0.48],
+  });
 
-  addMesh(
-    van,
-    "Right sliding door handle",
-    new BoxGeometry(0.025, 0.06, 0.28),
-    darkMaterial,
-    [0.931, 1.48, 0.48],
-  );
+  addMesh(van, {
+    name: "Right sliding door handle",
+    geometry: new BoxGeometry(0.025, 0.06, 0.28),
+    material: darkMaterial,
+    position: [0.931, 1.48, 0.48],
+  });
 
   return van;
 }
