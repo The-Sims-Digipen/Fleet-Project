@@ -19,115 +19,177 @@
 | Zhi Kai | Yap Zhi Kai | Vehicle Systems Champion |
 | Brandon | Brandon Koh Kai Yang | Backend Champion |
 
+# Current week — M1 W02 · 14–20 September 2026
+
+This week focuses on establishing the app's UI/UX with frontend stubs. Frontend controls may use mock data and do not need to be functional yet. Backend project persistence starts after the Project/Scenario Controls stub is complete.
+
+## Frontend UI stubs
+
+### Vehicle presets
+Create the UI for managing reusable vehicle presets.
+
+- Create, save, edit, and delete vehicle presets.
+- Include fields for fuel consumption, electric consumption, purchase price, battery capacity, charging power, and 3D model selection.
+- Leave room for additional vehicle attributes without redesigning the panel.
+- Use mock data; persistence and calculations are not required this week.
+
+### Fleet Management Panel
+Create the main fleet-management UI.
+
+- Show all vehicles in a table or list.
+- Include vehicle name/ID, current vehicle preset, annual distance/mileage/utilisation, and planned transition year.
+- Include add, edit, and delete vehicle controls.
+- Include a preset dropdown for assigning a vehicle preset.
+- Use mock vehicle data only.
+
+### Project/Scenario Controls
+Create the UI for project and scenario management.
+
+- New Project, Open Project, and Save Project controls.
+- Project name input/display.
+- Allow the UI to represent multiple scenarios/transition plans within one project.
+- Include controls for creating/selecting scenarios; functionality may be stubbed.
+
+### Simulation Settings
+Create a panel for the main simulation assumptions.
+
+- Fuel price.
+- Electricity price.
+- Site connection/power limit.
+- Values may be placeholders and do not need to affect calculations yet.
+
+### 3D World
+Create a code-driven stub depot scene.
+
+- Do not depend on Blender-authored depot geometry for the initial world.
+- Empty/stub depot scene.
+- Placeholder vehicles.
+- Placeholder parking bays.
+- Establish the viewport area and basic visual direction for the future digital twin.
+
+### Graphs
+Create the financial graph UI using mock data.
+
+- Cost-over-time graph.
+- Baseline curve representing no transition to EV.
+- Transition-plan curve representing the selected EV transition scenario.
+- Clearly show the break-even/payback year where the transition becomes profitable.
+
+### Timeline Control
+Create the timeline UI for navigating transition years.
+
+- Year slider.
+- Current selected year display.
+- Play/pause button.
+- Reset button.
+- Transition markers for events such as vehicle replacements and charger installations.
+- Use mock years/events; the timeline does not need to drive other systems yet.
+
+### Power/Feasibility Panel
+Create the power-feasibility summary UI.
+
+- Site connection limit.
+- Estimated peak demand.
+- Available capacity.
+- Stub status/warning states including `Within Capacity` and `Power Limit Exceeded`.
+- Use mock values; no power calculation is required this week.
+
+## Backend
+
+### Project persistence
+Start after the Project/Scenario Controls frontend stub is complete.
+
+- Implement the PostgreSQL/Drizzle schema and migrations.
+- Implement `/api/v1/projects`.
+- Implement create, list, read, update, and delete project endpoints (CRUD).
+
 # Features
 
 ## F01 — Core application platform and integration architecture
-**Owner:** Shee Yang  
 **Active:** M1 W01-W04, then integration changes as required  
 **Specification:** [F01 feature spec](features/F01%20-%20Core%20application%20platform%20and%20integration%20architecture.md)
 
 ## F02 — Vehicle preset, fleet, and transition domain system
-**Owner:** Zhi Kai  
 **Active:** M1 W01-M2 W03  
 **Specification:** [F02 feature spec](features/F02%20-%20Vehicle%20preset%2C%20fleet%2C%20and%20transition%20domain%20system.md)
 
 ## F03 — Financial, energy, and emissions simulation engine
-**Owner:** Elijah  
 **Active:** M1 W01-M2 W04  
 **Specification:** [F03 feature spec](features/F03%20-%20Financial%2C%20energy%2C%20and%20emissions%20simulation%20engine.md)
 
 ## F04 — Planning workspace and analytics interface
-**Owner:** Dayton  
 **Active:** M1 W02-M2 W04  
 **Specification:** [F04 feature spec](features/F04%20-%20Planning%20workspace%20and%20analytics%20interface.md)
 
 ## F05 — Data-driven 3D digital twin and viewport interaction
-**Owner:** Wei Jun  
 **Active:** M1 W02-M3 W04  
 **Specification:** [F05 feature spec](features/F05%20-%20Data-driven%203D%20digital%20twin%20and%20viewport%20interaction.md)
 
 ## F06 — Production 3D asset library and runtime asset pipeline
-**Owner:** Jarrel  
 **Active:** M1 W01-M5 W03  
 **Specification:** [F06 feature spec](features/F06%20-%20Production%203D%20asset%20library%20and%20runtime%20asset%20pipeline.md)
 
 ## F07 — Project/scenario persistence backend
-**Owner:** Brandon  
 **Active:** M1 W01-M2 W04  
 **Specification:** [F07 feature spec](features/F07%20-%20Project%20and%20scenario%20persistence%20backend.md)
 
 ## F08 — Project and scenario workflow integration
-**Owner:** Dayton  
 **Active:** M2 W01–W04  
 **Specification:** [F08 feature spec](features/F08%20-%20Project%20and%20scenario%20workflow%20integration.md)
 
 ## F09 — Charging strategy and feasibility engine
-**Owner:** Elijah  
 **Active:** M3 W01–M5 W02  
 **Specification:** [F09 feature spec](features/F09%20-%20Charging%20strategy%20and%20feasibility%20engine.md)
 
 ## F10 — Scenario comparison and decision analytics
-**Owner:** Dayton  
 **Active:** M3 W01-W04  
 **Specification:** [F10 feature spec](features/F10%20-%20Scenario%20comparison%20and%20decision%20analytics.md)
 
 ## F11 — Vehicle suitability and recommendation engine
-**Owner:** Zhi Kai  
 **Active:** M3 W01–M5 W02  
 **Specification:** [F11 feature spec](features/F11%20-%20Vehicle%20suitability%20and%20recommendation%20engine.md)
 
 ## F12 — Dynamic scenario visualization and dual-scene comparison
-**Owner:** Wei Jun  
 **Active:** M3 W02–M4 W01  
 **Specification:** [F12 feature spec](features/F12%20-%20Dynamic%20scenario%20visualization%20and%20dual-scene%20comparison.md)
 
 ## F13 — Freeform depot geometry and edit-history engine
-**Owner:** Shee Yang  
 **Active:** M4 W01-W04  
 **Specification:** [F13 feature spec](features/F13%20-%20Freeform%20depot%20geometry%20and%20edit-history%20engine.md)
 
 ## F14 — 3D depot authoring tools
-**Owner:** Wei Jun  
 **Active:** M4 W01-W04  
 **Specification:** [F14 feature spec](features/F14%20-%203D%20depot%20authoring%20tools.md)
 
 ## F15 — Depot editor panels, assignments, and issue workflow
-**Owner:** Dayton  
 **Active:** M4 W02–M5 W01  
 **Specification:** [F15 feature spec](features/F15%20-%20Depot%20editor%20panels%2C%20assignments%2C%20and%20issue%20workflow.md)
 
 ## F16 — Scenario layout persistence and isolation
-**Owner:** Brandon  
 **Active:** M4 W01-W04  
 **Specification:** [F16 feature spec](features/F16%20-%20Scenario%20layout%20persistence%20and%20isolation.md)
 
 ## F17 — End-to-end feasibility and recommendation integration
-**Owner:** Shee Yang  
 **Active:** M5 W01–W03  
 **Specification:** [F17 feature spec](features/F17%20-%20End-to-end%20feasibility%20and%20recommendation%20integration.md)
 
 ## F18 — Responsive, accessible, and failure-resilient application UI
-**Owner:** Dayton  
 **Active:** M5 W01-M6 W02  
 **Specification:** [F18 feature spec](features/F18%20-%20Responsive%2C%20accessible%2C%20and%20failure-resilient%20application%20UI.md)
 
 ## F19 — Backend reliability, migrations, and platform hardening
-**Owner:** Brandon  
 **Active:** M5 W02–M6 W02  
 **Specification:** [F19 feature spec](features/F19%20-%20Backend%20reliability%2C%20migrations%2C%20and%20platform%20hardening.md)
 
 ## F20 — Rendering and asset performance optimization
-**Owner:** Wei Jun  
 **Active:** M5 W01-M6 W02  
 **Specification:** [F20 feature spec](features/F20%20-%20Rendering%20and%20asset%20performance%20optimization.md)
 
 ## F21 — Simulation and application performance engineering
-**Owner:** Shee Yang  
 **Active:** M5 W02-M6 W03  
 **Specification:** [F21 feature spec](features/F21%20-%20Simulation%20and%20application%20performance%20engineering.md)
 
 ## F22 — Full technical regression and release integration
-**Owner:** Shee Yang  
 **Active:** M6 W01-W04  
 **Specification:** [F22 feature spec](features/F22%20-%20Full%20technical%20regression%20and%20release%20integration.md)
 
@@ -138,7 +200,7 @@
 | Week / due | Active features | Expected integrated technical state |
 |---|---|---|
 | W01 · 10–13 Sep | F01, F02, F03, F06, F07 | Shared typed project/fleet/preset model exists; synthetic fixture loads; simulation and persistence foundations compile/test; asset pipeline has usable scaled depot/vehicle/charger content. |
-| W02 · 14–20 Sep | F01–F07 | Planning shell edits real fleet/transition data; backend stores project documents; 3D viewport renders the same fixture; baseline/scenario calculations return structured results. |
+| W02 · 14–20 Sep | Frontend UI stubs; project persistence after Project/Scenario Controls | Vehicle presets, fleet management, project/scenario controls, simulation settings, 3D world, graphs, timeline, and power/feasibility UI stubs establish the app look and feel using mock data. Backend project CRUD begins after the Project/Scenario Controls stub is complete. |
 | W03 · 21–27 Sep | F02–F07 | Editing a vehicle transition changes annual fleet state and cost results; saved project round-trips; selected-year fleet state drives vehicle rendering. |
 | W04 · 28 Sep–4 Oct | F01–F07 | **M1 gate:** sample/new project → fleet/preset edit → generic target-preset transition → recalculated cost result → selected-year 3D update → save/reopen, with automated regression for the slice. |
 

@@ -1,6 +1,5 @@
 # F03 — Financial, energy, and emissions simulation engine
 
-**Owner:** Elijah  
 **Active:** M1 W01-M2 W04
 
 ## What this feature must accomplish

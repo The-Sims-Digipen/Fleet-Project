@@ -1,6 +1,5 @@
 # F08 — Project and scenario workflow integration
 
-**Owner:** Dayton  
 **Active:** M2 W01–W04
 
 ## What this feature must accomplish

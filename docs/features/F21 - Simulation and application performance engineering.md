@@ -1,6 +1,5 @@
 # F21 — Simulation and application performance engineering
 
-**Owner:** Shee Yang  
 **Active:** M5 W02-M6 W03
 
 ## What this feature must accomplish

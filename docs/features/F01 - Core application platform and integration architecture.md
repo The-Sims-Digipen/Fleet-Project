@@ -1,6 +1,5 @@
 # F01 — Core application platform and integration architecture
 
-**Owner:** Shee Yang  
 **Active:** M1 W01-W04, then integration changes as required
 
 ## What this feature must accomplish

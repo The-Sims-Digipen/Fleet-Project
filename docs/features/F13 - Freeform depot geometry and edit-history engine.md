@@ -1,6 +1,5 @@
 # F13 — Freeform depot geometry and edit-history engine
 
-**Owner:** Shee Yang  
 **Active:** M4 W01-W04
 
 ## What this feature must accomplish

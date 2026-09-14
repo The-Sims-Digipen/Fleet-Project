@@ -1,6 +1,5 @@
 # F20 — Rendering and asset performance optimization
 
-**Owner:** Wei Jun  
 **Active:** M5 W01-M6 W02
 
 ## What this feature must accomplish

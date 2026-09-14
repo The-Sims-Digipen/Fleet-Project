@@ -1,6 +1,5 @@
 # F22 — Full technical regression and release integration
 
-**Owner:** Shee Yang  
 **Active:** M6 W01-W04
 
 ## What this feature must accomplish

@@ -1,6 +1,5 @@
 # F16 — Scenario layout persistence and isolation
 
-**Owner:** Brandon  
 **Active:** M4 W01-W04
 
 ## What this feature must accomplish

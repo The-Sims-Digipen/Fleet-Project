@@ -1,6 +1,6 @@
 # Annual simulation model
 
-Model: `annual-v1`. Owner: Elijah Chua Jye Kang; vehicle suitability: Yap Zhi Kai. The model provides indicative annual cost, energy, emissions, and feasibility comparisons. Worked examples use synthetic values rather than market forecasts.
+Model: `annual-v1`. The model provides indicative annual cost, energy, emissions, and feasibility comparisons. Worked examples use synthetic values rather than market forecasts.
 
 ## Time, units, and assumptions
 

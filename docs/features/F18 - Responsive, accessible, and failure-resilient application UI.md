@@ -1,6 +1,5 @@
 # F18 — Responsive, accessible, and failure-resilient application UI
 
-**Owner:** Dayton  
 **Active:** M5 W01-M6 W02
 
 ## What this feature must accomplish

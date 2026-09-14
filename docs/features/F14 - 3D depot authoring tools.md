@@ -1,6 +1,5 @@
 # F14 — 3D depot authoring tools
 
-**Owner:** Wei Jun  
 **Active:** M4 W01-W04
 
 ## What this feature must accomplish

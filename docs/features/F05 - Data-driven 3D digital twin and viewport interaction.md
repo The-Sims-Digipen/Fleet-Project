@@ -1,11 +1,19 @@
 # F05 — Data-driven 3D digital twin and viewport interaction
 
-**Owner:** Wei Jun  
 **Active:** M1 W02-M3 W04
 
 ## What this feature must accomplish
 
 The viewport is a deterministic visualization of the active scenario/year and remains stable through repeated edits and scene switching.
+
+## M1 W02 UI stub scope
+
+For 14–20 September, create the code-driven 3D world shell only.
+
+- Create an empty/stub depot scene without depending on Blender-authored depot geometry.
+- Render placeholder vehicles and parking bays.
+- Establish the viewport layout and visual direction for the future digital twin.
+- Mock/static scene data is acceptable this week; project data binding and timeline-driven updates are not required yet.
 
 ## Required behavior
 

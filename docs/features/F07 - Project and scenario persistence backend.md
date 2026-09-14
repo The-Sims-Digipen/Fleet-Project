@@ -1,11 +1,20 @@
 # F07 — Project and scenario persistence backend
 
-**Owner:** Brandon  
 **Active:** M1 W01-M2 W04
 
 ## What this feature must accomplish
 
 A complete project round-trips losslessly through the server and a failed or conflicting save cannot corrupt the last valid stored document.
+
+## M1 W02 implementation scope
+
+Start this backend work after the Project/Scenario Controls frontend stub is complete.
+
+- Implement the PostgreSQL/Drizzle schema and migrations.
+- Implement `/api/v1/projects`.
+- Implement create, list, read, update, and delete project endpoints (CRUD).
+
+The additional reliability and concurrency behavior below remains the complete feature scope and can be implemented in later scheduled work.
 
 ## Required behavior
 

@@ -1,6 +1,5 @@
 # F11 — Vehicle suitability and recommendation engine
 
-**Owner:** Zhi Kai  
 **Active:** M3 W01–M5 W02
 
 ## What this feature must accomplish

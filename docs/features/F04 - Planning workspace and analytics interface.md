@@ -1,11 +1,24 @@
 # F04 — Planning workspace and analytics interface
 
-**Owner:** Dayton  
 **Active:** M1 W02-M2 W04
 
 ## What this feature must accomplish
 
 A user can build/edit a fleet and transition plan, change assumptions, scrub years, and understand the complete calculated result without leaving the planning workspace.
+
+## M1 W02 UI stub scope
+
+For 14–20 September, implement the visual shell only; mock data and non-functional controls are acceptable. The required stubs are:
+
+- Vehicle Presets: create/save/edit/delete controls and fields for fuel consumption, electric consumption, purchase price, battery capacity, charging power, and 3D model selection.
+- Fleet Management: fleet table/list, vehicle add/edit/delete controls, preset assignment, annual distance/mileage/utilisation, and planned transition year.
+- Project/Scenario Controls: New/Open/Save Project, project naming, and multiple scenario/transition-plan controls.
+- Simulation Settings: fuel price, electricity price, and site connection/power limit.
+- Graphs: mock baseline vs transition-plan cost-over-time curves with a visible break-even/payback year.
+- Timeline: year slider, current year, play/pause, reset, and mock transition markers for vehicle replacements and charger installations.
+- Power/Feasibility: site connection limit, estimated peak demand, available capacity, and Within Capacity / Power Limit Exceeded states.
+
+Do not implement temporary calculation logic just to make the stubs appear functional.
 
 ## Required behavior
 

@@ -1,6 +1,5 @@
 # F12 — Dynamic scenario visualization and dual-scene comparison
 
-**Owner:** Wei Jun  
 **Active:** M3 W02–M4 W01
 
 ## What this feature must accomplish

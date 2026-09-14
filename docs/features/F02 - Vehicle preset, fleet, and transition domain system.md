@@ -1,6 +1,5 @@
 # F02 — Vehicle preset, fleet, and transition domain system
 
-**Owner:** Zhi Kai  
 **Active:** M1 W01-M2 W03
 
 ## What this feature must accomplish

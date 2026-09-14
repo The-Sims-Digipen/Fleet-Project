@@ -1,6 +1,5 @@
 # F09 — Charging strategy and feasibility engine
 
-**Owner:** Elijah  
 **Active:** M3 W01–M5 W02
 
 ## What this feature must accomplish

@@ -1,6 +1,5 @@
 # F15 — Depot editor panels, assignments, and issue workflow
 
-**Owner:** Dayton  
 **Active:** M4 W02–M5 W01
 
 ## What this feature must accomplish

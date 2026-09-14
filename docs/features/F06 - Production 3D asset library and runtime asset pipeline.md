@@ -1,6 +1,5 @@
 # F06 — Production 3D asset library and runtime asset pipeline
 
-**Owner:** Jarrel  
 **Active:** M1 W01-M5 W03
 
 ## What this feature must accomplish

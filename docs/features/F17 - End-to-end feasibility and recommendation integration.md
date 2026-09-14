@@ -1,6 +1,5 @@
 # F17 — End-to-end feasibility and recommendation integration
 
-**Owner:** Shee Yang  
 **Active:** M5 W01–W03
 
 ## What this feature must accomplish

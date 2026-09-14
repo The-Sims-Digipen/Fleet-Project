@@ -1,6 +1,5 @@
 # F19 — Backend reliability, migrations, and platform hardening
 
-**Owner:** Brandon  
 **Active:** M5 W02–M6 W02
 
 ## What this feature must accomplish

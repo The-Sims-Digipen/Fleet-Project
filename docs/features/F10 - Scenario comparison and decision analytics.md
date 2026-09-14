@@ -1,6 +1,5 @@
 # F10 — Scenario comparison and decision analytics
 
-**Owner:** Dayton  
 **Active:** M3 W01-W04
 
 ## What this feature must accomplish
