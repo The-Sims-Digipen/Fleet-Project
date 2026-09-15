@@ -5,8 +5,11 @@ import App from "./App";
 import { loadDefaultPresets } from "./vehicles/defaults";
 import { usePresetStore } from "./state/presetStore";
 import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
+import { initialVehicles, useFleetStore } from "./state/fleetStore";
+import { useTimelineStore } from "./state/timelineStore";
 
-vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
+vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetPreview }: { fleetPreview: { id: string; name: string; appearance: { tint?: string } }[] | null }) =>
+  <div>{fleetPreview?.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
 beforeEach(() => {
   // jsdom has no native dialog top layer; browser checks cover focus trapping.
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
@@ -14,11 +17,27 @@ beforeEach(() => {
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
   usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null });
+  useFleetStore.setState({ vehicles: initialVehicles });
+  useTimelineStore.getState().resetYear();
 });
 afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
+  it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Visualize fleet in 3D" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2028");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-02" }), "");
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
+    act(() => useTimelineStore.getState().setSelectedYear(2028));
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#39ff14");
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveTextContent("Changed");
+    expect(screen.getByTestId("fleet-preview-UNIT-02")).toHaveAttribute("data-tint", "#ffffff");
+    act(() => useTimelineStore.getState().resetYear());
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
+  });
   it("adds and deletes catalog instances with undoable edits and appearance restoration", async () => {
     const user = userEvent.setup();
     render(<App />);
