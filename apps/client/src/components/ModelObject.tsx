@@ -3,6 +3,7 @@ import type { Group } from "three";
 import { createProceduralInstance } from "../models/proceduralModel";
 import { getDefinition, type ObjectDefinition } from "../scene/catalog";
 import type { SceneObject } from "../scene/types";
+import { useResolvedModelId } from "../state/presetStore";
 import { useSceneStore } from "../state/sceneStore";
 import { TransformGizmo } from "./TransformGizmo";
 
@@ -35,7 +36,8 @@ export function ModelObject({ object, isClick, markDragged }: {
   markDragged: () => void;
 }) {
   const selected = useSceneStore((state) => state.editor.selectedObjectId === object.id);
-  const definition = getDefinition(object.definitionId);
+  const modelId = useResolvedModelId(object);
+  const definition = getDefinition(modelId);
   const root = useRef<Group>(null!);
   if (!definition) return null;
   const Renderer = renderers[definition.kind];

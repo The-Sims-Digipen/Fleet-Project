@@ -29,10 +29,13 @@ Then import the factory in `apps/client/src/scene/catalog.ts` and register a sta
 charger: {
   kind: "procedural",
   name: "Low-poly Charger",
+  vehiclePresetCompatible: false,
   createModel: createChargerModel,
   transform: identityTransform(),
 },
 ```
+
+Set `vehiclePresetCompatible` to `true` only for geometry that may be selected by a vehicle preset. General scene objects such as depots remain available in World Objects without appearing in the vehicle-model picker.
 
 No viewport, World Objects, or Inspector change is required for another generic procedural model. Click **Add Object** in **World Objects**, choose the definition in the modal, and click **Create Object**, or call `useSceneStore.getState().addObject("charger")`. Each call creates a separate instance with a unique ID and one undo step.
 
@@ -40,7 +43,7 @@ The compact World Objects list has a fixed-height scrollable area and shows ever
 
 ## Types, rendering, and ownership
 
-`scene/types.ts` contains serializable scene data. Version 2 objects store `id`, `name`, `definitionId`, `transform`, and optional `appearance`; they never store `THREE.Group`, geometry, materials, or factory functions. Catalog definitions are runtime configuration and connect stable definition IDs to factories.
+`scene/types.ts` contains serializable scene data. Version 3 objects store `id`, `name`, `definitionId`, an optional vehicle `presetId`, `transform`, and `appearance`; they never store `THREE.Group`, geometry, materials, or factory functions. Catalog definitions are runtime configuration and connect stable definition IDs to factories.
 
 `ObjectDefinition.kind` selects a renderer from the typed registry in `ModelObject.tsx`. Currently only `procedural` is implemented. Add future domain kinds with explicit types, renderers, and inspector fields alongside their actual behavior. A model supplies presentation; it does not define fleet, charger, bay, or obstacle business data.
 

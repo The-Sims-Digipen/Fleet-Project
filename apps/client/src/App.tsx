@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useState, type ReactNode } from "react";
 import { HistoryControls } from "./components/HistoryControls";
+import { ProjectControls } from "./components/ProjectControls";
 import { Sidebar } from "./components/Sidebar";
 import { ResizableWorkspace } from "./components/ResizableWorkspace";
 import { TransformToolbar } from "./components/TransformToolbar";
@@ -18,8 +19,9 @@ export default function App() {
   const [cameraReset, setCameraReset] = useState(0);
   return <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface">
     <a className="fixed top-3 left-3 z-50 -translate-y-[160%] rounded-lg bg-accent px-3.5 py-2.5 font-extrabold text-accent-ink focus:translate-y-0" href="#controls">Skip to controls</a>
-    <header className="flex shrink-0 min-h-[72px] items-center justify-between gap-6 border-b border-line bg-surface/95 px-[clamp(18px,3vw,40px)] py-3 max-[560px]:min-h-16 max-[560px]:px-4">
+    <header className="flex shrink-0 min-h-[72px] flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line bg-surface/95 px-[clamp(18px,3vw,40px)] py-3 max-[560px]:min-h-16 max-[560px]:px-4">
       <div className="flex min-w-0 items-center gap-3"><span className="grid size-[42px] shrink-0 place-items-center rounded-[10px] border border-[#355149] bg-[#0f211d] text-accent max-[560px]:size-[38px]" aria-hidden="true">◇</span><div><p className="mb-0.5 block font-mono text-[0.68rem] font-bold tracking-[0.14em] text-accent uppercase">Starter</p><h1 className="text-[1.05rem] font-semibold max-[560px]:text-[0.92rem]">3D Playground</h1></div></div>
+      <ProjectControls />
       <div className="flex items-center gap-2">
         <HistoryControls />
         <span className="flex min-h-9 items-center gap-2 rounded-full border border-line px-[13px] text-xs font-semibold text-secondary max-[560px]:w-9 max-[560px]:justify-center max-[560px]:px-0 max-[560px]:text-[0px]"><i className="size-[7px] shrink-0 rounded-full bg-accent shadow-[0_0_10px_#55d6be80]" aria-hidden="true" />Local scene</span>

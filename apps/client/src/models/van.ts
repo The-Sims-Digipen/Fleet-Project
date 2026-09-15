@@ -174,7 +174,7 @@ export function createVanModel() {
 
   addMesh(van, {
     name: "Cargo body",
-    geometry: new BoxGeometry(1.84, 1.24, 2.6),
+    geometry: new BoxGeometry(1.84, 1.4, 2.6),
     material: paint,
     position: [0, 1.62, 0.8],
   });

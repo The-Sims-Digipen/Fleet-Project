@@ -46,7 +46,7 @@ export function TransformToolbar() {
         {item.label}<span className="ml-1.5 font-mono text-[10px] opacity-60">{item.shortcut}</span>
       </button>)}
     </div>
-    <button type="button" className={buttonClass} disabled={!selected} aria-pressed={space === "local"} title="Toggle transform space (Q)" onClick={() => setSpace(space === "world" ? "local" : "world")}>
+    <button type="button" aria-label={`Transform space: ${space === "world" ? "World" : "Local"}`} className={buttonClass} disabled={!selected} aria-pressed={space === "local"} title="Toggle transform space (Q)" onClick={() => setSpace(space === "world" ? "local" : "world")}>
       {space === "world" ? "World" : "Local"}<span className="ml-1.5 font-mono text-[10px] opacity-60">Q</span>
     </button>
     <button type="button" className={buttonClass} disabled={!selected} aria-pressed={snap} title="Toggle snapping" onClick={() => setSnap(!snap)}>

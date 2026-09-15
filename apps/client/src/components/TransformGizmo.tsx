@@ -49,6 +49,10 @@ function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable);
 }
 
+function hasEnabled(value: unknown): value is ToggleableControls {
+  return typeof value === "object" && value !== null && "enabled" in value && typeof value.enabled === "boolean";
+}
+
 export function TransformGizmo({ object, target, markDragged }: {
   object: SceneObject;
   target: RefObject<Group>;
@@ -56,7 +60,8 @@ export function TransformGizmo({ object, target, markDragged }: {
 }) {
   const camera = useThree((state) => state.camera);
   const gl = useThree((state) => state.gl);
-  const defaultControls = useThree((state) => state.controls) as ToggleableControls | undefined;
+  const sceneControls = useThree((state) => state.controls);
+  const defaultControls = hasEnabled(sceneControls) ? sceneControls : undefined;
   const mode = useSceneStore((state) => state.editor.transformMode);
   const space = useSceneStore((state) => state.editor.transformSpace);
   const snap = useSceneStore((state) => state.editor.snapEnabled);
@@ -96,7 +101,7 @@ export function TransformGizmo({ object, target, markDragged }: {
     const group = target.current;
     if (!group) return;
     controls.attach(group);
-    return () => controls.detach();
+    return () => { controls.detach(); };
   }, [controls, target]);
 
   useLayoutEffect(() => {

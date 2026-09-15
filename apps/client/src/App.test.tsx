@@ -2,6 +2,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { loadDefaultPresets } from "./vehicles/defaults";
+import { usePresetStore } from "./state/presetStore";
 import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
 
 vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
@@ -11,6 +13,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
+  usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null });
 });
 afterEach(cleanup);
 const state = useSceneStore.getState;
@@ -45,7 +48,7 @@ describe("inspector architecture", () => {
     const toolbar = screen.getByRole("toolbar", { name: "Transform tools" });
     expect(toolbar).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Rotate/ }));
-    await user.click(screen.getByRole("button", { name: /World/ }));
+    await user.click(screen.getByRole("button", { name: "Transform space: World" }));
     await user.click(screen.getByRole("button", { name: "Snap" }));
     expect(state().editor.transformMode).toBe("rotate");
     expect(state().editor.transformSpace).toBe("local");
@@ -210,5 +213,24 @@ describe("inspector architecture", () => {
     expect(state().history.past).toHaveLength(3);
     await user.click(screen.getByRole("button", { name: "Reset object" }));
     expect(state().document.objects[0]).toEqual(createDocument().objects[0]);
+  });
+  it("places preset instances that follow the preset's name and release it on deletion", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Select Electric Delivery Van" }));
+    await user.click(screen.getByRole("button", { name: "Add to Scene" }));
+    const placed = state().document.objects.at(-1)!;
+    expect(placed).toMatchObject({ presetId: "electric-van", definitionId: "van", name: "Electric Delivery Van" });
+    expect(screen.getByRole("button", { name: "Select Electric Delivery Van, object 2" })).toBeInTheDocument();
+
+    // Renaming the preset relabels its instances without touching the document.
+    act(() => usePresetStore.getState().updatePreset("electric-van", { name: "Electric Van Mk2" }));
+    expect(screen.getByRole("button", { name: "Select Electric Van Mk2, object 2" })).toBeInTheDocument();
+    expect(state().document.objects.at(-1)!.name).toBe("Electric Delivery Van");
+
+    // An orphaned instance falls back to the name and geometry it was placed with.
+    act(() => usePresetStore.getState().deletePreset("electric-van"));
+    expect(screen.getByRole("button", { name: "Select Electric Delivery Van, object 2" })).toBeInTheDocument();
+    expect(state().document.objects.at(-1)!.presetId).toBe("electric-van");
   });
 });

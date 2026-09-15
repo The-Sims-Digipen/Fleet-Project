@@ -14,7 +14,7 @@ export type EditorState = {
 
 export function createDocument(): SceneDocument {
   return {
-    version: 2,
+    version: 3,
     light: 65,
     objects: [createObject("van", "sample")!],
   };
@@ -37,11 +37,12 @@ type SceneState = {
   updateObjectTransform: (id: string, transform: Transform) => void;
   updateAppearance: (id: string, patch: Appearance) => void;
   restoreAppearance: (id: string) => void;
-  addObject: (definitionId: string) => void;
+  addObject: (definitionId: string, presetId?: string, name?: string) => void;
   deleteObject: (id: string) => void;
   setLight: (value: number) => void;
   resetObject: (id: string) => void;
   resetScene: () => void;
+  loadDocument: (document: SceneDocument) => void;
   beginEdit: () => void;
   commitEdit: () => void;
   cancelEdit: () => void;
@@ -120,8 +121,8 @@ export const useSceneStore = create<SceneState>((set, get) => {
       changeObject(id, { appearance });
     },
     restoreAppearance: (id) => { get().commitEdit(); changeObject(id, { appearance: {} }); },
-    addObject: (definitionId) => {
-      const object = createObject(definitionId, crypto.randomUUID());
+    addObject: (definitionId, presetId, name) => {
+      const object = createObject(definitionId, crypto.randomUUID(), presetId, name);
       if (!object) return;
       get().commitEdit();
       change({ ...get().document, objects: [...get().document.objects, object] });
@@ -141,6 +142,12 @@ export const useSceneStore = create<SceneState>((set, get) => {
       if (definition) changeObject(id, { transform: copyTransform(definition.transform), appearance: {} });
     },
     resetScene: () => { get().commitEdit(); change(createDocument()); },
+    // Replaces the document for another scenario or project; history never spans documents.
+    loadDocument: (document) => set({
+      document,
+      editor: { ...get().editor, selectedObjectId: null },
+      history: { past: [], future: [], baseline: null },
+    }),
     beginEdit: () => {
       if (!get().history.baseline) set({ history: { ...get().history, baseline: get().document } });
     },
