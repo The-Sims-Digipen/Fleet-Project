@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
+import { MOUSE } from "three";
 import { useSceneStore } from "../state/sceneStore";
 import { ModelObject } from "./ModelObject";
 
@@ -12,7 +13,17 @@ function Lighting() {
 function CameraControls({ reset }: { reset: number }) {
   const camera = useThree((state) => state.camera);
   useEffect(() => { camera.position.set(8, 7, 9); camera.lookAt(0, 0, 0); }, [camera, reset]);
-  return <OrbitControls key={reset} makeDefault enableDamping dampingFactor={0.06} minDistance={2} maxDistance={60} maxPolarAngle={Math.PI / 2.02} target={[0, 0, 0]} />;
+  return <OrbitControls
+    key={reset}
+    makeDefault
+    enableDamping
+    dampingFactor={0.06}
+    minDistance={2}
+    maxDistance={60}
+    maxPolarAngle={Math.PI / 2.02}
+    target={[0, 0, 0]}
+    mouseButtons={{ LEFT: -1 as MOUSE, MIDDLE: MOUSE.ROTATE, RIGHT: -1 as MOUSE }}
+  />;
 }
 
 export function WorldScene({ cameraReset }: { cameraReset: number }) {

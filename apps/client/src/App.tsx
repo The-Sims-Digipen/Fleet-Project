@@ -30,7 +30,7 @@ export default function App() {
         <ViewportBoundary><Suspense fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">Loading 3D world…</div>}><LazyWorldScene cameraReset={cameraReset} /></Suspense></ViewportBoundary>
         <TransformToolbar />
         <div className="pointer-events-none absolute top-[30px] left-[clamp(20px,3vw,42px)] z-10"><span className="mb-2 block font-mono text-[0.68rem] font-bold tracking-[0.14em] text-accent uppercase">3D viewport</span><h2 className="text-[clamp(1.6rem,3vw,2.25rem)] font-medium tracking-[-0.04em]" id="scene-title">Model scene</h2></div>
-        <div className="pointer-events-none absolute right-[clamp(20px,3vw,42px)] bottom-7 z-10 rounded-lg border border-line-strong/80 bg-surface/80 px-[11px] py-[9px] text-[0.7rem] text-secondary backdrop-blur-[10px]">Click to select · Drag to orbit · Scroll to zoom · W/E/R transform · Q space</div>
+        <div className="pointer-events-none absolute right-[clamp(20px,3vw,42px)] bottom-7 z-10 rounded-lg border border-line-strong/80 bg-surface/80 px-[11px] py-[9px] text-[0.7rem] text-secondary backdrop-blur-[10px]">Click to select · MMB orbit · Shift+MMB pan · Scroll zoom · W/E/R transform · Q space</div>
       </section>
       <Sidebar onResetCamera={() => setCameraReset((value) => value + 1)} />
     </ResizableWorkspace>
