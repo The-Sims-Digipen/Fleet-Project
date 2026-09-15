@@ -16,6 +16,15 @@ afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
+  it("shows the mocked cost comparison and payback year in the analysis tab", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Cost over time" }));
+    expect(screen.getByRole("heading", { name: "Cost over time" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Cumulative cost comparison/ })).toBeInTheDocument();
+    expect(screen.getByText("PAYBACK 2033")).toBeInTheDocument();
+    expect(screen.getByText("Transition becomes cheaper")).toBeInTheDocument();
+  });
   it("adds and deletes catalog instances with undoable edits and appearance restoration", async () => {
     const user = userEvent.setup();
     render(<App />);

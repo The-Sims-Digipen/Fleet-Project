@@ -4,6 +4,7 @@ import { WorldObjects } from "./WorldObjects";
 import { getDefinition } from "../scene/catalog";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorControl, RangeControl, SelectControl, Vector3Control } from "./controls";
+import { CostAnalysis } from "./CostAnalysis";
 
 const edit = {
   beginEdit: () => useSceneStore.getState().beginEdit(),
@@ -70,6 +71,7 @@ export function Sidebar({ onResetCamera }: { onResetCamera: () => void }) {
     <WorldObjects />
     <Inspector />
     <SceneModule onResetCamera={onResetCamera} />
+    <CostAnalysis />
     <DebugModule />
   </aside>;
 }
