@@ -21,7 +21,7 @@ The UI should leave room for scenario rename, duplicate, and delete actions late
 
 - Project and scenario actions may be non-functional.
 - Use placeholder projects/scenarios where needed.
-- Do not implement backend persistence as part of this frontend feature.
+- Backend persistence is owned by F09; F03 only owns the project/scenario controls UI.
 
 ## Dependency
 

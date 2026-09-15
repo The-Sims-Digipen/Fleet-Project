@@ -37,7 +37,7 @@ Simulation and geometry are independent of rendering and persistence. The interf
 
 ## Data ownership and interaction
 
-A project shares its vehicle presets, fleet, analysis period, energy-price assumptions, and emissions factors across all scenarios. Each scenario has its own generic target-preset transition schedule, charging settings, relevant energy tariffs, and depot layout. Comparison therefore uses one no-transition/current-fleet baseline and two independent plans.
+A project shares its vehicle presets, fleet, analysis period, energy-price assumptions, emissions factors, and one reusable 3D world. Scenarios are separate saved transition plans bound to that world; they do not own or duplicate the world document. Comparison therefore uses one physical depot with independent planning alternatives.
 
 ```mermaid
 sequenceDiagram
@@ -63,9 +63,9 @@ A save captures a consistent snapshot. Edits made during saving remain unsaved u
 
 ## Persistence and deployment boundary
 
-PostgreSQL stores each complete project as one validated, versioned JSON document. Atomic project writes keep fleets, schedules, and layouts synchronized. Revision checks prevent one browser tab from silently overwriting another. The [data and API specification](contracts.md) defines this boundary.
+PostgreSQL stores projects, worlds, and scenarios as separate validated versioned resources. `projects.world_id` and `scenarios.world_id` identify their physical world, while `project_scenarios` links plans to projects. Composite foreign keys make a cross-world project/scenario association impossible. A workspace save updates the project, world, scenarios, and links in one transaction; independent revision checks prevent stale overwrites. The [data and API specification](contracts.md) defines this boundary.
 
-The deployment design uses a local API and database, with no account system or public service. Ubuntu 24.04, macOS Tahoe, and Windows 11 are development/build targets; the server also requires execution and testing on Ubuntu 24.04.
+Production deployment uses one Vercel project. Vite output is served statically, Fastify runs as a Vercel Function under `/api`, and Neon provides PostgreSQL through `DATABASE_URL`. Production builds apply committed PostgreSQL migrations automatically before building. Local development uses the same relative API paths through Vite's proxy and can pull the Neon development credentials with the Vercel CLI.
 
 ## Engineering decisions
 
@@ -79,6 +79,6 @@ The [simulation model](simulation.md) and [depot editor](depot-editor.md) define
 
 ## Current scene-editor architecture
 
-The current prototype implements an in-memory version 3 scene document, separate editor selection/transform-tool settings, and snapshot undo history in Zustand. Serializable types live in `apps/client/src/scene/types.ts`; the developer catalog maps stable object definitions to procedural `THREE.Group` factories under `apps/client/src/models`. The viewport iterates document objects and dispatches through a typed renderer registry rather than depending on particular object IDs or shapes.
+The editor keeps the active version 3 world document in Zustand while it is being edited, with separate editor selection/transform-tool settings and snapshot undo history. Serializable types live in `apps/client/src/scene/types.ts`; the developer catalog maps stable object definitions to procedural `THREE.Group` factories under `apps/client/src/models`. The viewport iterates document objects and dispatches through a typed renderer registry rather than depending on particular object IDs or shapes.
 
-Each factory call creates an independently owned hierarchy, geometry, and materials. The renderer applies instance appearance overrides and creates a bounding outline, then disposes those resources on unmount. No model loader, external file, URL, or asset cache participates in rendering. Inspector and viewport-gizmo editing change document transforms only; gizmo mode, world/local space, and snapping remain editor-only state. The viewport uses the TransformControls implementation shipped with the pinned Three.js version so its interaction logic stays aligned with the renderer; directional move/scale handles are kept on the positive axes instead of camera-flipping. Project/scenario controls and vehicle presets currently use in-memory frontend stores; backend persistence and simulation remain future work. See [extending the editor](extending-the-editor.md) for catalog registration and resource ownership.
+Each factory call creates an independently owned hierarchy, geometry, and materials. The renderer applies instance appearance overrides and creates a bounding outline, then disposes those resources on unmount. No model loader, external file, URL, or asset cache participates in rendering. Inspector and viewport-gizmo editing change document transforms only; gizmo mode, world/local space, and snapping remain editor-only state. The viewport uses the TransformControls implementation shipped with the pinned Three.js version so its interaction logic stays aligned with the renderer; directional move/scale handles are kept on the positive axes instead of camera-flipping. Project/scenario controls now save through the Fastify persistence API; the 3D world remains in the scene store while editing but is persisted as its own world resource. Simulation remains future work. See [extending the editor](extending-the-editor.md) for catalog registration and resource ownership.

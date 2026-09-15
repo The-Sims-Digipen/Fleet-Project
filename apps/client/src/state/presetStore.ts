@@ -39,6 +39,7 @@ type PresetState = {
   deletePreset: (id: string) => void;
   exportPresets: () => string;
   importPresets: (text: string) => ImportResult;
+  replacePresets: (presets: VehiclePreset[]) => void;
   beginEdit: () => void;
   commitEdit: () => void;
   cancelEdit: () => void;
@@ -91,6 +92,10 @@ export const usePresetStore = create<PresetState>((set, get) => {
       replace(get().presets.filter((preset) => preset.id !== id));
     },
     exportPresets: () => JSON.stringify({ version: presetFileVersion, presets: get().presets } satisfies PresetFile, null, 2),
+    replacePresets: (presets) => {
+      get().commitEdit();
+      replace(presets.map(copyPreset));
+    },
     importPresets: (text) => {
       let parsed: unknown;
       try {

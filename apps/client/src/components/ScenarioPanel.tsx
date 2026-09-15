@@ -1,26 +1,28 @@
 import { useState } from "react";
 import { useProjectStore } from "../state/projectStore";
+import { AddScenarioDialog, DeleteScenarioDialog } from "./ProjectDialogs";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NameField } from "./NameField";
-import { DeleteScenarioDialog } from "./ProjectDialogs";
 
-const actionClass = "min-h-8 rounded border border-line-strong px-2.5 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
+const actionClass = "min-h-7 rounded border border-line-strong px-2 text-[0.68rem] font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
 
-/** Lists the open project's scenarios (transition plans) and manages the active one. */
+/** Scenarios are separate saved plans bound to the project's shared 3D world. */
 export function ScenarioPanel() {
   const scenarios = useProjectStore((state) => state.scenarios);
   const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
   const { selectScenario, createScenario, duplicateScenario, renameScenario } = useProjectStore.getState();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const active = scenarios.find((scenario) => scenario.id === activeScenarioId);
 
-  return <CollapsibleSection title="Scenarios" defaultOpen description="Each scenario is an independent transition plan with its own depot scene. Switching scenarios clears undo history.">
+  return <CollapsibleSection title="Scenarios" defaultOpen description="Transition plans are stored separately from the 3D world, but each scenario is permanently bound to this world.">
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
         <button type="button" aria-label="New scenario" className={actionClass} onClick={createScenario}>New Scenario</button>
+        <button type="button" aria-label="Add existing scenario" className={actionClass} onClick={() => setAdding(true)}>Add Existing</button>
         <button type="button" aria-label="Duplicate scenario" className={actionClass} disabled={!active} onClick={() => active && duplicateScenario(active.id)}>Duplicate</button>
-        <button type="button" aria-label="Delete scenario" className={actionClass} disabled={scenarios.length <= 1} title={scenarios.length <= 1 ? "A project needs at least one scenario." : undefined}
-          onClick={() => setDeletingId(activeScenarioId)}>Delete</button>
+        <button type="button" aria-label="Remove scenario" className={actionClass} disabled={scenarios.length <= 1} title={scenarios.length <= 1 ? "A project needs at least one scenario." : undefined}
+          onClick={() => setDeletingId(activeScenarioId)}>Remove</button>
         <span className="ml-auto text-xs text-secondary">{scenarios.length}</span>
       </div>
       <ul aria-label="Scenarios" className="m-0 max-h-44 list-none overflow-y-auto overscroll-contain p-1">
@@ -40,5 +42,6 @@ export function ScenarioPanel() {
     </div>
     {active && <div className="mt-4"><NameField key={active.id} label="Active scenario name" value={active.name} onCommit={(name) => renameScenario(active.id, name)} /></div>}
     {deletingId && <DeleteScenarioDialog scenarioId={deletingId} onDismiss={() => setDeletingId(null)} />}
+    {adding && <AddScenarioDialog onDismiss={() => setAdding(false)} />}
   </CollapsibleSection>;
 }

@@ -15,7 +15,7 @@ Technical acceptance criteria for the longer-term M1–M6 application. The curre
 | AT07 | Save/reopen full projects; inject backend unavailability, invalid payloads, oversized bodies, unsupported versions, and stale revisions. Verify working edits survive and the last stored version remains consistent. |
 | AT08 | Author concave sites, self-intersecting rings, repeated vertices, obstacles, rotated bays/chargers, edge contact, and out-of-bound objects. Verify structured issues and no triangulation/render crash. |
 | AT09 | Assign/unassign bays, create/duplicate/delete objects, edit numerically, snap, cancel, undo, and redo. Verify reference restoration plus independent persisted layouts across duplicated scenarios. |
-| AT10 | Select two scenarios and scrub the shared year. Assert charts, annual fleet state, installed chargers, warnings, and each independent 3D scene agree with its own scenario result. |
+| AT10 | Select two scenarios and scrub the shared year. Assert charts, annual fleet state, installed chargers, warnings, and each scenario view of the shared 3D world agrees with its own scenario result. |
 | AT11 | Reproduce independent numerical fixtures for TCO, CAPEX, OPEX, payback, energy, and emissions. Include zero denominators, delayed transitions, residual timing, lease/purchase cases, and unreached payback; reject non-finite output. |
 | AT12 | Isolate every suitability factor and feasibility influence; verify deterministic tie ordering, explanation contributions, and advisory-only behavior. |
 | AT13 | Verify keyboard operation, labels/errors, focus visibility, last-valid-result behavior, text warnings, empty/loading/failure states, and that primary panels remain reachable when the layout reflows. |
