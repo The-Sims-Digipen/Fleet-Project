@@ -1,8 +1,10 @@
-import { Component, useLayoutEffect, useMemo, type ComponentType, type ReactNode } from "react";
+import { Component, useLayoutEffect, useMemo, useRef, type ComponentType, type ReactNode } from "react";
+import type { Group } from "three";
 import { createProceduralInstance } from "../models/proceduralModel";
 import { getDefinition, type ObjectDefinition } from "../scene/catalog";
 import type { SceneObject } from "../scene/types";
 import { useSceneStore } from "../state/sceneStore";
+import { TransformGizmo } from "./TransformGizmo";
 
 class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -27,16 +29,24 @@ const renderers: Record<ObjectDefinition["kind"], ComponentType<RendererProps>> 
   procedural: ProceduralRenderer,
 };
 
-export function ModelObject({ object, isClick }: { object: SceneObject; isClick: () => boolean }) {
+export function ModelObject({ object, isClick, markDragged }: {
+  object: SceneObject;
+  isClick: () => boolean;
+  markDragged: () => void;
+}) {
   const selected = useSceneStore((state) => state.editor.selectedObjectId === object.id);
   const definition = getDefinition(object.definitionId);
+  const root = useRef<Group>(null!);
   if (!definition) return null;
   const Renderer = renderers[definition.kind];
 
-  return <group {...object.transform} onClick={(event) => {
-    event.stopPropagation();
-    if (isClick()) useSceneStore.getState().selectObject(object.id);
-  }}>
-    <ObjectBoundary><Renderer object={object} definition={definition} selected={selected} /></ObjectBoundary>
-  </group>;
+  return <>
+    <group ref={root} {...object.transform} onClick={(event) => {
+      event.stopPropagation();
+      if (isClick()) useSceneStore.getState().selectObject(object.id);
+    }}>
+      <ObjectBoundary><Renderer object={object} definition={definition} selected={selected} /></ObjectBoundary>
+    </group>
+    {selected && <TransformGizmo object={object} target={root} markDragged={markDragged} />}
+  </>;
 }

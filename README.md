@@ -4,7 +4,7 @@ A browser-based fleet electrification planning project covering transition sched
 
 **Current implementation:** an in-memory 3D scene-editor prototype and basic Fastify API. The product features described in the documentation are the M1–M6 delivery scope.
 
-The scene editor creates procedural `THREE.Group` models from a typed developer catalog. Add/delete instances, edit transforms, optionally override their generated materials, and undo/redo edits. The starter object is a multi-part low-poly van. See [registering models](docs/tech/extending-the-editor.md) to add another procedural model without changing viewport code.
+The scene editor creates procedural `THREE.Group` models from a typed developer catalog. Add/delete instances, edit transforms numerically or with viewport gizmos, optionally override generated materials, and undo/redo edits. The starter object is a multi-part low-poly van. See [registering models](docs/tech/extending-the-editor.md) to add another procedural model without changing viewport code.
 
 Project documentation is indexed in [docs/README.md](docs/README.md).
 
