@@ -25,6 +25,7 @@ type SceneState = {
   setLight: (value: number) => void;
   resetObject: (id: string) => void;
   resetScene: () => void;
+  loadDocument: (document: SceneDocument) => void;
   beginEdit: () => void;
   commitEdit: () => void;
   cancelEdit: () => void;
@@ -98,6 +99,8 @@ export const useSceneStore = create<SceneState>((set, get) => {
       if (definition) changeObject(id, { transform: copyTransform(definition.transform), appearance: {} });
     },
     resetScene: () => { get().commitEdit(); change(createDocument()); },
+    // Replaces the document for another scenario or project; history never spans documents.
+    loadDocument: (document) => set({ document, editor: { selectedObjectId: null }, history: { past: [], future: [], baseline: null } }),
     beginEdit: () => {
       if (!get().history.baseline) set({ history: { ...get().history, baseline: get().document } });
     },

@@ -91,10 +91,10 @@ export function VehiclePresets() {
   return <CollapsibleSection title="Vehicle Presets" defaultOpen description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
-        <button type="button" className={actionClass} onClick={() => { setConfirming(null); usePresetStore.getState().createPreset(); }}>New</button>
-        {import.meta.env.DEV && <button type="button" className={actionClass} disabled={!presets.length} onClick={() => setConfirming("save")} title="Rewrite src/vehicles/defaults.json via the dev server, making these the values every reload starts from">Save</button>}
-        <button type="button" className={actionClass} disabled={!preset} onClick={() => { if (selectedId) usePresetStore.getState().duplicatePreset(selectedId); }}>Duplicate</button>
-        <button type="button" className={actionClass} disabled={!preset} onClick={() => { if (instanceCount) setConfirming("delete"); else removeSelected(); }}>Delete</button>
+        <button type="button" aria-label="New vehicle preset" className={actionClass} onClick={() => { setConfirming(null); usePresetStore.getState().createPreset(); }}>New</button>
+        {import.meta.env.DEV && <button type="button" aria-label="Save vehicle presets" className={actionClass} disabled={!presets.length} onClick={() => setConfirming("save")} title="Rewrite src/vehicles/defaults.json via the dev server, making these the values every reload starts from">Save</button>}
+        <button type="button" aria-label="Duplicate vehicle preset" className={actionClass} disabled={!preset} onClick={() => { if (selectedId) usePresetStore.getState().duplicatePreset(selectedId); }}>Duplicate</button>
+        <button type="button" aria-label="Delete vehicle preset" className={actionClass} disabled={!preset} onClick={() => { if (instanceCount) setConfirming("delete"); else removeSelected(); }}>Delete</button>
         <span className="ml-auto text-xs text-secondary">{presets.length}</span>
       </div>
 
