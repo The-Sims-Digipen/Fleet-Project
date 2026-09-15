@@ -1,75 +1,82 @@
-import { useState } from "react";
+import ReactECharts from "echarts-for-react";
+import type { EChartsOption } from "echarts";
 import { CollapsibleSection } from "./CollapsibleSection";
 
 const years = [2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035, 2036];
 const baseline = [0, 110, 220, 335, 450, 565, 680, 800, 920, 1040];
 const transition = [0, 140, 290, 420, 520, 585, 610, 630, 650, 670];
-const chartWidth = 920;
-const chartHeight = 390;
-const plot = { left: 68, right: 22, top: 28, bottom: 54 };
-const maxValue = 1100;
-const breakEvenIndex = 6;
+const breakEvenYear = 2033;
+const endSavings = baseline[baseline.length - 1] - transition[transition.length - 1];
+const annualBaseline = baseline.map((value, index) => index === 0 ? value : value - baseline[index - 1]);
+const annualTransition = transition.map((value, index) => index === 0 ? value : value - transition[index - 1]);
+const annualNetSavings = annualBaseline.map((value, index) => value - annualTransition[index]);
+const annualCashFlowOption: EChartsOption = {
+  animationDuration: 500,
+  aria: { enabled: true },
+  grid: { left: 72, right: 18, top: 18, bottom: 34, containLabel: true },
+  tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, backgroundColor: "#10201d", borderColor: "#405a53", textStyle: { color: "#eef7f3" }, formatter: (params) => { const item = Array.isArray(params) ? params[0] : params; return `<strong>${item?.name ?? ""}</strong><br />${item?.marker ?? ""}Net annual saving: <strong>$${item?.value ?? 0}k</strong>`; } },
+  xAxis: { type: "category", data: years, axisLine: { lineStyle: { color: "#405a53" } }, axisLabel: { color: "#b1c3bd", fontSize: 10 } },
+  yAxis: { type: "value", name: "SGD thousands", nameLocation: "middle", nameGap: 42, nameTextStyle: { color: "#b1c3bd", fontSize: 15 }, axisLabel: { color: "#b1c3bd", fontSize: 10, margin: 8, formatter: "${value}k" }, splitLine: { lineStyle: { color: "#273a35" } } },
+  series: [{ name: "Net annual saving", type: "bar", barMaxWidth: 24, data: annualNetSavings.map((value) => ({ value, itemStyle: { color: value >= 0 ? "#55d6be" : "#d58b79" } })), markLine: { symbol: "none", lineStyle: { color: "#a7b8b2", type: "dashed" }, data: [{ yAxis: 0 }] } }],
+};
 
-function points(values: number[]) {
-  return values.map((value, index) => {
-    const x = plot.left + (index / (years.length - 1)) * (chartWidth - plot.left - plot.right);
-    const y = plot.top + (1 - value / maxValue) * (chartHeight - plot.top - plot.bottom);
-    return `${x},${y}`;
-  }).join(" ");
-}
-
-function xFor(index: number) {
-  return plot.left + (index / (years.length - 1)) * (chartWidth - plot.left - plot.right);
-}
-
-function yFor(value: number) {
-  return plot.top + (1 - value / maxValue) * (chartHeight - plot.top - plot.bottom);
-}
+const chartOption: EChartsOption = {
+  animationDuration: 500,
+  aria: { enabled: true, decal: { show: true } },
+  color: ["#a7b8b2", "#55d6be"],
+  grid: { left: 52, right: 18, top: 42, bottom: 72, containLabel: true },
+  legend: { bottom: 4, left: "center", itemWidth: 14, itemHeight: 8, textStyle: { color: "#b1c3bd", fontSize: 11 }, data: ["Current fleet baseline", "EV transition plan"] },
+  tooltip: {
+    trigger: "axis",
+    axisPointer: { type: "line", lineStyle: { color: "#55d6be", type: "dashed" } },
+    backgroundColor: "#10201d",
+    borderColor: "#405a53",
+    textStyle: { color: "#eef7f3" },
+    formatter: (params) => {
+      const items = Array.isArray(params) ? params : [params];
+      const year = items[0]?.name ?? "";
+      return [`<strong>${year}</strong>`, ...items.map((item) => `${item.marker}${item.seriesName}: <strong>$${item.value}k</strong>`)].join("<br />");
+    },
+  },
+  toolbox: { right: 0, top: 0, itemSize: 14, iconStyle: { borderColor: "#b1c3bd" }, emphasis: { iconStyle: { borderColor: "#55d6be" } }, feature: { dataZoom: { yAxisIndex: "none", title: { zoom: "Zoom", back: "Reset zoom" } }, restore: { title: "Reset chart" } } },
+  xAxis: { type: "category",  boundaryGap: false, data: years, axisLine: { lineStyle: { color: "#405a53" } }, axisLabel: { color: "#b1c3bd", fontSize: 10 } },
+  yAxis: { type: "value", name: "SGD thousands", nameLocation: "middle", nameGap: 42,   nameTextStyle: { color: "#b1c3bd", fontSize: 15, padding: [0, 0, 8, 0] }, axisLabel: { color: "#b1c3bd", fontSize: 10, formatter: "${value}k" }, splitLine: { lineStyle: { color: "#273a35" } } },
+  dataZoom: [
+    { type: "inside", xAxisIndex: 0, filterMode: "none", zoomOnMouseWheel: true, moveOnMouseMove: true },
+    { type: "slider", xAxisIndex: 0, height: 14, bottom: 34, borderColor: "#405a53", backgroundColor: "#101e1b", fillerColor: "#355149", handleStyle: { color: "#55d6be" }, textStyle: { color: "#b1c3bd", fontSize: 9 } },
+  ],
+  series: [
+    { name: "Current fleet baseline", type: "line", smooth: true, symbol: "circle", symbolSize: 7, data: baseline, lineStyle: { width: 3 }, emphasis: { focus: "series", scale: true } },
+    {
+      name: "EV transition plan", type: "line", smooth: true, symbol: "circle", symbolSize: 7, data: transition, lineStyle: { width: 3 }, areaStyle: { color: "rgba(85, 214, 190, 0.08)" }, emphasis: { focus: "series", scale: true },
+      markLine: { symbol: "none", lineStyle: { color: "#55d6be", type: "dashed", width: 1.5 }, label: { color: "#06231d", backgroundColor: "#55d6be", padding: [4, 6], borderRadius: 4, formatter: `Payback ${breakEvenYear}` }, data: [{ xAxis: breakEvenYear }] },
+      markPoint: { symbol: "pin", symbolSize: 42, itemStyle: { color: "#55d6be" }, label: { color: "#06231d", fontWeight: "bold", formatter: `${endSavings}k` }, data: [{ coord: [2036, 670], name: `${endSavings}k saved` }] },
+    },
+  ],
+};
 
 export function CostAnalysis() {
-  const [zoom, setZoom] = useState(1);
-  const breakEvenX = xFor(breakEvenIndex);
-  const breakEvenY = yFor(transition[breakEvenIndex]);
-  const endSavings = baseline[baseline.length - 1] - transition[transition.length - 1];
   return <CollapsibleSection title="Cost over time" description="Mocked fleet cost comparison. Lower is better." defaultOpen>
-      <div className="grid gap-3">
-        <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Payback year</p><p className="mt-2 text-2xl font-semibold text-accent">2033</p><p className="mt-1 text-xs text-secondary">Transition becomes cheaper</p></article>
-        <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">10-year saving</p><p className="mt-2 text-2xl font-semibold">$370k</p><p className="mt-1 text-xs text-secondary">Compared with no transition</p></article>
-        <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Planning status</p><p className="mt-2 text-2xl font-semibold">Profitable</p><p className="mt-1 text-xs text-secondary">Based on mocked assumptions</p></article>
+    <div className="grid grid-cols-2 gap-3">
+      <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Payback year</p><p className="mt-2 text-2xl font-semibold">{breakEvenYear}</p><p className="mt-1 text-xs text-secondary">Transition becomes cheaper</p></article>
+      <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">10-year saving</p><p className="mt-2 text-2xl font-semibold">${endSavings}k</p><p className="mt-1 text-xs text-secondary">Compared with no transition</p></article>
+      <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">2036 cost</p><p className="mt-2 text-2xl font-semibold">${transition[transition.length - 1]}k</p><p className="mt-1 text-xs text-secondary">EV transition plan</p></article>
+      <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Planning status</p><p className="mt-2 text-2xl font-semibold text-accent">Profitable</p><p className="mt-1 text-xs text-secondary">Based on mocked assumptions</p></article>
+    </div>
+    <div className="mt-4 rounded-lg border border-line bg-panel p-2">
+      <h3 className="px-2 pt-1 text-base font-semibold">Cumulative operating cost</h3>
+      <p className="px-2 pt-1 text-xs text-secondary">Hover a year for exact values. Drag the timeline or use the mouse wheel to zoom.</p>
+      <div className="mt-2 h-[460px] w-full" role="img" aria-label="Interactive cumulative cost comparison chart from 2027 to 2036">
+        <ReactECharts option={chartOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate opts={{ renderer: "svg" }} />
       </div>
-
-      <div className="mt-4 rounded-lg border border-line bg-panel p-3">
-        <div className="mb-3 grid gap-3">
-          <div><h3 className="text-base font-semibold">Cumulative operating cost</h3><p className="mt-1 text-xs text-secondary">Lower is better · USD thousands</p></div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="grid gap-2 text-xs text-secondary" aria-label="Chart legend"><span className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-[#a7b8b2]" aria-hidden="true" />Current fleet baseline</span><span className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-accent" aria-hidden="true" />EV transition plan</span></div>
-            <div className="flex items-center gap-1" aria-label="Chart zoom controls">
-              <button type="button" className="grid size-8 place-items-center rounded-md border border-line-strong text-base font-semibold text-secondary hover:border-[#668078] hover:text-primary disabled:cursor-default disabled:opacity-40" onClick={() => setZoom((value) => Math.max(1, value - 0.25))} disabled={zoom === 1} aria-label="Zoom out">−</button>
-              <span className="min-w-12 text-center text-[0.68rem] font-semibold text-secondary">{Math.round(zoom * 100)}%</span>
-              <button type="button" className="grid size-8 place-items-center rounded-md border border-line-strong text-base font-semibold text-secondary hover:border-[#668078] hover:text-primary disabled:cursor-default disabled:opacity-40" onClick={() => setZoom((value) => Math.min(2, value + 0.25))} disabled={zoom === 2} aria-label="Zoom in">+</button>
-              <button type="button" className="ml-1 rounded-md px-2 py-1.5 text-[0.68rem] font-bold text-secondary hover:text-primary disabled:cursor-default disabled:opacity-40" onClick={() => setZoom(1)} disabled={zoom === 1}>Reset</button>
-            </div>
-          </div>
-        </div>
-        <div className="overflow-x-auto rounded-md border border-line bg-surface">
-          <svg className="h-auto min-w-full" style={{ width: `${zoom * 100}%` }} viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-labelledby="cost-chart-title cost-chart-description">
-            <title id="cost-chart-title">Cumulative cost comparison from 2027 to 2036</title>
-            <desc id="cost-chart-description">The transition plan costs more through 2032, then becomes cheaper than the current fleet baseline in 2033 and saves 370 thousand dollars by 2036.</desc>
-            {[0, 250, 500, 750, 1000].map((value) => <g key={value}><line x1={plot.left} x2={chartWidth - plot.right} y1={yFor(value)} y2={yFor(value)} stroke="#273a35" strokeWidth="1" /><text x={plot.left - 12} y={yFor(value) + 4} textAnchor="end" fill="#b1c3bd" fontSize="12">${value}k</text></g>)}
-            <line x1={breakEvenX} x2={breakEvenX} y1={plot.top} y2={chartHeight - plot.bottom} stroke="#55d6be" strokeDasharray="5 5" strokeWidth="1.5" />
-            <rect x={breakEvenX - 48} y={plot.top - 22} width="96" height="22" rx="5" fill="#55d6be" />
-            <text x={breakEvenX} y={plot.top - 7} textAnchor="middle" fill="#06231d" fontSize="11" fontWeight="700">PAYBACK 2033</text>
-            <polyline points={points(baseline)} fill="none" stroke="#a7b8b2" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points={points(transition)} fill="none" stroke="#55d6be" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            {baseline.map((value, index) => <circle key={`baseline-${years[index]}`} cx={xFor(index)} cy={yFor(value)} r="4" fill="#a7b8b2"><title>{`${years[index]} current fleet: $${value}k`}</title></circle>)}
-            {transition.map((value, index) => <circle key={`transition-${years[index]}`} cx={xFor(index)} cy={yFor(value)} r="4" fill="#55d6be"><title>{`${years[index]} transition plan: $${value}k`}</title></circle>)}
-            <circle cx={breakEvenX} cy={breakEvenY} r="6" fill="#55d6be" stroke="#07100f" strokeWidth="3" />
-            <text x={xFor(years.length - 1) - 8} y={yFor(transition[transition.length - 1]) - 13} textAnchor="end" fill="#55d6be" fontSize="12" fontWeight="700">${endSavings}k saved</text>
-            {years.map((year, index) => <text key={year} x={xFor(index)} y={chartHeight - 20} textAnchor="middle" fill="#b1c3bd" fontSize="12">{year}</text>)}
-            <text x="16" y={chartHeight / 2} transform={`rotate(-90 16 ${chartHeight / 2})`} textAnchor="middle" fill="#b1c3bd" fontSize="12">Cumulative cost (USD)</text>
-          </svg>
-        </div>
-        <p className="mt-2 border-t border-line pt-4 text-xs leading-relaxed text-secondary"><strong className="text-accent">How to read this:</strong> The plan costs more during the transition, crosses below the current fleet in 2033, and saves ${endSavings}k by 2036. Hover a data point for its annual value. Values are illustrative and will be replaced by simulation results.</p>
+    </div>
+    <div className="mt-4 rounded-lg border border-line bg-panel p-2">
+      <h3 className="px-2 pt-1 text-base font-semibold">Annual net cash flow</h3>
+      <p className="px-2 pt-1 text-xs text-secondary">Red bars show extra transition cost; green bars show annual savings.</p>
+      <div className="mt-2 h-[280px] w-full" role="img" aria-label="Annual net cash flow chart from 2027 to 2036">
+        <ReactECharts option={annualCashFlowOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate opts={{ renderer: "svg" }} />
       </div>
+    </div>
+    <p className="mt-2 border-t border-line pt-4 text-xs leading-relaxed text-secondary"><strong className="text-accent">How to read this:</strong> The plan costs more during the transition, crosses below the current fleet in {breakEvenYear}, and saves ${endSavings}k by 2036. Values are illustrative and will be replaced by simulation results.</p>
   </CollapsibleSection>;
-}
+}   
