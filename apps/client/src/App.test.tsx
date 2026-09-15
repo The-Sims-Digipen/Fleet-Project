@@ -16,6 +16,19 @@ afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
+  it("groups manual simulation inputs and creates an annual cost table", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Diesel assumptions" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Electric assumptions" })).toBeInTheDocument();
+    const distance = screen.getByLabelText("Manual route distance (km/year)");
+    await user.clear(distance);
+    await user.type(distance, "10000{Enter}");
+    await user.click(screen.getByRole("button", { name: "Finalize simulation" }));
+    expect(screen.getByText("Year-by-year energy cost comparison")).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(6);
+    expect(screen.getByRole("status")).toHaveTextContent("50,000 km");
+  });
   it("adds and deletes catalog instances with undoable edits and appearance restoration", async () => {
     const user = userEvent.setup();
     render(<App />);
