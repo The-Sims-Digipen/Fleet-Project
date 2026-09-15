@@ -36,3 +36,6 @@ temp/
 ._*
 Thumbs.db
 Desktop.ini
+
+# Exported local prototype projects
+*.fleetproject

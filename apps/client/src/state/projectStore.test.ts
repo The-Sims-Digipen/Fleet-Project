@@ -103,6 +103,24 @@ describe("project/world/scenario store", () => {
     expect(scene().document.objects).toHaveLength(4);
   });
 
+  it("exports the live workspace and imports it as an independent local copy", async () => {
+    project().renameProject("Portable depot");
+    scene().setLight(33);
+    project().createScenario();
+    project().renameScenario(project().activeScenarioId, "Rapid plan");
+    const exported = project().exportProject();
+    const originalWorldId = project().worldId;
+
+    await project().importProject(exported);
+
+    expect(project().name).toBe("Portable depot");
+    expect(project().projectId).not.toBeNull();
+    expect(project().worldId).not.toBe(originalWorldId);
+    expect(scene().document.light).toBe(33);
+    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "Rapid plan"]);
+    expect(project().activeScenarioId).toBe(project().scenarios[1].id);
+  });
+
   it("keeps edits and reports revision conflicts", async () => {
     await project().saveProject();
     const id = project().projectId!;

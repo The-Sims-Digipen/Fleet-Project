@@ -125,7 +125,7 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
     }
   }
 
-  return <Modal title="Open Project" description="Choose a project saved in PostgreSQL." onDismiss={onDismiss}>
+  return <Modal title="Open Project" description="Choose a project saved locally in this browser." onDismiss={onDismiss}>
     <DiscardWarning dirty={dirty} projectName={currentName} />
     {list.state === "loading" && <p className="text-sm text-secondary" role="status">Loading projects…</p>}
     {list.state === "error" && <div role="alert" className="grid gap-2 text-sm text-red-300">
@@ -151,7 +151,7 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 export function DeleteScenarioDialog({ scenarioId, onDismiss }: { scenarioId: string; onDismiss: () => void }) {
   const scenario = useProjectStore((state) => state.scenarios.find((item) => item.id === scenarioId));
   if (!scenario) return null;
-  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? Its saved scenario record is kept so another project using the same world can reuse it.`} onDismiss={onDismiss}>
+  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? Its locally saved scenario record is kept so another project using the same world can reuse it.`} onDismiss={onDismiss}>
     <div className="flex justify-end gap-2">
       <button type="button" className={secondaryButton} onClick={onDismiss}>Cancel</button>
       <button type="button" className={dangerButton} onClick={() => { useProjectStore.getState().deleteScenario(scenario.id); onDismiss(); }}>Remove Scenario</button>

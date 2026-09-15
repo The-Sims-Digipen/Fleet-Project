@@ -20,6 +20,6 @@
 | M1 | 4 October 2026, 23:59 Singapore time | Sample/new project -> preset/fleet edit -> generic transition -> recalculated result -> selected-year 3D update -> save/reopen. |
 | M2 | 8 November 2026, 23:59 Singapore time | Full fleet/preset planning, financial/energy/emissions analytics, project/scenario workflow, and reliable persistence. |
 | M3 (MVP) | 30 November 2026 | Charging/feasibility, suitability recommendations, and two-scenario comparison including dual 3D scenes. Build ready by 29 November. |
-| M4 | Relative weeks 1-4 | Freeform depot authoring, geometry validation/history, assignments, scenario layout persistence, and comparison integration. |
+| M4 | Relative weeks 1-4 | Freeform depot authoring, geometry validation/history, assignments, shared world layout persistence, and comparison integration. |
 | M5 | Relative weeks 1-4 | All product features integrated with shared feasibility/recommendation state, responsive/error hardening, and performance optimization. |
 | M6 | Relative weeks 1-4 | Full regression, clean-environment/platform verification, final performance measurements, and release build. |

@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { create } from "zustand";
 
-import { createApiProjectRepository, type ProjectRepository } from "../project/repository";
+import { createIndexedDbProjectRepository } from "../project/indexedDbRepository";
+import { createPortableProject, type PortableProjectFile } from "../project/portableProject";
+import { type ProjectRepository } from "../project/repository";
 import { validateName, NAME_MAX_LENGTH, type Scenario, type WorkspaceRecord, type WorkspaceSaveInput, type WorldSummary } from "../project/types";
 import type { SceneDocument } from "../scene/types";
 import { loadDefaultPresets } from "../vehicles/defaults";
@@ -40,9 +42,11 @@ type ProjectState = ProjectFields & {
   duplicateScenario: (id: string) => void;
   renameScenario: (id: string, name: string) => void;
   deleteScenario: (id: string) => void;
+  exportProject: () => PortableProjectFile;
+  importProject: (file: PortableProjectFile) => Promise<void>;
 };
 
-let repository: ProjectRepository = createApiProjectRepository();
+let repository: ProjectRepository = createIndexedDbProjectRepository();
 export function setProjectRepository(next: ProjectRepository) { repository = next; }
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -213,6 +217,40 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const remaining = current.toSpliced(index, 1);
       const activeScenarioId = get().activeScenarioId === id ? remaining[Math.min(index, remaining.length - 1)].id : get().activeScenarioId;
       set({ scenarios: remaining, activeScenarioId });
+    },
+
+    exportProject: () => {
+      scene().commitEdit();
+      presets().commitEdit();
+      const state = get();
+      const activeScenarioIndex = Math.max(0, state.scenarios.findIndex((scenario) => scenario.id === state.activeScenarioId));
+      return createPortableProject({
+        projectName: state.name,
+        projectDocument: { version: 2, vehiclePresets: clone(presets().presets) },
+        worldName: state.worldName,
+        worldDocument: clone(scene().document),
+        scenarios: state.scenarios.map((scenario) => ({ name: scenario.name, document: clone(scenario.document) })),
+        activeScenarioIndex,
+      });
+    },
+
+    importProject: async (file) => {
+      const projectId = crypto.randomUUID();
+      const worldId = crypto.randomUUID();
+      const scenarioInputs = file.scenarios.map((scenario) => ({
+        id: crypto.randomUUID(),
+        name: scenario.name,
+        expectedRevision: 0,
+        document: clone(scenario.document),
+      }));
+      const record = await repository.createWorkspace({
+        project: { id: projectId, name: file.project.name, document: clone(file.project.document) },
+        world: { id: worldId, name: file.world.name, expectedRevision: 0, document: clone(file.world.document) },
+        scenarios: scenarioInputs,
+      });
+      loadWorkspace(record);
+      const importedActive = record.scenarios[file.activeScenarioIndex];
+      if (importedActive) set({ activeScenarioId: importedActive.id });
     },
 
     attachScenario: (scenario) => {

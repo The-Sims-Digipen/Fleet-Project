@@ -1,49 +1,48 @@
 # F09 — Project Persistence
 
-**Owner:** Tan Wei Jun
-
 ## Goal
 
-Persist projects, reusable 3D worlds, and world-bound scenarios in PostgreSQL while keeping one Save Project workflow.
+Persist projects, reusable 3D worlds, and world-bound scenarios locally in the browser for the prototype, without requiring a backend database or user account.
 
-## Persisted resources
+## Ownership model
 
-- `worlds`: reusable 3D world documents and their revisions.
-- `projects`: project-level inputs (currently vehicle presets) plus a `world_id`.
-- `scenarios`: independent scenario documents, each permanently bound to one `world_id`.
-- `project_scenarios`: links scenarios to projects and stores project ordering.
+- A **World** owns the persistent 3D depot document.
+- A **Scenario** is stored separately and carries the `worldId` it belongs to.
+- A **Project** references one world and links scenarios that use the same world.
+- A project may reuse an existing saved world.
+- A saved scenario may be linked to multiple local projects only when they use that scenario's world.
+- The world is never embedded inside a scenario.
 
-A project may reuse an existing world. A saved scenario may be linked to multiple projects only when all of them use that scenario's world. PostgreSQL composite foreign keys enforce this invariant in addition to API validation.
+## Browser storage
 
-## User workflow
+Use IndexedDB database `fleet-transition-planner`, currently version 1, with object stores:
 
-- **Save Project** atomically saves the project, current world, and linked scenarios.
-- **New Project** can create a fresh world or reuse a saved world.
-- **Add Existing Scenario** lists only scenarios whose `world_id` matches the open project.
-- Removing a scenario from a project unlinks it; it does not delete the independently saved scenario record.
-- Switching scenarios never swaps or duplicates the 3D world.
+- `worlds`
+- `projects`
+- `scenarios` with a `worldId` index
+- `projectScenarios` with project/world indexes and ordered project-to-scenario links
 
-## API
+One **Save Project** action writes all dirty workspace resources in a single IndexedDB transaction. Project/world/scenario revisions detect stale writes from another browser tab.
 
-- `GET /api/v1/projects`
-- `GET /api/v1/projects/:id/workspace`
-- `POST /api/v1/workspaces`
-- `PUT /api/v1/projects/:id/workspace`
-- `GET /api/v1/worlds`
-- `GET /api/v1/worlds/:id`
-- `GET /api/v1/worlds/:id/scenarios`
-- `GET /api/v1/ready`
+The persistence implementation sits behind `ProjectRepository`; editor components do not call IndexedDB directly.
 
-Workspace saves use PostgreSQL transactions and optimistic revision checks. A failed save rolls back the whole workspace write and leaves local edits intact.
+## Portable project files
 
-## Deployment
+**Export** downloads the live workspace as a versioned `.fleetproject` JSON file containing the project document, shared world, scenarios, and active scenario index. It may include unsaved edits.
 
-Production uses Vercel + Neon. The Neon Marketplace integration provides the pooled `DATABASE_URL`. `pnpm vercel-build` applies committed PostgreSQL migrations automatically for Production before building the client/server. Preview migrations are disabled unless `RUN_MIGRATIONS=1` is explicitly enabled for an isolated preview database.
+**Import** validates the file and creates an independent saved local copy using fresh project/world/scenario IDs. This avoids ID collisions and makes exported files suitable for passing between teammates during the prototype phase.
 
-## Done when
+## Limitations
 
-- A new Neon database can be provisioned and initialized from a Vercel production deployment.
-- Projects can create/open/update persistent workspaces.
-- Worlds can be reused by multiple projects.
-- Scenarios remain separate records but cannot be linked across different worlds.
-- One workspace save is atomic and revision checked.
+IndexedDB is local to a browser profile and device. It does not synchronize between teammates. Cloud persistence is intentionally deferred; a future API repository can replace the IndexedDB adapter without changing the domain ownership model.
+
+## Acceptance criteria
+
+- Save/open works without Fastify, PostgreSQL, Neon, or environment variables.
+- Projects, worlds, and scenarios remain separate persisted records.
+- Only same-world scenarios can be selected/attached to a project.
+- Reusing a saved world from a new project works.
+- Removing a scenario from a project unlinks it instead of deleting the scenario record.
+- A workspace save is atomic.
+- Export produces a portable versioned project file.
+- Import validates the file and creates an independent local copy.

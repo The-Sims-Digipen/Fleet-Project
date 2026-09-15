@@ -20,7 +20,7 @@ Technical acceptance criteria for the longer-term M1–M6 application. The curre
 | AT12 | Isolate every suitability factor and feasibility influence; verify deterministic tie ordering, explanation contributions, and advisory-only behavior. |
 | AT13 | Verify keyboard operation, labels/errors, focus visibility, last-valid-result behavior, text warnings, empty/loading/failure states, and that primary panels remain reachable when the layout reflows. |
 | AT14 | Run the reference workload and record simulation/update latency, frame behavior, and repeated scene/project switching without monotonic resource/listener growth after warmup. |
-| AT15 | From a clean clone, install, typecheck, test, build, initialize/upgrade the database, start client/server, persist/reopen a project, and run a production smoke test on required environments. |
+| AT15 | From a clean clone, install, typecheck, test, build, initialize/upgrade browser persistence, start client/server, persist/reopen a project, test project export/import, and run a production smoke test on required environments. |
 
 ## Verification coverage
 

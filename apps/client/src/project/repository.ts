@@ -7,7 +7,7 @@ export class ProjectConflictError extends Error {
   constructor(message = "This project was saved elsewhere. Reopen it to see the newer version.") { super(message); }
 }
 export class DatabaseUnavailableError extends Error {
-  constructor(message = "The project database is unavailable.") { super(message); }
+  constructor(message = "Browser project storage is unavailable.") { super(message); }
 }
 
 export type ProjectRepository = {
