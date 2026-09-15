@@ -1,4 +1,4 @@
-import type { ProjectSummary, Scenario, WorkspaceRecord, WorkspaceSaveInput, WorldRecord, WorldSummary } from "./types";
+import type { ProjectRecord, ProjectSummary, Scenario, WorkspaceRecord, WorkspaceSaveInput, WorldRecord, WorldSummary } from "./types";
 
 export class ProjectNotFoundError extends Error {
   constructor(message = "This project no longer exists.") { super(message); }
@@ -39,6 +39,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   throw apiError(response.status, body);
 }
 
+/** Future cloud adapter. The browser prototype uses IndexedDB instead. */
 export function createApiProjectRepository(): ProjectRepository {
   return {
     listProjects: () => request("/api/v1/projects"),
@@ -51,100 +52,137 @@ export function createApiProjectRepository(): ProjectRepository {
   };
 }
 
-/** Test/local substitute with the same separate-world semantics as the API. */
+type MemoryProject = { project: ProjectRecord; worldIds: string[]; scenarioIds: string[] };
+
+/** Test/local substitute with the same multi-world workspace semantics as IndexedDB. */
 export function createMemoryProjectRepository(seed: WorkspaceRecord[] = []): ProjectRepository {
-  const workspaces = new Map(seed.map((workspace) => [workspace.project.id, clone(workspace)]));
+  const projects = new Map<string, MemoryProject>();
   const worlds = new Map<string, WorldRecord>();
   const scenarios = new Map<string, Scenario>();
+
   for (const workspace of seed) {
-    worlds.set(workspace.world.id, clone(workspace.world));
+    for (const world of workspace.worlds) worlds.set(world.id, clone(world));
     for (const scenario of workspace.scenarios) scenarios.set(scenario.id, clone(scenario));
+    projects.set(workspace.project.id, {
+      project: clone(workspace.project),
+      worldIds: workspace.worlds.map((world) => world.id),
+      scenarioIds: workspace.scenarios.map((scenario) => scenario.id),
+    });
   }
 
-  const workspaceFor = (id: string) => {
-    const workspace = workspaces.get(id);
-    if (!workspace) throw new ProjectNotFoundError();
-    const world = worlds.get(workspace.project.worldId);
-    if (!world) throw new ProjectNotFoundError("The project's world no longer exists.");
-    return { project: clone(workspace.project), world: clone(world), scenarios: workspace.scenarios.map((item) => clone(scenarios.get(item.id) ?? item)) };
+  const workspaceFor = (id: string): WorkspaceRecord => {
+    const saved = projects.get(id);
+    if (!saved) throw new ProjectNotFoundError();
+    const projectWorlds = saved.worldIds.map((worldId) => worlds.get(worldId)).filter((world): world is WorldRecord => Boolean(world));
+    if (!projectWorlds.length) throw new ProjectNotFoundError("This project's worlds no longer exist.");
+    const projectScenarios = saved.scenarioIds.map((scenarioId) => scenarios.get(scenarioId)).filter((scenario): scenario is Scenario => Boolean(scenario));
+    return { project: clone(saved.project), worlds: clone(projectWorlds), scenarios: clone(projectScenarios) };
   };
 
-  const saveScenarios = (world: WorldRecord, drafts: WorkspaceSaveInput["scenarios"]): Scenario[] => drafts.map((draft) => {
+  const saveWorld = (draft: WorkspaceSaveInput["worlds"][number]): WorldRecord => {
+    const existing = worlds.get(draft.id);
+    if (existing) {
+      if (existing.revision !== draft.expectedRevision) throw new ProjectConflictError(`World “${draft.name}” changed elsewhere.`);
+      const changed = existing.name !== draft.name || JSON.stringify(existing.document) !== JSON.stringify(draft.document);
+      if (!changed) return clone(existing);
+      const next = { ...existing, name: draft.name, document: clone(draft.document), revision: existing.revision + 1, updatedAt: nowIso() };
+      worlds.set(next.id, clone(next));
+      return next;
+    }
+    if (draft.expectedRevision !== 0) throw new ProjectNotFoundError(`World “${draft.name}” no longer exists.`);
+    const timestamp = nowIso();
+    const next: WorldRecord = { id: draft.id, name: draft.name, revision: 1, createdAt: timestamp, updatedAt: timestamp, document: clone(draft.document) };
+    worlds.set(next.id, clone(next));
+    return next;
+  };
+
+  const saveScenario = (draft: WorkspaceSaveInput["scenarios"][number], savedWorlds: Map<string, WorldRecord>): Scenario => {
+    const world = savedWorlds.get(draft.worldId);
+    if (!world) throw new ProjectConflictError(`Scenario “${draft.name}” references a world outside this project.`);
     const existing = scenarios.get(draft.id);
-    if (existing && existing.worldId !== world.id) throw new ProjectConflictError("The scenario belongs to a different world.");
-    if (existing && existing.revision !== draft.expectedRevision) throw new ProjectConflictError(`Scenario “${draft.name}” was changed elsewhere.`);
+    if (existing && existing.worldId !== draft.worldId) throw new ProjectConflictError(`Scenario “${draft.name}” belongs to a different world.`);
+    if (existing && existing.revision !== draft.expectedRevision) throw new ProjectConflictError(`Scenario “${draft.name}” changed elsewhere.`);
     if (!existing && draft.expectedRevision !== 0) throw new ProjectNotFoundError(`Scenario “${draft.name}” no longer exists.`);
     const timestamp = nowIso();
-    const changed = !existing || existing.name !== draft.name || JSON.stringify(existing.document) !== JSON.stringify(draft.document);
-    const scenario: Scenario = {
-      id: draft.id, worldId: world.id, name: draft.name,
+    const changed = !existing || existing.name !== draft.name || JSON.stringify(existing.document) !== JSON.stringify(draft.document) || existing.worldRevision !== world.revision;
+    const next: Scenario = {
+      id: draft.id,
+      worldId: draft.worldId,
+      name: draft.name,
       revision: existing ? existing.revision + (changed ? 1 : 0) : 1,
       worldRevision: world.revision,
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: changed ? timestamp : existing?.updatedAt ?? timestamp,
       document: clone(draft.document),
     };
-    scenarios.set(scenario.id, clone(scenario));
-    return scenario;
-  });
+    scenarios.set(next.id, clone(next));
+    return next;
+  };
+
+  const save = (input: WorkspaceSaveInput, existingProject?: MemoryProject): WorkspaceRecord => {
+    const savedWorldList = input.worlds.map(saveWorld);
+    const savedWorlds = new Map(savedWorldList.map((world) => [world.id, world]));
+    if (!savedWorlds.has(input.project.activeWorldId)) throw new ProjectConflictError("The active world is not part of this project.");
+    const savedScenarios = input.scenarios.map((scenario) => saveScenario(scenario, savedWorlds));
+    const timestamp = nowIso();
+    const project: ProjectRecord = existingProject ? {
+      ...existingProject.project,
+      worldId: input.project.activeWorldId,
+      name: input.project.name,
+      revision: existingProject.project.revision + 1,
+      updatedAt: timestamp,
+      document: clone(input.project.document),
+    } : {
+      id: input.project.id,
+      worldId: input.project.activeWorldId,
+      name: input.project.name,
+      revision: 1,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      document: clone(input.project.document),
+    };
+
+    const oldScenarioIds = new Set(existingProject?.scenarioIds ?? []);
+    const nextScenarioIds = new Set(savedScenarios.map((scenario) => scenario.id));
+    for (const removedId of oldScenarioIds) {
+      if (nextScenarioIds.has(removedId)) continue;
+      const usedElsewhere = [...projects.values()].some((entry) => entry.project.id !== project.id && entry.scenarioIds.includes(removedId));
+      if (!usedElsewhere) scenarios.delete(removedId);
+    }
+
+    projects.set(project.id, {
+      project: clone(project),
+      worldIds: savedWorldList.map((world) => world.id),
+      scenarioIds: savedScenarios.map((scenario) => scenario.id),
+    });
+    return workspaceFor(project.id);
+  };
 
   return {
-    listProjects: async () => [...workspaces.values()].map((workspace) => ({
-      id: workspace.project.id, worldId: workspace.project.worldId, name: workspace.project.name,
-      revision: workspace.project.revision, updatedAt: workspace.project.updatedAt, scenarioCount: workspace.scenarios.length,
+    listProjects: async () => [...projects.values()].map((entry) => ({
+      id: entry.project.id,
+      worldId: entry.project.worldId,
+      name: entry.project.name,
+      revision: entry.project.revision,
+      updatedAt: entry.project.updatedAt,
+      scenarioCount: entry.scenarioIds.length,
+      worldCount: entry.worldIds.length,
     })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     getWorkspace: async (id) => workspaceFor(id),
     createWorkspace: async (input) => {
-      if (workspaces.has(input.project.id)) throw new ProjectConflictError("A project with this ID already exists.");
-      let world = worlds.get(input.world.id);
-      if (world) {
-        if (world.revision !== input.world.expectedRevision) throw new ProjectConflictError("The world was changed elsewhere.");
-        const changed = world.name !== input.world.name || JSON.stringify(world.document) !== JSON.stringify(input.world.document);
-        if (changed) {
-          world = {
-            ...world,
-            name: input.world.name,
-            document: clone(input.world.document),
-            revision: world.revision + 1,
-            updatedAt: nowIso(),
-          };
-          worlds.set(world.id, clone(world));
-        }
-      } else {
-        if (input.world.expectedRevision !== 0) throw new ProjectNotFoundError("The selected world no longer exists.");
-        const timestamp = nowIso();
-        world = { id: input.world.id, name: input.world.name, revision: 1, createdAt: timestamp, updatedAt: timestamp, document: clone(input.world.document) };
-        worlds.set(world.id, clone(world));
-      }
-      const timestamp = nowIso();
-      const project = { id: input.project.id, worldId: world.id, name: input.project.name, revision: 1, createdAt: timestamp, updatedAt: timestamp, document: clone(input.project.document) };
-      const saved = saveScenarios(world, input.scenarios);
-      workspaces.set(project.id, { project: clone(project), world: clone(world), scenarios: clone(saved) });
-      return workspaceFor(project.id);
+      if (projects.has(input.project.id)) throw new ProjectConflictError("A project with this ID already exists.");
+      return save(input);
     },
     updateWorkspace: async (input) => {
-      const current = workspaces.get(input.project.id);
+      const current = projects.get(input.project.id);
       if (!current) throw new ProjectNotFoundError();
       if (current.project.revision !== input.project.expectedRevision) throw new ProjectConflictError();
-      const world = worlds.get(current.project.worldId);
-      if (!world) throw new ProjectNotFoundError("The project's world no longer exists.");
-      if (world.id !== input.world.id || world.revision !== input.world.expectedRevision) throw new ProjectConflictError("The world was changed elsewhere.");
-      if (world.name !== input.world.name || JSON.stringify(world.document) !== JSON.stringify(input.world.document)) {
-        world.name = input.world.name;
-        world.document = clone(input.world.document);
-        world.revision += 1;
-        world.updatedAt = nowIso();
-        worlds.set(world.id, clone(world));
-      }
-      const project = { ...current.project, name: input.project.name, revision: current.project.revision + 1, updatedAt: nowIso(), document: clone(input.project.document) };
-      const saved = saveScenarios(world, input.scenarios);
-      workspaces.set(project.id, { project: clone(project), world: clone(world), scenarios: clone(saved) });
-      return workspaceFor(project.id);
+      return save(input, current);
     },
     listWorlds: async () => [...worlds.values()].map(({ id, name, revision, updatedAt }) => ({ id, name, revision, updatedAt })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     getWorld: async (id) => {
       const world = worlds.get(id);
-      if (!world) throw new ProjectNotFoundError("This world no longer exists.");
+      if (!world) throw new ProjectNotFoundError("This world is not saved.");
       return clone(world);
     },
     listScenarios: async (worldId) => [...scenarios.values()].filter((scenario) => scenario.worldId === worldId).map(clone),

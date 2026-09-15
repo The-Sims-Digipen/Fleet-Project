@@ -52,15 +52,15 @@ sequenceDiagram
   Repository-->>Editor: Saved records + new revisions
 ```
 
-A save captures one consistent workspace snapshot. Failed saves preserve the working document. Revision conflicts can occur if another tab has updated the same saved project/world/scenario since it was opened.
+A project is edited as an in-memory workspace containing multiple Worlds and their world-bound Scenarios. Scene edits immediately update the active World in memory. Save Project is the persistence boundary: it captures every in-memory World and Scenario in one consistent snapshot. Failed saves preserve the working workspace. Revision conflicts can occur if another tab has updated a saved project/world/scenario since it was opened.
 
 ## Persistence boundary
 
-IndexedDB database `fleet-transition-planner` stores `projects`, `worlds`, `scenarios`, and ordered `projectScenarios` links as separate records. Projects and scenarios each reference a world ID. The repository checks that every attached scenario belongs to the project's world before writing the transaction.
+IndexedDB database `fleet-transition-planner` stores `projects`, `worlds`, `scenarios`, ordered `projectWorlds` links, and ordered `projectScenarios` links as separate records. A Project may contain multiple Worlds; every Scenario references exactly one World. The repository validates every Scenario against a World included in the same project snapshot before committing.
 
 The browser implementation is `IndexedDbProjectRepository`. Tests use the same `ProjectRepository` contract with an in-memory implementation. A future cloud/API adapter can replace the browser adapter without changing editor ownership or Scenario/World semantics.
 
-Project files can also be exported as versioned `.fleetproject` JSON snapshots. Import validates the snapshot then creates a fresh local project/world/scenario identity set so importing cannot accidentally overwrite existing local data.
+Project files can also be exported as versioned `.fleetproject` JSON snapshots containing all project Worlds and Scenarios. Import validates the snapshot then creates fresh local Project/World/Scenario identities so importing cannot accidentally overwrite existing local data.
 
 ## Engineering decisions
 

@@ -51,6 +51,39 @@ describe("project and scenario controls", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
   });
 
+
+  it("renames and duplicates the active world from the world list", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<App />);
+
+    const worldName = screen.getByLabelText("Active world name");
+    await user.clear(worldName);
+    await user.type(worldName, "Main depot{Enter}");
+    expect(useProjectStore.getState().worldName).toBe("Main depot");
+
+    const sourceId = useProjectStore.getState().worldId;
+    await user.click(screen.getByRole("button", { name: "Duplicate world" }));
+    expect(useProjectStore.getState().worldId).not.toBe(sourceId);
+    expect(useProjectStore.getState().worldName).toBe("Main depot copy");
+    expect(useProjectStore.getState().scenarios).toHaveLength(1);
+    expect(screen.getByLabelText("Active world name")).toHaveValue("Main depot copy");
+  });
+
+  it("creates a fresh world from the world list", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<App />);
+    const sourceId = useProjectStore.getState().worldId;
+
+    await user.click(screen.getByRole("button", { name: "New world" }));
+
+    expect(useProjectStore.getState().worldId).not.toBe(sourceId);
+    expect(useProjectStore.getState().worldName).toBe("New world");
+    expect(useProjectStore.getState().scenarios).toHaveLength(1);
+    expect(screen.getByLabelText("Active world name")).toHaveValue("New world");
+  });
+
   it("opens a persisted sample workspace", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -70,28 +103,25 @@ describe("project and scenario controls", () => {
     const input = within(dialog).getByLabelText("Project name");
     await user.clear(input);
     await user.type(input, "Second depot");
-    await user.selectOptions(within(dialog).getByLabelText("3D world"), createSampleProjects()[0].world.id);
+    await user.selectOptions(within(dialog).getByLabelText("3D world"), createSampleProjects()[0].worlds[0].id);
     await user.click(within(dialog).getByRole("button", { name: "Create Project" }));
     expect(screen.getAllByLabelText("Project name")[0]).toHaveValue("Second depot");
     expect(useSceneStore.getState().document.objects).toHaveLength(4);
   });
-  it("shows saved scenarios for the selected world and attaches one when chosen", async () => {
+  it("keeps newly created worlds visible while switching between them", async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<App />);
 
-    const worldSelect = screen.getByRole("combobox", { name: "World" });
-    await vi.waitFor(() => expect(within(worldSelect).getByRole("option", { name: "Sample depot" })).toBeInTheDocument());
-    await user.selectOptions(worldSelect, createSampleProjects()[0].world.id);
+    const firstWorldId = useProjectStore.getState().worldId;
+    await user.click(screen.getByRole("button", { name: "New world" }));
+    const secondWorldId = useProjectStore.getState().worldId;
+    expect(secondWorldId).not.toBe(firstWorldId);
 
-    await vi.waitFor(() => expect(useProjectStore.getState().worldName).toBe("Sample depot"));
-    expect(useProjectStore.getState().projectId).toBeNull();
-    const list = screen.getByRole("list", { name: "Scenarios for selected world" });
-    expect(within(list).getByRole("button", { name: /Plan B · fast, scenario .*available/ })).toBeInTheDocument();
-
-    await user.click(within(list).getByRole("button", { name: /Plan B · fast, scenario .*available/ }));
-    expect(useProjectStore.getState().scenarios.some((scenario) => scenario.name === "Plan B · fast")).toBe(true);
-    expect(useProjectStore.getState().scenarios.find((scenario) => scenario.name === "Plan B · fast")?.id).toBe(useProjectStore.getState().activeScenarioId);
+    const worldList = screen.getByRole("list", { name: "Worlds" });
+    const firstWorld = within(worldList).getByRole("button", { name: /Untitled project world, world 1/ });
+    await user.click(firstWorld);
+    await vi.waitFor(() => expect(useProjectStore.getState().worldId).toBe(firstWorldId));
+    expect(within(worldList).getAllByRole("listitem")).toHaveLength(2);
   });
 
 });

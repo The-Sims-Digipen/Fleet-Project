@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { createIndexedDbProjectRepository } from "../project/indexedDbRepository";
 import { createPortableProject, type PortableProjectFile } from "../project/portableProject";
 import { type ProjectRepository } from "../project/repository";
-import { validateName, NAME_MAX_LENGTH, type Scenario, type WorkspaceRecord, type WorkspaceSaveInput, type WorldSummary } from "../project/types";
+import { validateName, NAME_MAX_LENGTH, type Scenario, type WorkspaceRecord, type WorkspaceSaveInput, type WorkspaceWorld, type WorldSummary } from "../project/types";
 import type { SceneDocument } from "../scene/types";
 import { loadDefaultPresets } from "../vehicles/defaults";
 import type { VehiclePreset } from "../vehicles/types";
@@ -17,11 +17,11 @@ type ProjectFields = {
   projectId: string | null;
   revision: number;
   name: string;
+  worlds: WorkspaceWorld[];
   worldId: string;
   worldName: string;
   worldRevision: number;
   scenarios: Scenario[];
-  worldScenarios: Scenario[];
   activeScenarioId: string;
   baseline: string;
   saveStatus: SaveStatus;
@@ -32,6 +32,9 @@ type ProjectState = ProjectFields & {
   newProject: (name: string) => void;
   newProjectWithWorld: (name: string, worldId: string) => Promise<void>;
   switchWorld: (worldId: string) => Promise<void>;
+  newWorld: () => void;
+  duplicateWorld: () => void;
+  renameWorld: (name: string) => void;
   openProject: (id: string) => Promise<void>;
   saveProject: () => Promise<void>;
   listProjects: () => ReturnType<ProjectRepository["listProjects"]>;
@@ -63,23 +66,52 @@ function scenarioName(scenarios: Scenario[]) {
   }
 }
 
-function serializeSnapshot(name: string, worldId: string, worldName: string, world: SceneDocument, scenarios: Scenario[], presets: VehiclePreset[]) {
+function createWorkspaceWorld(name: string, document: SceneDocument, id = crypto.randomUUID()): WorkspaceWorld {
+  const scenario = newScenario(id, "Plan A");
+  return { id, name, revision: 0, document: clone(document), scenarios: [scenario] };
+}
+
+function serializeSnapshot(name: string, activeWorldId: string, worlds: WorkspaceWorld[], presets: VehiclePreset[]) {
   return JSON.stringify({
-    name, worldId, worldName, world,
-    scenarios: scenarios.map(({ id, name: scenarioNameValue, document }) => ({ id, name: scenarioNameValue, document })),
+    name,
+    activeWorldId,
+    worlds: worlds.map((world) => ({
+      id: world.id,
+      name: world.name,
+      document: world.document,
+      scenarios: world.scenarios.map(({ id, name: scenarioNameValue, document }) => ({ id, name: scenarioNameValue, document })),
+    })),
     presets,
   });
 }
 
-export function createProjectFields(name = "Untitled project", world: SceneDocument = createDocument(), session = 0, presets: VehiclePreset[] = loadDefaultPresets()): ProjectFields {
-  const worldId = crypto.randomUUID();
-  const scenario = newScenario(worldId, "Plan A");
-  const worldName = `${name} world`;
+function withActiveScene(worlds: WorkspaceWorld[], activeWorldId: string, document: SceneDocument): WorkspaceWorld[] {
+  return worlds.map((world) => world.id === activeWorldId ? { ...world, document: clone(document) } : world);
+}
+
+function activeFields(world: WorkspaceWorld, preferredScenarioId?: string) {
+  const scenario = world.scenarios.find((item) => item.id === preferredScenarioId) ?? world.scenarios[0];
+  if (!scenario) throw new Error("A world needs at least one scenario.");
   return {
-    projectId: null, revision: 0, name, worldId, worldName, worldRevision: 0,
-    scenarios: [scenario], worldScenarios: [], activeScenarioId: scenario.id,
-    baseline: serializeSnapshot(name, worldId, worldName, world, [scenario], presets),
-    saveStatus: { state: "idle" }, session,
+    worldId: world.id,
+    worldName: world.name,
+    worldRevision: world.revision,
+    scenarios: clone(world.scenarios),
+    activeScenarioId: scenario.id,
+  };
+}
+
+export function createProjectFields(name = "Untitled project", world: SceneDocument = createDocument(), session = 0, presets: VehiclePreset[] = loadDefaultPresets()): ProjectFields {
+  const workspaceWorld = createWorkspaceWorld(`${name} world`, world);
+  return {
+    projectId: null,
+    revision: 0,
+    name,
+    worlds: [workspaceWorld],
+    ...activeFields(workspaceWorld),
+    baseline: serializeSnapshot(name, workspaceWorld.id, [workspaceWorld], presets),
+    saveStatus: { state: "idle" },
+    session,
   };
 }
 
@@ -87,27 +119,53 @@ export const useProjectStore = create<ProjectState>((set, get) => {
   const scene = () => useSceneStore.getState();
   const presets = () => usePresetStore.getState();
 
-  const loadWorkspace = (record: WorkspaceRecord, preserveActive = false, worldScenarios: Scenario[] = record.scenarios) => {
-    const activeId = preserveActive && record.scenarios.some((scenario) => scenario.id === get().activeScenarioId)
-      ? get().activeScenarioId : record.scenarios[0]?.id;
-    if (!activeId) throw new Error("This project has no scenarios.");
-    const copiedScenarios = clone(record.scenarios);
+  const captureWorlds = () => withActiveScene(get().worlds, get().worldId, scene().document);
+
+  const setActiveWorld = (worlds: WorkspaceWorld[], worldId: string, preferredScenarioId?: string) => {
+    const world = worlds.find((item) => item.id === worldId);
+    if (!world) throw new Error("The selected world is not part of this project.");
+    set({ worlds, ...activeFields(world, preferredScenarioId), saveStatus: { state: "idle" } });
+    scene().loadDocument(world.document);
+  };
+
+  const replaceActiveWorld = (update: (world: WorkspaceWorld) => WorkspaceWorld) => {
+    const worlds = captureWorlds();
+    const index = worlds.findIndex((world) => world.id === get().worldId);
+    if (index < 0) return;
+    const nextWorld = update(worlds[index]);
+    const nextWorlds = worlds.with(index, nextWorld);
+    set({ worlds: nextWorlds, ...activeFields(nextWorld, get().activeScenarioId) });
+  };
+
+  const loadWorkspace = (record: WorkspaceRecord) => {
+    const scenariosByWorld = new Map<string, Scenario[]>();
+    for (const scenario of record.scenarios) {
+      const list = scenariosByWorld.get(scenario.worldId) ?? [];
+      list.push(clone(scenario));
+      scenariosByWorld.set(scenario.worldId, list);
+    }
+    const worlds: WorkspaceWorld[] = record.worlds.map((world) => {
+      const worldScenarios = scenariosByWorld.get(world.id) ?? [];
+      return {
+        ...clone(world),
+        scenarios: worldScenarios.length ? worldScenarios : [newScenario(world.id, "Plan A")],
+      };
+    });
+    if (!worlds.length) throw new Error("This project has no worlds.");
+    const activeWorld = worlds.find((world) => world.id === record.project.worldId) ?? worlds[0];
+    const vehiclePresets = record.project.document.vehiclePresets;
     set({
       projectId: record.project.id,
       revision: record.project.revision,
       name: record.project.name,
-      worldId: record.world.id,
-      worldName: record.world.name,
-      worldRevision: record.world.revision,
-      scenarios: copiedScenarios,
-      worldScenarios: clone(worldScenarios),
-      activeScenarioId: activeId,
-      baseline: serializeSnapshot(record.project.name, record.world.id, record.world.name, record.world.document, copiedScenarios, record.project.document.vehiclePresets),
+      worlds,
+      ...activeFields(activeWorld),
+      baseline: serializeSnapshot(record.project.name, activeWorld.id, worlds, vehiclePresets),
       saveStatus: { state: "idle" },
-      session: get().session + (preserveActive ? 0 : 1),
+      session: get().session + 1,
     });
-    scene().loadDocument(record.world.document);
-    presets().replacePresets(record.project.document.vehiclePresets);
+    scene().loadDocument(activeWorld.document);
+    presets().replacePresets(vehiclePresets);
   };
 
   return {
@@ -125,14 +183,18 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     newProjectWithWorld: async (name, worldId) => {
       if (validateName(name)) return;
-      const [world, savedScenarios] = await Promise.all([repository.getWorld(worldId), repository.listScenarios(worldId)]);
+      const world = await repository.getWorld(worldId);
       const nextPresets = loadDefaultPresets();
-      const scenario = newScenario(world.id, "Plan A");
+      const workspaceWorld: WorkspaceWorld = { ...clone(world), scenarios: [newScenario(world.id, "Plan A")] };
       set({
-        projectId: null, revision: 0, name: name.trim(), worldId: world.id, worldName: world.name, worldRevision: world.revision,
-        scenarios: [scenario], worldScenarios: clone(savedScenarios), activeScenarioId: scenario.id,
-        baseline: serializeSnapshot(name.trim(), world.id, world.name, world.document, [scenario], nextPresets),
-        saveStatus: { state: "idle" }, session: get().session + 1,
+        projectId: null,
+        revision: 0,
+        name: name.trim(),
+        worlds: [workspaceWorld],
+        ...activeFields(workspaceWorld),
+        baseline: serializeSnapshot(name.trim(), world.id, [workspaceWorld], nextPresets),
+        saveStatus: { state: "idle" },
+        session: get().session + 1,
       });
       scene().loadDocument(world.document);
       presets().replacePresets(nextPresets);
@@ -142,30 +204,44 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (worldId === get().worldId) return;
       scene().commitEdit();
       presets().commitEdit();
-      const [world, savedScenarios] = await Promise.all([repository.getWorld(worldId), repository.listScenarios(worldId)]);
-      const currentPresets = clone(presets().presets);
-      const scenario = newScenario(world.id, "Plan A");
-      set({
-        projectId: null,
-        revision: 0,
-        worldId: world.id,
-        worldName: world.name,
-        worldRevision: world.revision,
-        scenarios: [scenario],
-        worldScenarios: clone(savedScenarios),
-        activeScenarioId: scenario.id,
-        baseline: serializeSnapshot(get().name, world.id, world.name, world.document, [scenario], currentPresets),
-        saveStatus: { state: "idle" },
-        session: get().session + 1,
-      });
+      let worlds = captureWorlds();
+      let target = worlds.find((world) => world.id === worldId);
+      if (!target) {
+        const saved = await repository.getWorld(worldId);
+        target = { ...clone(saved), scenarios: [newScenario(saved.id, "Plan A")] };
+        worlds = [...worlds, target];
+      }
+      setActiveWorld(worlds, target.id);
+    },
+
+    newWorld: () => {
+      scene().commitEdit();
+      presets().commitEdit();
+      const worlds = captureWorlds();
+      const world = createWorkspaceWorld("New world", createDocument());
+      const nextWorlds = [...worlds, world];
+      set({ worlds: nextWorlds, ...activeFields(world), saveStatus: { state: "idle" } });
       scene().loadDocument(world.document);
     },
 
-    openProject: async (id) => {
-      const record = await repository.getWorkspace(id);
-      const savedScenarios = await repository.listScenarios(record.world.id);
-      loadWorkspace(record, false, savedScenarios);
+    duplicateWorld: () => {
+      scene().commitEdit();
+      presets().commitEdit();
+      const worlds = captureWorlds();
+      const source = worlds.find((world) => world.id === get().worldId);
+      if (!source) return;
+      const world = createWorkspaceWorld(`${source.name} copy`.slice(0, NAME_MAX_LENGTH), source.document);
+      const nextWorlds = [...worlds, world];
+      set({ worlds: nextWorlds, ...activeFields(world), saveStatus: { state: "idle" } });
+      scene().loadDocument(world.document);
     },
+
+    renameWorld: (name) => {
+      if (validateName(name)) return;
+      replaceActiveWorld((world) => ({ ...world, name: name.trim() }));
+    },
+
+    openProject: async (id) => loadWorkspace(await repository.getWorkspace(id)),
     listProjects: () => repository.listProjects(),
     listWorlds: () => repository.listWorlds(),
 
@@ -175,18 +251,19 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       scene().commitEdit();
       presets().commitEdit();
 
-      const capturedWorld = clone(scene().document);
+      const capturedWorlds = captureWorlds();
       const capturedPresets = clone(presets().presets);
-      const capturedScenarios = clone(state.scenarios);
       const projectId = state.projectId ?? crypto.randomUUID();
+      const allScenarios = capturedWorlds.flatMap((world) => world.scenarios.map((scenario) => ({ ...scenario, worldId: world.id })));
       const base: WorkspaceSaveInput = {
-        project: { id: projectId, name: state.name, document: { version: 2, vehiclePresets: capturedPresets } },
-        world: { id: state.worldId, name: state.worldName, expectedRevision: state.worldRevision, document: capturedWorld },
-        scenarios: capturedScenarios.map((scenario) => ({ id: scenario.id, name: scenario.name, expectedRevision: scenario.revision, document: scenario.document })),
+        project: { id: projectId, name: state.name, activeWorldId: state.worldId, document: { version: 2, vehiclePresets: capturedPresets } },
+        worlds: capturedWorlds.map((world) => ({ id: world.id, name: world.name, expectedRevision: world.revision, document: clone(world.document) })),
+        scenarios: allScenarios.map((scenario) => ({ id: scenario.id, worldId: scenario.worldId, name: scenario.name, expectedRevision: scenario.revision, document: clone(scenario.document) })),
       };
-      const capturedBaseline = serializeSnapshot(state.name, state.worldId, state.worldName, capturedWorld, capturedScenarios, capturedPresets);
+      const capturedBaseline = serializeSnapshot(state.name, state.worldId, capturedWorlds, capturedPresets);
       const session = state.session;
-      set({ saveStatus: { state: "saving" } });
+      const preferredScenarioId = state.activeScenarioId;
+      set({ worlds: capturedWorlds, saveStatus: { state: "saving" } });
 
       try {
         const record = state.projectId
@@ -194,19 +271,24 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           : await repository.createWorkspace(base);
         if (get().session !== session) return;
 
-        const savedById = new Map(record.scenarios.map((scenario) => [scenario.id, scenario]));
-        let savedWorldScenarios = record.scenarios;
-        try { savedWorldScenarios = await repository.listScenarios(record.world.id); } catch { /* Save succeeded; keep the last chooser cache. */ }
-        const currentScenarios = get().scenarios.map((scenario) => {
-          const saved = savedById.get(scenario.id);
-          return saved ? { ...scenario, revision: saved.revision, worldRevision: saved.worldRevision, createdAt: saved.createdAt, updatedAt: saved.updatedAt } : scenario;
-        });
+        const scenariosByWorld = new Map<string, Scenario[]>();
+        for (const scenario of record.scenarios) {
+          const list = scenariosByWorld.get(scenario.worldId) ?? [];
+          list.push(clone(scenario));
+          scenariosByWorld.set(scenario.worldId, list);
+        }
+        const savedWorlds: WorkspaceWorld[] = record.worlds.map((world) => ({
+          ...clone(world),
+          scenarios: scenariosByWorld.get(world.id) ?? [],
+        }));
+        const activeWorld = savedWorlds.find((world) => world.id === state.worldId) ?? savedWorlds[0];
+        if (!activeWorld) throw new Error("The saved project has no worlds.");
         set({
           projectId: record.project.id,
           revision: record.project.revision,
-          worldRevision: record.world.revision,
-          scenarios: currentScenarios,
-          worldScenarios: clone(savedWorldScenarios),
+          name: record.project.name,
+          worlds: savedWorlds,
+          ...activeFields(activeWorld, preferredScenarioId),
           baseline: capturedBaseline,
           saveStatus: { state: "idle" },
         });
@@ -220,73 +302,94 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     selectScenario: (id) => { if (get().scenarios.some((scenario) => scenario.id === id)) set({ activeScenarioId: id }); },
 
     createScenario: () => {
-      const scenario = newScenario(get().worldId, scenarioName([...get().scenarios, ...get().worldScenarios]));
-      set({ scenarios: [...get().scenarios, scenario], activeScenarioId: scenario.id });
+      replaceActiveWorld((world) => {
+        const scenario = newScenario(world.id, scenarioName(world.scenarios));
+        set({ activeScenarioId: scenario.id });
+        return { ...world, scenarios: [...world.scenarios, scenario] };
+      });
     },
 
     duplicateScenario: (id) => {
-      const scenarios = get().scenarios;
-      const index = scenarios.findIndex((scenario) => scenario.id === id);
-      if (index < 0) return;
-      const source = scenarios[index];
-      const copy: Scenario = {
-        ...clone(source), id: crypto.randomUUID(), revision: 0, worldRevision: get().worldRevision,
-        name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH), createdAt: undefined, updatedAt: undefined,
-      };
-      set({ scenarios: scenarios.toSpliced(index + 1, 0, copy), activeScenarioId: copy.id });
+      replaceActiveWorld((world) => {
+        const index = world.scenarios.findIndex((scenario) => scenario.id === id);
+        if (index < 0) return world;
+        const source = world.scenarios[index];
+        const copy: Scenario = {
+          ...clone(source),
+          id: crypto.randomUUID(),
+          worldId: world.id,
+          revision: 0,
+          worldRevision: world.revision,
+          name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH),
+          createdAt: undefined,
+          updatedAt: undefined,
+        };
+        set({ activeScenarioId: copy.id });
+        return { ...world, scenarios: world.scenarios.toSpliced(index + 1, 0, copy) };
+      });
     },
 
     renameScenario: (id, name) => {
       if (validateName(name)) return;
-      set({ scenarios: get().scenarios.map((scenario) => scenario.id === id ? { ...scenario, name: name.trim() } : scenario) });
+      replaceActiveWorld((world) => ({ ...world, scenarios: world.scenarios.map((scenario) => scenario.id === id ? { ...scenario, name: name.trim() } : scenario) }));
     },
 
     deleteScenario: (id) => {
-      const current = get().scenarios;
-      const index = current.findIndex((scenario) => scenario.id === id);
-      if (index < 0 || current.length <= 1) return;
-      const remaining = current.toSpliced(index, 1);
+      const world = captureWorlds().find((item) => item.id === get().worldId);
+      if (!world) return;
+      const index = world.scenarios.findIndex((scenario) => scenario.id === id);
+      if (index < 0 || world.scenarios.length <= 1) return;
+      const remaining = world.scenarios.toSpliced(index, 1);
       const activeScenarioId = get().activeScenarioId === id ? remaining[Math.min(index, remaining.length - 1)].id : get().activeScenarioId;
-      set({ scenarios: remaining, activeScenarioId });
+      const worlds = captureWorlds().map((item) => item.id === world.id ? { ...item, scenarios: remaining } : item);
+      set({ worlds, scenarios: clone(remaining), activeScenarioId });
     },
 
     exportProject: () => {
       scene().commitEdit();
       presets().commitEdit();
       const state = get();
-      const activeScenarioIndex = Math.max(0, state.scenarios.findIndex((scenario) => scenario.id === state.activeScenarioId));
+      const worlds = withActiveScene(state.worlds, state.worldId, scene().document);
       return createPortableProject({
         projectName: state.name,
         projectDocument: { version: 2, vehiclePresets: clone(presets().presets) },
-        worldName: state.worldName,
-        worldDocument: clone(scene().document),
-        scenarios: state.scenarios.map((scenario) => ({ name: scenario.name, document: clone(scenario.document) })),
-        activeScenarioIndex,
+        worlds: worlds.map((world) => ({ name: world.name, document: clone(world.document), scenarios: world.scenarios.map((scenario) => ({ name: scenario.name, document: clone(scenario.document) })) })),
+        activeWorldIndex: Math.max(0, worlds.findIndex((world) => world.id === state.worldId)),
+        activeScenarioIndex: Math.max(0, state.scenarios.findIndex((scenario) => scenario.id === state.activeScenarioId)),
       });
     },
 
     importProject: async (file) => {
       const projectId = crypto.randomUUID();
-      const worldId = crypto.randomUUID();
-      const scenarioInputs = file.scenarios.map((scenario) => ({
-        id: crypto.randomUUID(),
-        name: scenario.name,
-        expectedRevision: 0,
-        document: clone(scenario.document),
-      }));
+      const worlds = file.worlds.map((world) => {
+        const worldId = crypto.randomUUID();
+        return {
+          id: worldId,
+          name: world.name,
+          expectedRevision: 0,
+          document: clone(world.document),
+          scenarios: world.scenarios.map((scenario) => ({ id: crypto.randomUUID(), worldId, name: scenario.name, expectedRevision: 0, document: clone(scenario.document) })),
+        };
+      });
+      const activeWorld = worlds[file.activeWorldIndex] ?? worlds[0];
+      if (!activeWorld) throw new Error("The imported project has no worlds.");
       const record = await repository.createWorkspace({
-        project: { id: projectId, name: file.project.name, document: clone(file.project.document) },
-        world: { id: worldId, name: file.world.name, expectedRevision: 0, document: clone(file.world.document) },
-        scenarios: scenarioInputs,
+        project: { id: projectId, name: file.project.name, activeWorldId: activeWorld.id, document: clone(file.project.document) },
+        worlds: worlds.map(({ scenarios: _scenarios, ...world }) => world),
+        scenarios: worlds.flatMap((world) => world.scenarios),
       });
       loadWorkspace(record);
-      const importedActive = record.scenarios[file.activeScenarioIndex];
-      if (importedActive) set({ activeScenarioId: importedActive.id });
+      const importedActiveWorld = get().worlds[file.activeWorldIndex];
+      if (importedActiveWorld) {
+        const importedScenario = importedActiveWorld.scenarios[file.activeScenarioIndex];
+        setActiveWorld(get().worlds, importedActiveWorld.id, importedScenario?.id);
+      }
     },
 
     attachScenario: (scenario) => {
       if (scenario.worldId !== get().worldId || get().scenarios.some((item) => item.id === scenario.id)) return;
-      set({ scenarios: [...get().scenarios, clone(scenario)], activeScenarioId: scenario.id });
+      replaceActiveWorld((world) => ({ ...world, scenarios: [...world.scenarios, clone(scenario)] }));
+      set({ activeScenarioId: scenario.id });
     },
   };
 });
@@ -295,10 +398,20 @@ export function useProjectDirty() {
   const world = useSceneStore((state) => state.document);
   const vehiclePresets = usePresetStore((state) => state.presets);
   const name = useProjectStore((state) => state.name);
+  const worlds = useProjectStore((state) => state.worlds);
   const worldId = useProjectStore((state) => state.worldId);
-  const worldName = useProjectStore((state) => state.worldName);
-  const scenarios = useProjectStore((state) => state.scenarios);
   const baseline = useProjectStore((state) => state.baseline);
-  return useMemo(() => serializeSnapshot(name, worldId, worldName, world, scenarios, vehiclePresets) !== baseline,
-    [name, worldId, worldName, world, scenarios, vehiclePresets, baseline]);
+  return useMemo(() => serializeSnapshot(name, worldId, withActiveScene(worlds, worldId, world), vehiclePresets) !== baseline,
+    [name, worlds, worldId, world, vehiclePresets, baseline]);
 }
+
+// Scene edits are workspace edits first. Keep the active World's in-memory document synchronized,
+// but do not touch IndexedDB until Save Project is explicitly used.
+useSceneStore.subscribe((state, previous) => {
+  if (state.document === previous.document) return;
+  const project = useProjectStore.getState();
+  if (!project.worlds.some((world) => world.id === project.worldId)) return;
+  useProjectStore.setState({
+    worlds: project.worlds.map((world) => world.id === project.worldId ? { ...world, document: state.document } : world),
+  });
+});

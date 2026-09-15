@@ -57,16 +57,17 @@ projectScenarios
 
 - **World** owns persistent 3D objects, transforms, appearance, and scene settings.
 - **Scenario** is saved separately but is permanently bound to one `worldId`.
-- **Project** references one world and links one or more scenarios using that same world.
-- The IndexedDB repository rejects cross-world scenario links and uses revision checks to detect stale saves from another tab.
-- **Save Project** updates the project, shared world, scenarios, and links in one IndexedDB transaction.
+- **Project** holds an in-memory collection of Worlds; each World has its own world-bound Scenarios.
+- World/Scenario edits stay in memory while you switch between them.
+- **Save Project** atomically writes the Project, every in-memory World, every Scenario, and their links to IndexedDB.
+- The repository rejects Scenarios that reference a World outside the saved Project snapshot and uses revision checks to detect stale saves from another tab.
 - Camera state, current selection, gizmo mode, undo history, and calculated results are not persisted.
 
 Browser storage belongs to one browser profile/device. It is not automatically shared with teammates.
 
 ## Import / export
 
-Use **Export** in the project header to download the current workspace as a `.fleetproject` file. Export includes the project data, complete 3D world, vehicle presets, and scenarios, including unsaved edits.
+Use **Export** in the project header to download the current workspace as a `.fleetproject` file. Export includes project data, every in-memory 3D World, vehicle presets, and all World-bound Scenarios, including unsaved edits.
 
 Use **Import** to open a `.fleetproject` file. Import creates an independent local copy with fresh IDs, so it will not overwrite an existing local project/world even when the same file is imported more than once.
 

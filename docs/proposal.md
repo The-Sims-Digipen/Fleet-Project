@@ -16,7 +16,7 @@ Synthetic sample data provides an immediate demonstration. Fleet size and vehicl
 
 | Requirement | Required outcome |
 |---|---|
-| R01 — Persistent workspace | Create/open a project and create/rename/duplicate/delete/save/reopen independent scenarios; failed or stale saves preserve the working copy and last valid stored state. |
+| R01 — Persistent workspace | Create/open a project, create/rename/duplicate reusable worlds, and create/rename/duplicate/delete/save/reopen independent scenarios; failed or stale saves preserve the working copy and last valid stored state. |
 | R02 — Fleet and generic transition planning | Build user-defined vehicle presets and a heterogeneous fleet; filter/group/select vehicles; assign any target preset and transition year; produce correct annual fleet composition. |
 | R03 — Calculations | Recalculate TCO, CAPEX, OPEX, payback, energy, and emissions from explicit editable assumptions with deterministic annual/cumulative breakdowns. |
 | R04 — Charging and feasibility | Model depot/external/mixed charging, charger inventory/timing, connection capacity, dwell/readiness, and depot-space constraints. |

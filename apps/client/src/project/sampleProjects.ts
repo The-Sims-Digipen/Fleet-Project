@@ -27,5 +27,5 @@ export function createSampleProjects(): WorkspaceRecord[] {
     { id: "63e41b98-588a-4bc7-a974-4ff8fcdbeb94", worldId: world.id, name: "Plan A · gradual", revision: 1, worldRevision: 1, createdAt: timestamp, updatedAt: timestamp, document: { version: 1 as const } },
     { id: "f5fd6ce9-a8f9-4d91-ad38-b22880658134", worldId: world.id, name: "Plan B · fast", revision: 1, worldRevision: 1, createdAt: timestamp, updatedAt: timestamp, document: { version: 1 as const } },
   ];
-  return [{ project, world, scenarios }];
+  return [{ project, worlds: [world], scenarios }];
 }

@@ -151,7 +151,7 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 export function DeleteScenarioDialog({ scenarioId, onDismiss }: { scenarioId: string; onDismiss: () => void }) {
   const scenario = useProjectStore((state) => state.scenarios.find((item) => item.id === scenarioId));
   if (!scenario) return null;
-  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? Its locally saved scenario record is kept and will remain available in this world.`} onDismiss={onDismiss}>
+  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this world? It disappears from the in-memory project immediately; Save Project persists the removal.`} onDismiss={onDismiss}>
     <div className="flex justify-end gap-2">
       <button type="button" className={secondaryButton} onClick={onDismiss}>Cancel</button>
       <button type="button" className={dangerButton} onClick={() => { useProjectStore.getState().deleteScenario(scenario.id); onDismiss(); }}>Remove Scenario</button>

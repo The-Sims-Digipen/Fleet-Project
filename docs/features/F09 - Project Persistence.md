@@ -2,48 +2,46 @@
 
 ## Goal
 
-Persist projects, reusable 3D worlds, and world-bound scenarios locally in the browser for the prototype, without requiring a backend database or user account.
+Persist the complete prototype workspace locally in the browser without requiring PostgreSQL, Neon, accounts, or manual database setup.
 
-## Ownership model
+## Domain ownership
 
-- A **World** owns the persistent 3D depot document.
-- A **Scenario** is stored separately and carries the `worldId` it belongs to.
-- A **Project** references one world and links scenarios that use the same world.
-- A project may reuse an existing saved world.
-- A saved scenario may be linked to multiple local projects only when they use that scenario's world.
-- The world is never embedded inside a scenario.
+- A **Project** can contain multiple reusable 3D Worlds.
+- Each **World** has its own persistent `SceneDocument` and stable `worldId`.
+- Each **Scenario** is stored separately and is permanently bound to exactly one `worldId`.
+- A Scenario never contains the World document.
+- The Project records which Worlds and Scenarios belong to it; the Project record also remembers which World was active on the last save.
 
-## Browser storage
+## In-memory first
 
-Use IndexedDB database `fleet-transition-planner`, currently version 1, with object stores:
+Creating, duplicating, renaming, switching, or editing Worlds and Scenarios changes only the in-memory project workspace.
 
-- `worlds`
+Nothing is written to IndexedDB until **Save Project**.
+
+Save Project captures all in-memory Worlds and all Scenarios in one consistent snapshot. Failed saves leave the in-memory workspace untouched.
+
+## IndexedDB
+
+Database: `fleet-transition-planner`, version 2.
+
+Object stores:
+
 - `projects`
-- `scenarios` with a `worldId` index
-- `projectScenarios` with project/world indexes and ordered project-to-scenario links
+- `worlds`
+- `scenarios` with `worldId` index
+- `projectWorlds` with ordered Project → World links
+- `projectScenarios` with ordered Project → Scenario links and `worldId`
 
-One **Save Project** action writes all dirty workspace resources in a single IndexedDB transaction. Project/world/scenario revisions detect stale writes from another browser tab.
+One Save Project operation uses a single read/write transaction across all stores. Project, World, and Scenario revisions detect stale writes from another browser tab.
 
-The persistence implementation sits behind `ProjectRepository`; editor components do not call IndexedDB directly.
+Removing a Scenario removes its Project link on the next Save Project. Its backing Scenario record is deleted when no other Project links it.
 
-## Portable project files
+## Export/import
 
-**Export** downloads the live workspace as a versioned `.fleetproject` JSON file containing the project document, shared world, scenarios, and active scenario index. It may include unsaved edits.
+Export captures the entire live workspace, including all Worlds, their Scenarios, and unsaved edits, in a versioned `.fleetproject` file.
 
-**Import** validates the file and creates an independent saved local copy using fresh project/world/scenario IDs. This avoids ID collisions and makes exported files suitable for passing between teammates during the prototype phase.
+Import validates the file, assigns fresh Project/World/Scenario IDs, and saves the imported copy locally. Version 1 single-World exports remain importable; new exports use version 2.
 
 ## Limitations
 
-IndexedDB is local to a browser profile and device. It does not synchronize between teammates. Cloud persistence is intentionally deferred; a future API repository can replace the IndexedDB adapter without changing the domain ownership model.
-
-## Acceptance criteria
-
-- Save/open works without Fastify, PostgreSQL, Neon, or environment variables.
-- Projects, worlds, and scenarios remain separate persisted records.
-- Only same-world scenarios can be selected/attached to a project.
-- The sidebar combines the World and Scenario choosers: selecting a world limits the visible saved scenarios to that `worldId`, and choosing an unlinked saved scenario attaches it to the current project.
-- Reusing a saved world from a new project works.
-- Removing a scenario from a project unlinks it instead of deleting the scenario record.
-- A workspace save is atomic.
-- Export produces a portable versioned project file.
-- Import validates the file and creates an independent local copy.
+IndexedDB is local to one browser profile and origin. Teammates do not automatically share projects. Use Export/Import for the prototype. A future PostgreSQL repository can implement the same workspace contract later.

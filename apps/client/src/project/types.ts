@@ -15,6 +15,12 @@ export type WorldRecord = {
   document: SceneDocument;
 };
 
+export type WorkspaceWorld = Omit<WorldRecord, "createdAt" | "updatedAt"> & {
+  createdAt?: string;
+  updatedAt?: string;
+  scenarios: Scenario[];
+};
+
 export type Scenario = {
   id: string;
   worldId: string;
@@ -28,6 +34,7 @@ export type Scenario = {
 
 export type ProjectRecord = {
   id: string;
+  /** The world that was active when the project was last saved. */
   worldId: string;
   name: string;
   revision: number;
@@ -36,14 +43,14 @@ export type ProjectRecord = {
   document: ProjectDocument;
 };
 
-export type WorkspaceRecord = { project: ProjectRecord; world: WorldRecord; scenarios: Scenario[] };
-export type ProjectSummary = Pick<ProjectRecord, "id" | "worldId" | "name" | "revision" | "updatedAt"> & { scenarioCount: number };
+export type WorkspaceRecord = { project: ProjectRecord; worlds: WorldRecord[]; scenarios: Scenario[] };
+export type ProjectSummary = Pick<ProjectRecord, "id" | "worldId" | "name" | "revision" | "updatedAt"> & { scenarioCount: number; worldCount?: number };
 export type WorldSummary = Pick<WorldRecord, "id" | "name" | "revision" | "updatedAt">;
 
 export type WorkspaceSaveInput = {
-  project: { id: string; name: string; expectedRevision?: number; document: ProjectDocument };
-  world: { id: string; name: string; expectedRevision: number; document: SceneDocument };
-  scenarios: { id: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
+  project: { id: string; name: string; expectedRevision?: number; activeWorldId: string; document: ProjectDocument };
+  worlds: { id: string; name: string; expectedRevision: number; document: SceneDocument }[];
+  scenarios: { id: string; worldId: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
 };
 
 export function validateName(value: string): string | null {

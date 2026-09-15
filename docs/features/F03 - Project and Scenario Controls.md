@@ -1,28 +1,30 @@
 # F03 — Project and Scenario Controls
 
-**Owner:** Brandon Koh Kai Yang
-
 ## Goal
 
-Create the frontend UI for managing projects and choosing the reusable 3D world plus world-bound scenarios used by the current workspace.
+Manage a project's in-memory Worlds and the Scenarios that belong to each World without losing unsaved work when switching between them.
 
-## Current behavior
+## UI
 
-- The header provides New Project, Open Project, Import, Export, and Save Project controls.
-- The project name is editable and save state is visible.
-- A single **World & Scenarios** collapsible in the sidebar makes the dependency explicit:
-  - choose the current 3D world first;
-  - the scenario list shows only scenarios whose `worldId` matches that world;
-  - scenarios already linked to the project are marked **Linked**;
-  - other locally saved scenarios for the world are marked **Saved** and are attached when selected;
-  - New Scenario automatically binds the scenario to the selected world.
-- Duplicate and Remove operate on the active linked scenario. Remove only unlinks an already-saved scenario; it remains available under its world.
-- Switching away from a saved project's world starts a new unsaved workspace instead of mutating the saved project's world reference. This protects its existing scenario links.
+The header provides New Project, Open Project, Import, Export, and Save Project.
 
-## Persistence dependency
+A single **World & Scenarios** collapsible owns both choosers:
 
-[F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) owns IndexedDB storage. F03 consumes the project/world/scenario repository through the project store and must not access IndexedDB directly.
+- **Worlds** is a visible list, not a dropdown.
+- New creates a fresh in-memory World with Plan A.
+- Duplicate copies the active 3D World into a fresh World ID but does not copy its Scenarios.
+- The active World can be renamed.
+- Selecting another World switches the scene editor to that World's in-memory `SceneDocument`; it does not discard or persist anything.
+- **Scenarios** lists only the Scenarios belonging to the selected World.
+- New and Duplicate create in-memory Scenarios bound to the selected `worldId`.
+- Rename edits the active Scenario in memory.
+- Remove deletes the Scenario from the in-memory project immediately; the deletion reaches IndexedDB only on Save Project.
+- Every World must retain at least one Scenario.
 
-## Done when
+## Workspace semantics
 
-The UI makes the relationship `Project → World → world-compatible Scenarios` obvious, and selecting another world never exposes scenarios from an incompatible world.
+Worlds and Scenarios are **working-memory state first**. Scene edits update the active World's in-memory document immediately. Switching Worlds stashes/restores those in-memory documents and their Scenario lists.
+
+**Save Project** is the persistence boundary. It snapshots every in-memory World and every Scenario in the project and writes them atomically through F09.
+
+[F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) owns storage. F03 must not access IndexedDB directly.

@@ -20,8 +20,9 @@ Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario
 - Names are nonempty and limited to 100 characters.
 - Object IDs are unique within their collections and references must resolve.
 - Each project contains at least one scenario.
-- Every linked scenario must have the same `worldId` as its project.
-- Removing a scenario from a project only removes the link; the separately saved scenario remains reusable by another same-world project.
+- Every Scenario must reference a World included in the same Project workspace.
+- A Project may link multiple Worlds.
+- Removing a Scenario removes it from the in-memory workspace immediately; Save Project removes its Project link and deletes the backing Scenario record when no other Project uses it.
 - Unknown document/file versions are rejected explicitly.
 - Invalid form drafts do not replace valid inputs.
 
@@ -40,11 +41,12 @@ The prototype implementation is native IndexedDB. Tests use an in-memory reposit
 
 ## IndexedDB storage
 
-Database: `fleet-transition-planner`, schema version 1.
+Database: `fleet-transition-planner`, schema version 2.
 
 ```mermaid
 erDiagram
-  WORLDS ||--o{ PROJECTS : "worldId"
+  PROJECTS ||--o{ PROJECT_WORLDS : links
+  WORLDS ||--o{ PROJECT_WORLDS : links
   WORLDS ||--o{ SCENARIOS : "worldId"
   PROJECTS ||--o{ PROJECT_SCENARIOS : links
   SCENARIOS ||--o{ PROJECT_SCENARIOS : links
@@ -57,18 +59,19 @@ Object stores:
 | `worlds` | key `id` | World records and serialized 3D document |
 | `projects` | key `id` | Project records and project-level document |
 | `scenarios` | key `id`, index `worldId` | Scenario records |
-| `projectScenarios` | compound key `[projectId, scenarioId]`, indexes `projectId`, `worldId` | Ordered links |
+| `projectWorlds` | compound key `[projectId, worldId]`, indexes `projectId`, `worldId` | Ordered Project → World links |
+| `projectScenarios` | compound key `[projectId, scenarioId]`, indexes `projectId`, `worldId` | Ordered Project → Scenario links |
 
-One **Save Project** operation uses a single read/write transaction across all four stores. Project, World, and Scenario revisions detect stale writes from another tab. A failed transaction exposes no partial save.
+One **Save Project** operation uses a single read/write transaction across all five stores and saves every in-memory World and Scenario. Project, World, and Scenario revisions detect stale writes from another tab. A failed transaction exposes no partial save.
 
 ## Portable project file
 
-Export format identifier: `fleet-transition-planner-project`, version 1. The `.fleetproject` JSON contains:
+Export format identifier: `fleet-transition-planner-project`, version 2. Version 1 single-World files remain importable. The version 2 `.fleetproject` JSON contains:
 
 - Project name and document
-- World name and full 3D document
-- Scenario names and documents
-- Active scenario index
+- All World names and full 3D documents
+- Each World's Scenario names and documents
+- Active World and active Scenario indexes
 - Export timestamp
 
 Export captures the live workspace, including unsaved edits. Import validates the structure and supported versions, then creates new project/world/scenario IDs before saving so imported data is an independent local copy.
