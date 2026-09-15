@@ -66,7 +66,11 @@ export function SimulationSettings() {
       <InputGroup title="Site constraint" description="This will be used by the future charging-feasibility calculation.">
         <NumberControl label="Site power limit (kW)" value={assumptions.sitePowerLimit} min={0} step={1} edit={edit} onChange={(sitePowerLimit) => update({ sitePowerLimit })} />
       </InputGroup>
-      <button type="button" className="min-h-12 rounded-lg bg-accent px-4 text-sm font-bold text-accent-ink hover:brightness-110" onClick={() => setResult(createResult(assumptions))}>Finalize simulation</button>
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" className="min-h-12 rounded-lg bg-accent px-4 text-sm font-bold text-accent-ink hover:brightness-110" onClick={() => setResult(createResult(assumptions))}>Finalize simulation</button>
+        <button type="button" className="min-h-12 rounded-lg border border-line-strong px-4 text-sm font-bold text-secondary hover:border-[#668078] hover:text-primary" onClick={() => { baseline.current = null; setAssumptions(initialAssumptions); setResult(null); }}>Reset sample</button>
+      </div>
+      <p className="text-xs leading-relaxed text-secondary">Indicative estimate only. Results use your manually entered route, energy, and price assumptions; they are not an engineering or tariff quote.</p>
       {result && <SimulationResults result={result} />}
     </div>
   </CollapsibleSection>;
@@ -81,7 +85,8 @@ function SimulationResults({ result }: { result: Result }) {
       <thead className="bg-surface text-secondary"><tr><th className="px-4 py-3">Year</th><th className="px-4 py-3">Diesel price</th><th className="px-4 py-3">Diesel cost</th><th className="px-4 py-3">Electric cost</th><th className="px-4 py-3">Difference</th></tr></thead>
       <tbody>{result.rows.map((row) => <tr key={row.year} className="border-t border-line"><td className="px-4 py-3 font-semibold text-primary">{row.year}</td><td className="px-4 py-3 text-secondary">{currency(row.dieselPrice)}/L</td><td className="px-4 py-3 text-secondary">{currency(row.dieselCost)}</td><td className="px-4 py-3 text-secondary">{currency(row.electricityCost)}</td><td className="px-4 py-3 text-primary">{currency(Math.abs(row.dieselCost - row.electricityCost))} {row.dieselCost >= row.electricityCost ? "saving" : "extra"}</td></tr>)}</tbody>
     </table></div>
-    <div className="rounded-lg border border-line-strong bg-control p-4" role="status"><h4 id="simulation-results-title" className="text-sm font-semibold text-primary">Overall summary</h4>
+    <div className="rounded-lg border border-line-strong bg-control p-4" role="status"><div className="flex items-center justify-between gap-3"><h4 id="simulation-results-title" className="text-sm font-semibold text-primary">Overall summary</h4><span className="rounded-full border border-accent/50 bg-accent/10 px-2 py-1 text-[0.62rem] font-bold text-accent">Simulation complete</span></div>
+      <p className="mt-2 text-xs leading-relaxed text-secondary">Power assessment pending charger-demand data.</p>
       <ul className="mt-3 grid gap-2 text-xs leading-relaxed text-secondary">
         <li><span className="font-semibold text-primary">Total distance:</span> {number.format(result.distance)} km</li>
         <li><span className="font-semibold text-primary">Diesel required:</span> {number.format(result.dieselLitres)} L</li>
@@ -90,6 +95,18 @@ function SimulationResults({ result }: { result: Result }) {
         <li><span className="font-semibold text-primary">Electric cost:</span> {currency(electricityTotal)}</li>
         <li><span className="font-semibold text-primary">Energy-cost difference:</span> {currency(Math.abs(difference))} {difference >= 0 ? "lower with electric" : "higher with electric"}</li>
       </ul>
+      <CostChart dieselTotal={dieselTotal} electricityTotal={electricityTotal} />
     </div>
   </section>;
+}
+
+function CostChart({ dieselTotal, electricityTotal }: { dieselTotal: number; electricityTotal: number }) {
+  const maximum = Math.max(dieselTotal, electricityTotal, 1);
+  return <div className="mt-5 border-t border-line pt-4" role="img" aria-label="Cumulative diesel and electric energy cost chart">
+    <p className="text-xs font-semibold text-primary">Cumulative cost at final year</p>
+    <div className="mt-3 grid gap-3 text-xs">
+      <div><div className="mb-1 flex justify-between gap-3 text-secondary"><span>Diesel</span><span>{currency(dieselTotal)}</span></div><div className="h-2 overflow-hidden rounded-full bg-surface"><div className="h-full rounded-full bg-[#d68b55]" style={{ width: `${dieselTotal / maximum * 100}%` }} /></div></div>
+      <div><div className="mb-1 flex justify-between gap-3 text-secondary"><span>Electric</span><span>{currency(electricityTotal)}</span></div><div className="h-2 overflow-hidden rounded-full bg-surface"><div className="h-full rounded-full bg-accent" style={{ width: `${electricityTotal / maximum * 100}%` }} /></div></div>
+    </div>
+  </div>;
 }
