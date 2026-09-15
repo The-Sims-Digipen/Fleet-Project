@@ -1,9 +1,9 @@
 import { useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { Mesh, Vector3, type Group, type Object3D } from "three";
 import { TransformControls as TransformControlsImpl } from "three/addons/controls/TransformControls.js";
 
-import type { SceneObject, Transform } from "../scene/types";
+import type { Transform } from "../scene/types";
 import { useSceneStore } from "../state/sceneStore";
 
 const MIN_SCALE = 0.01;
@@ -16,31 +16,30 @@ type GizmoCollections = { translate: Object3D; scale: Object3D };
 type TransformGizmoNode = Object3D & {
   isTransformControlsGizmo?: boolean;
   gizmo?: GizmoCollections;
-  picker?: GizmoCollections;
 };
 
 const axisCenter = new Vector3();
 
-function removeNegativeAxisHandles(root: Object3D) {
+function removeNegativeAxisVisuals(root: Object3D) {
   const gizmo = root.children.find((child) => (child as TransformGizmoNode).isTransformControlsGizmo) as TransformGizmoNode | undefined;
-  if (!gizmo?.gizmo || !gizmo.picker) return;
+  if (!gizmo?.gizmo) return;
 
-  // Blender-style direction semantics: X/Y/Z handles live on +X/+Y/+Z and
-  // never jump to the opposite side just because the camera crossed an axis.
-  // Plane and center handles are intentionally left untouched.
+  // Keep only the +X/+Y/+Z visible arrow/scale handles so their direction is
+  // stable and meaningful. Deliberately leave TransformControls' invisible
+  // picker geometry intact: removing half the pickers makes handles needlessly
+  // difficult to grab from some camera angles.
   for (const mode of ["translate", "scale"] as const) {
-    for (const collection of [gizmo.gizmo[mode], gizmo.picker[mode]]) {
-      for (const handle of [...collection.children]) {
-        if (!(handle instanceof Mesh) || !["X", "Y", "Z"].includes(handle.name)) continue;
-        handle.geometry.computeBoundingBox();
-        const box = handle.geometry.boundingBox;
-        if (!box) continue;
-        box.getCenter(axisCenter);
-        const coordinate = handle.name === "X" ? axisCenter.x : handle.name === "Y" ? axisCenter.y : axisCenter.z;
-        if (coordinate >= -1e-6) continue;
-        collection.remove(handle);
-        handle.geometry.dispose();
-      }
+    const collection = gizmo.gizmo[mode];
+    for (const handle of [...collection.children]) {
+      if (!(handle instanceof Mesh) || !["X", "Y", "Z"].includes(handle.name)) continue;
+      handle.geometry.computeBoundingBox();
+      const box = handle.geometry.boundingBox;
+      if (!box) continue;
+      box.getCenter(axisCenter);
+      const coordinate = handle.name === "X" ? axisCenter.x : handle.name === "Y" ? axisCenter.y : axisCenter.z;
+      if (coordinate >= -1e-6) continue;
+      collection.remove(handle);
+      handle.geometry.dispose();
     }
   }
 }
@@ -53,9 +52,14 @@ function hasEnabled(value: unknown): value is ToggleableControls {
   return typeof value === "object" && value !== null && "enabled" in value && typeof value.enabled === "boolean";
 }
 
-export function TransformGizmo({ object, target, markDragged }: {
-  object: SceneObject;
-  target: RefObject<Group>;
+/**
+ * One viewport-level TransformControls instance that reattaches to whichever
+ * scene object is selected. Keeping the controls persistent avoids stale DOM
+ * listeners and attachment races when objects are added, removed or switched.
+ */
+export function TransformGizmo({ objectId, target, markDragged }: {
+  objectId: string | null;
+  target: Group | null;
   markDragged: () => void;
 }) {
   const camera = useThree((state) => state.camera);
@@ -66,41 +70,46 @@ export function TransformGizmo({ object, target, markDragged }: {
   const space = useSceneStore((state) => state.editor.transformSpace);
   const snap = useSceneStore((state) => state.editor.snapEnabled);
 
-  // Use Three's TransformControls directly instead of Drei's older three-stdlib
-  // implementation. The latter camera-flips axis handles, which can make the
-  // positive-axis arrow appear to point the wrong way.
-  const controls = useMemo(() => new TransformControlsImpl(camera, gl.domElement), [camera, gl.domElement]);
+  // Construct without a DOM element. TransformControls connects to the canvas
+  // in an effect below, keeping DOM listener side effects out of React render.
+  const controls = useMemo(() => new TransformControlsImpl(camera), [camera]);
   const helper = useMemo(() => {
     const next = controls.getHelper();
-    removeNegativeAxisHandles(next);
+    removeNegativeAxisVisuals(next);
     return next;
   }, [controls]);
 
   const syncTransform = useCallback(() => {
-    const group = target.current;
-    if (!group) return;
+    if (!objectId || !target) return;
 
     // TransformControls permits crossing through zero while scaling. The scene
     // format deliberately only permits positive scales, so keep both the live
     // Three.js object and the persisted transform valid.
-    group.scale.set(
-      Math.max(MIN_SCALE, group.scale.x),
-      Math.max(MIN_SCALE, group.scale.y),
-      Math.max(MIN_SCALE, group.scale.z),
+    target.scale.set(
+      Math.max(MIN_SCALE, target.scale.x),
+      Math.max(MIN_SCALE, target.scale.y),
+      Math.max(MIN_SCALE, target.scale.z),
     );
 
     const transform: Transform = {
-      position: [group.position.x, group.position.y, group.position.z],
-      rotation: [group.rotation.x, group.rotation.y, group.rotation.z],
-      scale: [group.scale.x, group.scale.y, group.scale.z],
+      position: [target.position.x, target.position.y, target.position.z],
+      rotation: [target.rotation.x, target.rotation.y, target.rotation.z],
+      scale: [target.scale.x, target.scale.y, target.scale.z],
     };
-    useSceneStore.getState().updateObjectTransform(object.id, transform);
-  }, [object.id, target]);
+    useSceneStore.getState().updateObjectTransform(objectId, transform);
+  }, [objectId, target]);
+
+  useEffect(() => {
+    controls.connect(gl.domElement);
+    return () => controls.disconnect();
+  }, [controls, gl.domElement]);
 
   useLayoutEffect(() => {
-    const group = target.current;
-    if (!group) return;
-    controls.attach(group);
+    // If selection changes unexpectedly during a drag, fully end the old
+    // pointer gesture before reattaching so camera controls cannot stay locked.
+    if (controls.dragging) controls.pointerUp(null);
+    controls.detach();
+    if (target) controls.attach(target);
     return () => { controls.detach(); };
   }, [controls, target]);
 
@@ -126,11 +135,13 @@ export function TransformGizmo({ object, target, markDragged }: {
 
   useEffect(() => {
     const onMouseDown = () => {
+      if (!objectId || !target) return;
       markDragged();
       useSceneStore.getState().beginEdit();
     };
     const onObjectChange = () => syncTransform();
     const onMouseUp = () => {
+      if (!objectId || !target) return;
       markDragged();
       syncTransform();
       useSceneStore.getState().commitEdit();
@@ -144,7 +155,7 @@ export function TransformGizmo({ object, target, markDragged }: {
       controls.removeEventListener("objectChange", onObjectChange);
       controls.removeEventListener("mouseUp", onMouseUp);
     };
-  }, [controls, markDragged, syncTransform]);
+  }, [controls, markDragged, objectId, syncTransform, target]);
 
   useEffect(() => {
     const cancelActiveDrag = () => {
@@ -176,8 +187,6 @@ export function TransformGizmo({ object, target, markDragged }: {
       window.removeEventListener("blur", onBlur);
     };
   }, [controls, markDragged]);
-
-  useEffect(() => () => controls.dispose(), [controls]);
 
   return <primitive object={helper} dispose={null} />;
 }
