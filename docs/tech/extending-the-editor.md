@@ -52,6 +52,6 @@ Generated model materials are used by default. Tint multiplies their colors; mat
 
 `models/van.ts` contains the first procedural object. `createVanModel()` returns a multi-part `THREE.Group` built at metre scale with a body, tapered cab, windows, bumpers, lights, and low-sided wheel cylinders. It uses only generated Three.js geometry and materials; there are no external model files or runtime asset requests.
 
-The Debug module exposes the document without editing it. The viewport uses Drei `TransformControls` on the selected object root for move/rotate/scale editing; gizmo mode, transform space, and snapping are editor-only state and are not persisted in the scene document. Persistence and backend integration are future additions. DOM tests verify controls and state; real-browser checks remain required for picking, orbiting, outlines, and WebGL rendering.
+The Debug module exposes the document without editing it. The viewport uses Three.js `TransformControls` on the selected object root for move/rotate/scale editing; gizmo mode, transform space, and snapping are editor-only state and are not persisted in the scene document. Persistence and backend integration are future additions. DOM tests verify controls and state; real-browser checks remain required for picking, orbiting, outlines, and WebGL rendering.
 
 See [editing and history](editing-and-history.md) for edit lifecycle behavior and the [architecture](architecture.md#current-scene-editor-architecture) for state ownership.
