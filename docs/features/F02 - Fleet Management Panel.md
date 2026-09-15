@@ -1,5 +1,7 @@
 # F02 — Fleet Management Panel
 
+**Owner:** Jarrel Tay Wee Han
+
 ## Goal
 
 Create the frontend UI for viewing and managing all vehicles in the fleet. This week is UI-only and should use mock vehicle data.

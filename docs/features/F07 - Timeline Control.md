@@ -1,5 +1,7 @@
 # F07 — Timeline Control
 
+**Owner:** Jarrel Tay Wee Han
+
 ## Goal
 
 Create the frontend timeline UI used to navigate through the years of a transition plan.

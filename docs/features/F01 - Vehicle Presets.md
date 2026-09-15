@@ -1,5 +1,7 @@
 # F01 — Vehicle Presets
 
+**Owner:** Tan Wei Jun
+
 ## Goal
 
 Create the frontend UI for managing reusable vehicle presets. This week is UI-only: use mock data and do not connect persistence or calculations yet.

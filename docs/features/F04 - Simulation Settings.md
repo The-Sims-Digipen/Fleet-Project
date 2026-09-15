@@ -1,5 +1,7 @@
 # F04 — Simulation Settings
 
+**Owner:** Elijah Chua Jye Kang
+
 ## Goal
 
 Create a frontend panel for the assumptions required by the simulation.

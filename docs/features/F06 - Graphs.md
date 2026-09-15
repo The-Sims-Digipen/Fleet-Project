@@ -1,5 +1,7 @@
 # F06 — Graphs
 
+**Owner:** Yap Zhi Kai
+
 ## Goal
 
 Create the frontend financial graph UI that communicates when a transition plan becomes more profitable than keeping the current fleet.

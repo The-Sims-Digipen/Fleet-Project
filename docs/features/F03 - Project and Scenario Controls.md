@@ -1,5 +1,7 @@
 # F03 — Project and Scenario Controls
 
+**Owner:** Brandon Koh Kai Yang
+
 ## Goal
 
 Create the frontend UI for managing projects and multiple scenarios or transition plans inside each project.
