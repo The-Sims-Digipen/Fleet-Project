@@ -24,7 +24,7 @@ export default function App() {
   const presets = usePresetStore((state) => state.presets);
   const previewObjects: SceneObject[] | null = fleetPreview?.map((vehicle, index) => {
     const preset = presets.find((item) => item.id === vehicle.currentPreset);
-    const object = createObject(preset?.modelId ?? "van", `fleet-preview-${vehicle.vehicleId}`, preset?.id, vehicle.vehicleName)!;
+    const object = createObject(preset?.modelId ?? "van", `fleet-preview-${vehicle.vehicleId}`, preset?.id, `${vehicle.vehicleId} · ${vehicle.vehicleName}`)!;
     object.transform.position = [(index - (fleetPreview.length - 1) / 2) * 4.5, 0, 0];
     object.appearance = { tint: preset?.propulsion === "electric" ? "#85d8ff" : preset?.propulsion === "hybrid" ? "#f5d18a" : "#ffffff" };
     return object;

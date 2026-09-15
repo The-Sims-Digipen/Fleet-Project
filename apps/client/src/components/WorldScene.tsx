@@ -42,7 +42,7 @@ export function WorldScene({ cameraReset, fleetPreview }: { cameraReset: number;
       <color attach="background" args={["#07100f"]} />
       <Lighting />
       {visibleObjects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selectable={!fleetPreview} />)}
-      {fleetPreview?.map((object) => <Html key={`${object.id}-label`} position={[object.transform.position[0], 2.8, object.transform.position[2]]} center distanceFactor={12} style={{ pointerEvents: "none" }}>
+      {fleetPreview?.map((object) => <Html key={`${object.id}-label`} position={[object.transform.position[0], 2.8, object.transform.position[2]]} center style={{ pointerEvents: "none" }}>
         <span className="whitespace-nowrap rounded border border-line-strong bg-panel/90 px-2 py-1 font-mono text-xs text-primary">{object.name}</span>
       </Html>)}
       <CameraControls reset={cameraReset} fleetCount={fleetPreview?.length ?? null} />
