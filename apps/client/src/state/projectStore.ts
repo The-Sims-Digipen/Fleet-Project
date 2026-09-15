@@ -34,6 +34,7 @@ type ProjectState = ProjectFields & {
   switchWorld: (worldId: string) => Promise<void>;
   newWorld: () => void;
   duplicateWorld: () => void;
+  deleteWorld: (id: string) => void;
   renameWorld: (name: string) => void;
   openProject: (id: string) => Promise<void>;
   saveProject: () => Promise<void>;
@@ -234,6 +235,26 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const nextWorlds = [...worlds, world];
       set({ worlds: nextWorlds, ...activeFields(world), saveStatus: { state: "idle" } });
       scene().loadDocument(world.document);
+    },
+
+    deleteWorld: (id) => {
+      scene().commitEdit();
+      presets().commitEdit();
+      const worlds = captureWorlds();
+      if (worlds.length <= 1) return;
+      const index = worlds.findIndex((world) => world.id === id);
+      if (index < 0) return;
+      const remaining = worlds.toSpliced(index, 1);
+
+      if (id !== get().worldId) {
+        set({ worlds: remaining, saveStatus: { state: "idle" } });
+        return;
+      }
+
+      const nextWorld = remaining[Math.min(index, remaining.length - 1)];
+      if (!nextWorld) return;
+      set({ worlds: remaining, ...activeFields(nextWorld), saveStatus: { state: "idle" } });
+      scene().loadDocument(nextWorld.document);
     },
 
     renameWorld: (name) => {

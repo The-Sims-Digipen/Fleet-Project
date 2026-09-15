@@ -220,12 +220,23 @@ async function persistWorkspace(
     ...savedScenarios.map((scenario, position) => requestResult(links.put({ projectId: project.id, scenarioId: scenario.id, worldId: scenario.worldId, position } satisfies ProjectScenarioLink))),
   ]);
 
-  // A removed scenario disappears from this project immediately. Delete the backing record only when no other project links it.
+  // Removed scenarios/worlds disappear from this project immediately. Delete their backing
+  // records only when no other saved project still references them.
   const nextScenarioIds = new Set(savedScenarios.map((scenario) => scenario.id));
   const removedScenarioIds = oldScenarioLinks.map((link) => link.scenarioId).filter((id) => !nextScenarioIds.has(id));
   if (removedScenarioIds.length) {
     const allLinks = await requestResult(links.getAll() as IDBRequest<ProjectScenarioLink[]>);
     await Promise.all(removedScenarioIds.filter((scenarioId) => !allLinks.some((link) => link.scenarioId === scenarioId)).map((scenarioId) => requestResult(scenarioStore.delete(scenarioId))));
+  }
+
+  const priorWorldIds = oldWorldLinks.length
+    ? oldWorldLinks.map((link) => link.worldId)
+    : currentProject ? [currentProject.worldId] : [];
+  const nextWorldIds = new Set(savedWorlds.map((world) => world.id));
+  const removedWorldIds = priorWorldIds.filter((id) => !nextWorldIds.has(id));
+  if (removedWorldIds.length) {
+    const allWorldLinks = await requestResult(projectWorlds.getAll() as IDBRequest<ProjectWorldLink[]>);
+    await Promise.all(removedWorldIds.filter((worldId) => !allWorldLinks.some((link) => link.worldId === worldId)).map((worldId) => requestResult(worldStore.delete(worldId))));
   }
 
   return { project, worlds: savedWorlds, scenarios: savedScenarios };

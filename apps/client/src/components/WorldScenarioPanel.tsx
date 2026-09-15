@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useProjectStore } from "../state/projectStore";
 import { CollapsibleSection } from "./CollapsibleSection";
-import { DeleteScenarioDialog } from "./ProjectDialogs";
+import { DeleteScenarioDialog, DeleteWorldDialog } from "./ProjectDialogs";
 import { NameField } from "./NameField";
 
 const actionClass = "min-h-7 rounded border border-line-strong px-2 text-[0.68rem] font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
@@ -16,6 +16,7 @@ export function WorldScenarioPanel() {
   const [switchingWorld, setSwitchingWorld] = useState(false);
   const [worldError, setWorldError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingWorldId, setDeletingWorldId] = useState<string | null>(null);
   const active = scenarios.find((scenario) => scenario.id === activeScenarioId);
 
   async function chooseWorld(nextWorldId: string) {
@@ -37,6 +38,9 @@ export function WorldScenarioPanel() {
         <span className="mr-auto text-[0.68rem] font-semibold text-secondary">Worlds</span>
         <button type="button" aria-label="New world" className={actionClass} disabled={switchingWorld} onClick={() => useProjectStore.getState().newWorld()}>New</button>
         <button type="button" aria-label="Duplicate world" className={actionClass} disabled={switchingWorld} onClick={() => useProjectStore.getState().duplicateWorld()}>Duplicate</button>
+        <button type="button" aria-label="Remove world" className={actionClass} disabled={switchingWorld || worlds.length <= 1}
+          title={worlds.length <= 1 ? "A project needs at least one world." : "Remove this world and its scenarios from the project workspace. The removal is persisted on Save Project."}
+          onClick={() => setDeletingWorldId(worldId)}>Remove</button>
       </div>
       <ul aria-label="Worlds" className="m-0 max-h-40 list-none overflow-y-auto overscroll-contain p-1">
         {worlds.map((world, index) => {
@@ -92,5 +96,6 @@ export function WorldScenarioPanel() {
 
     {active && <div className="mt-4"><NameField key={active.id} label="Active scenario name" value={active.name} onCommit={(name) => useProjectStore.getState().renameScenario(active.id, name)} /></div>}
     {deletingId && <DeleteScenarioDialog scenarioId={deletingId} onDismiss={() => setDeletingId(null)} />}
+    {deletingWorldId && <DeleteWorldDialog worldId={deletingWorldId} onDismiss={() => setDeletingWorldId(null)} />}
   </CollapsibleSection>;
 }

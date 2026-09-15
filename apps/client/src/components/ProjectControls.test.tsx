@@ -70,6 +70,21 @@ describe("project and scenario controls", () => {
     expect(screen.getByLabelText("Active world name")).toHaveValue("Main depot copy");
   });
 
+  it("removes the active world from the in-memory workspace", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const firstWorldId = useProjectStore.getState().worldId;
+    await user.click(screen.getByRole("button", { name: "New world" }));
+    expect(useProjectStore.getState().worlds).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Remove world" }));
+    const dialog = screen.getByRole("dialog", { name: "Remove World" });
+    await user.click(within(dialog).getByRole("button", { name: "Remove World" }));
+
+    expect(useProjectStore.getState().worlds).toHaveLength(1);
+    expect(useProjectStore.getState().worldId).toBe(firstWorldId);
+  });
+
   it("creates a fresh world from the world list", async () => {
     const user = userEvent.setup();
     vi.spyOn(window, "confirm").mockReturnValue(true);

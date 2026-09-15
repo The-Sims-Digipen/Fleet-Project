@@ -28,3 +28,11 @@ Worlds and Scenarios are **working-memory state first**. Scene edits update the 
 **Save Project** is the persistence boundary. It snapshots every in-memory World and every Scenario in the project and writes them atomically through F09.
 
 [F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) owns storage. F03 must not access IndexedDB directly.
+
+
+### World removal
+
+- The active world can be removed when the project contains more than one world.
+- Removal happens in the in-memory workspace immediately and is persisted only on **Save Project**.
+- Removing a world also removes its scenarios from that project workspace.
+- The final world cannot be removed.

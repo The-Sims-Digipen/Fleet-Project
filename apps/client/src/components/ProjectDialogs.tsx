@@ -158,3 +158,19 @@ export function DeleteScenarioDialog({ scenarioId, onDismiss }: { scenarioId: st
     </div>
   </Modal>;
 }
+
+export function DeleteWorldDialog({ worldId, onDismiss }: { worldId: string; onDismiss: () => void }) {
+  const world = useProjectStore((state) => state.worlds.find((item) => item.id === worldId));
+  if (!world) return null;
+  const scenarioCount = world.scenarios.length;
+  return <Modal
+    title="Remove World"
+    description={`Remove “${world.name}” and its ${scenarioCount} ${scenarioCount === 1 ? "scenario" : "scenarios"} from this project workspace? The removal is persisted only when you Save Project.`}
+    onDismiss={onDismiss}
+  >
+    <div className="flex justify-end gap-2">
+      <button type="button" className={secondaryButton} onClick={onDismiss}>Cancel</button>
+      <button type="button" className={dangerButton} onClick={() => { useProjectStore.getState().deleteWorld(world.id); onDismiss(); }}>Remove World</button>
+    </div>
+  </Modal>;
+}

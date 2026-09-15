@@ -90,7 +90,14 @@ export function WorldScene({ cameraReset, fleetPreview }: { cameraReset: number;
   const isClick = useCallback(() => gesture.current.primary && !gesture.current.dragged, []);
   const markDragged = useCallback(() => { gesture.current.dragged = true; }, []);
   return <div className="absolute inset-0 [&_canvas]:block [&_canvas]:h-full [&_canvas]:w-full"
-    onPointerDownCapture={(event) => { gesture.current = { x: event.clientX, y: event.clientY, dragged: false, primary: event.button === 0 }; }}
+    onMouseDownCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
+    onAuxClickCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
+    onPointerDownCapture={(event) => {
+      // Middle mouse belongs to the viewport camera. Suppress Chromium/Firefox's native
+      // auto-scroll action before OrbitControls handles the same gesture.
+      if (event.button === 1) event.preventDefault();
+      gesture.current = { x: event.clientX, y: event.clientY, dragged: false, primary: event.button === 0 };
+    }}
     onPointerMoveCapture={(event) => { if (Math.hypot(event.clientX - gesture.current.x, event.clientY - gesture.current.y) > 4) gesture.current.dragged = true; }}
     onPointerCancelCapture={markDragged}>
     <p className="sr-only">{fleetPreview ? `3D fleet preview with ${fleetPreview.length} vehicles arranged side by side.` : "Interactive 3D world containing procedural models. The World Objects list provides keyboard selection."}</p>

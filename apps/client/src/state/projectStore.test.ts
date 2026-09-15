@@ -119,6 +119,33 @@ describe("project/world/scenario workspace", () => {
     expect(project().worlds).toHaveLength(2);
   });
 
+  it("removes a world from memory, switches safely, and persists the removal", async () => {
+    const firstWorldId = project().worldId;
+    project().newWorld();
+    const removedWorldId = project().worldId;
+    project().createScenario();
+    expect(project().worlds).toHaveLength(2);
+
+    project().deleteWorld(removedWorldId);
+    expect(project().worlds.map((world) => world.id)).toEqual([firstWorldId]);
+    expect(project().worldId).toBe(firstWorldId);
+
+    await project().saveProject();
+    const projectId = project().projectId!;
+    expect((await project().listWorlds()).some((world) => world.id === removedWorldId)).toBe(false);
+
+    project().newProject("Other");
+    await project().openProject(projectId);
+    expect(project().worlds.map((world) => world.id)).toEqual([firstWorldId]);
+  });
+
+  it("never removes the final world in a project", () => {
+    const onlyWorldId = project().worldId;
+    project().deleteWorld(onlyWorldId);
+    expect(project().worlds).toHaveLength(1);
+    expect(project().worldId).toBe(onlyWorldId);
+  });
+
   it("never removes the final scenario in a world", () => {
     project().deleteScenario(project().activeScenarioId);
     expect(project().scenarios).toHaveLength(1);

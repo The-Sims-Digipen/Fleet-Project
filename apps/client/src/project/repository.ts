@@ -150,6 +150,14 @@ export function createMemoryProjectRepository(seed: WorkspaceRecord[] = []): Pro
       if (!usedElsewhere) scenarios.delete(removedId);
     }
 
+    const oldWorldIds = new Set(existingProject?.worldIds ?? []);
+    const nextWorldIds = new Set(savedWorldList.map((world) => world.id));
+    for (const removedId of oldWorldIds) {
+      if (nextWorldIds.has(removedId)) continue;
+      const usedElsewhere = [...projects.values()].some((entry) => entry.project.id !== project.id && entry.worldIds.includes(removedId));
+      if (!usedElsewhere) worlds.delete(removedId);
+    }
+
     projects.set(project.id, {
       project: clone(project),
       worldIds: savedWorldList.map((world) => world.id),
