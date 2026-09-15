@@ -43,12 +43,14 @@ export function VehiclePresets() {
 
   const fileInput = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // Delete and Save both overwrite something the user cannot easily get back —
+  // a preset, or a tracked file in the repo — so each asks first.
+  const [confirming, setConfirming] = useState<"delete" | "save" | null>(null);
 
   const removeSelected = () => {
     if (!selectedId) return;
     usePresetStore.getState().deletePreset(selectedId);
-    setConfirmingDelete(false);
+    setConfirming(null);
     setNotice(instanceCount ? `Preset deleted. ${instanceCount} placed ${instanceCount === 1 ? "object keeps" : "objects keep"} its geometry.` : null);
   };
 
@@ -69,12 +71,30 @@ export function VehiclePresets() {
     setNotice(result.ok ? `Imported ${result.count} presets.` : result.error);
   }
 
+  /** Dev only: asks the Vite dev server to rewrite src/vehicles/defaults.json. */
+  async function saveToSource() {
+    edit.commitEdit();
+    setNotice("Saving to defaults.json…");
+    try {
+      const response = await fetch("/__save-presets", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: usePresetStore.getState().exportPresets(),
+      });
+      const result: { ok: boolean; count?: number; error?: string } = await response.json();
+      setNotice(result.ok ? `Saved ${result.count} presets to vehicles/defaults.json. These are now the values every reload starts from.` : `Save failed: ${result.error ?? response.statusText}`);
+    } catch {
+      setNotice("Save failed: the dev server is not reachable. This only works with pnpm dev running.");
+    }
+  }
+
   return <CollapsibleSection title="Vehicle Presets" defaultOpen description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
-        <button type="button" className={actionClass} onClick={() => { setConfirmingDelete(false); usePresetStore.getState().createPreset(); }}>New</button>
+        <button type="button" className={actionClass} onClick={() => { setConfirming(null); usePresetStore.getState().createPreset(); }}>New</button>
+        {import.meta.env.DEV && <button type="button" className={actionClass} disabled={!presets.length} onClick={() => setConfirming("save")} title="Rewrite src/vehicles/defaults.json via the dev server, making these the values every reload starts from">Save</button>}
         <button type="button" className={actionClass} disabled={!preset} onClick={() => { if (selectedId) usePresetStore.getState().duplicatePreset(selectedId); }}>Duplicate</button>
-        <button type="button" className={actionClass} disabled={!preset} onClick={() => { if (instanceCount) setConfirmingDelete(true); else removeSelected(); }}>Delete</button>
+        <button type="button" className={actionClass} disabled={!preset} onClick={() => { if (instanceCount) setConfirming("delete"); else removeSelected(); }}>Delete</button>
         <span className="ml-auto text-xs text-secondary">{presets.length}</span>
       </div>
 
@@ -83,7 +103,7 @@ export function VehiclePresets() {
           {presets.map((item) => <li key={item.id}>
             <button type="button" aria-label={`Select ${item.name}`} aria-pressed={item.id === selectedId}
               className="flex h-9 w-full items-center gap-2 rounded-sm px-2 text-left text-xs text-secondary hover:bg-white/5 aria-pressed:bg-accent/15 aria-pressed:text-primary"
-              onClick={() => { setConfirmingDelete(false); usePresetStore.getState().selectPreset(item.id); }}>
+              onClick={() => { setConfirming(null); usePresetStore.getState().selectPreset(item.id); }}>
               <span aria-hidden="true" className="shrink-0 text-accent">◇</span>
               <span className="min-w-0 flex-1 truncate" title={item.name}>{item.name}</span>
               <span className="shrink-0 font-mono text-[10px] opacity-60">{item.category}</span>
@@ -108,12 +128,22 @@ export function VehiclePresets() {
         if (file) void importLibrary(file);
       }} />
 
-    {confirmingDelete && preset && <div role="alert" className="mt-3 rounded border border-line-strong bg-[#241a12] p-3 text-xs text-secondary">
-      <p className="mb-2.5">Delete <b className="text-primary">{preset.name}</b>? {instanceCount} placed {instanceCount === 1 ? "object" : "objects"} will keep rendering with the same geometry but lose the preset link.</p>
-      <span className="flex gap-2">
-        <button type="button" className={actionClass} onClick={removeSelected}>Delete preset</button>
-        <button type="button" className={actionClass} onClick={() => setConfirmingDelete(false)}>Cancel</button>
-      </span>
+    {confirming && <div role="alert" className="mt-3 rounded border border-line-strong bg-[#241a12] p-3 text-xs text-secondary">
+      {confirming === "delete" && preset
+        ? <>
+          <p className="mb-2.5">Delete <b className="text-primary">{preset.name}</b>? {instanceCount} placed {instanceCount === 1 ? "object" : "objects"} will keep rendering with the same geometry but lose the preset link.</p>
+          <span className="flex gap-2">
+            <button type="button" className={actionClass} onClick={removeSelected}>Delete preset</button>
+            <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Cancel</button>
+          </span>
+        </>
+        : <>
+          <p className="mb-2.5">Overwrite <b className="text-primary">src/vehicles/defaults.json</b> with these {presets.length} presets? This rewrites a file tracked by git, so it will show up in your next commit.</p>
+          <span className="flex gap-2">
+            <button type="button" className={actionClass} onClick={() => { setConfirming(null); void saveToSource(); }}>Overwrite defaults.json</button>
+            <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Cancel</button>
+          </span>
+        </>}
     </div>}
 
     {notice && <p role="status" className="mt-3 text-xs text-secondary">{notice}</p>}
