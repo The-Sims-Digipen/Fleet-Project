@@ -5,6 +5,7 @@ import { WorldScenarioPanel } from "./WorldScenarioPanel";
 import { getDefinition } from "../scene/catalog";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorControl, RangeControl, SelectControl, Vector3Control } from "./controls";
+import { SimulationSettings } from "./SimulationSettings";
 import { useResolvedModelId, useResolvedName } from "../state/presetStore";
 import { VehiclePresets } from "./VehiclePresets";
 import { FleetManagementPanel } from "./FleetManagementPanel";
@@ -85,6 +86,7 @@ export function Sidebar({ onResetCamera, onVisualizeFleet, fleetPreviewOpen, onC
     <TimelineControl />
     <VehiclePresets />
     <WorldObjects />
+    <SimulationSettings />
     <Inspector />
     <SceneModule onResetCamera={onResetCamera} />
     <DebugModule />

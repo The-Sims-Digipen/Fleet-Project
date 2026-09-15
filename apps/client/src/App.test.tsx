@@ -38,6 +38,28 @@ describe("inspector architecture", () => {
     act(() => useTimelineStore.getState().resetYear());
     expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
   });
+  it("groups manual simulation inputs and creates an annual cost table", async () => {
+    const user = userEvent.setup();
+    state().addObject("van", "diesel-van", "Diesel Delivery Van");
+    const linkedVehicleId = state().editor.selectedObjectId!;
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Diesel assumptions" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Electric assumptions" })).toBeInTheDocument();
+    const vehicleSelect = screen.getByRole("combobox", { name: "Vehicle" });
+    expect(vehicleSelect.querySelectorAll("option")).toHaveLength(2);
+    await user.selectOptions(vehicleSelect, linkedVehicleId);
+    expect(screen.queryByLabelText("Diesel consumption (L/100 km)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Electric consumption (kWh/100 km)")).not.toBeInTheDocument();
+    expect(screen.getByText(/Diesel Delivery Van · 9.5 L\/100 km/)).toBeInTheDocument();
+    expect(screen.getByText(/Electric Delivery Van · 22 kWh\/100 km/)).toBeInTheDocument();
+    const distance = screen.getByLabelText("Selected vehicle route distance (km/year)");
+    await user.clear(distance);
+    await user.type(distance, "10000{Enter}");
+    await user.click(screen.getByRole("button", { name: "Finalize simulation" }));
+    expect(screen.getByText(/Year-by-year energy cost comparison/)).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(6);
+    expect(screen.getByText("Total distance:").parentElement).toHaveTextContent("50,000 km");
+  });
   it("adds and deletes catalog instances with undoable edits and appearance restoration", async () => {
     const user = userEvent.setup();
     render(<App />);
