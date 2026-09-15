@@ -12,8 +12,8 @@ export function getDefinition(id: string): ObjectDefinition | undefined {
   return Object.hasOwn(objectDefinitions, id) ? objectDefinitions[id as keyof typeof objectDefinitions] : undefined;
 }
 
-export function createObject(definitionId: string, id: string): SceneObject | undefined {
+export function createObject(definitionId: string, id: string, presetId?: string, name?: string): SceneObject | undefined {
   const definition = getDefinition(definitionId);
   if (!definition) return;
-  return { id, name: definition.name, definitionId, transform: copyTransform(definition.transform), appearance: {} };
+  return { id, name: name?.trim() || definition.name, definitionId, ...(presetId ? { presetId } : {}), transform: copyTransform(definition.transform), appearance: {} };
 }
