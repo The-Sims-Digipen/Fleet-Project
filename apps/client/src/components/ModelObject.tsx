@@ -2,6 +2,7 @@ import { Component, useLayoutEffect, useMemo, type ComponentType, type ReactNode
 import { createProceduralInstance } from "../models/proceduralModel";
 import { getDefinition, type ObjectDefinition } from "../scene/catalog";
 import type { SceneObject } from "../scene/types";
+import { useResolvedModelId } from "../state/presetStore";
 import { useSceneStore } from "../state/sceneStore";
 
 class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -29,7 +30,8 @@ const renderers: Record<ObjectDefinition["kind"], ComponentType<RendererProps>> 
 
 export function ModelObject({ object, isClick }: { object: SceneObject; isClick: () => boolean }) {
   const selected = useSceneStore((state) => state.editor.selectedObjectId === object.id);
-  const definition = getDefinition(object.definitionId);
+  const modelId = useResolvedModelId(object);
+  const definition = getDefinition(modelId);
   if (!definition) return null;
   const Renderer = renderers[definition.kind];
 
