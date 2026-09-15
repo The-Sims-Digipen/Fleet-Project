@@ -1,39 +1,20 @@
-import { useState } from "react";
 import { usePresetStore } from "../state/presetStore";
+import { useFleetStore } from "../state/fleetStore";
+import { END_YEAR, START_YEAR, useTimelineStore } from "../state/timelineStore";
 import { CollapsibleSection } from "./CollapsibleSection";
-
-export type MockVehicle = {
-  vehicleId: string;
-  vehicleName: string;
-  annualDistance: number;
-  plannedTransitionYear: number;
-  currentPreset: string;
-};
-
-const mockVehicles: MockVehicle[] = [
-  { vehicleId: "UNIT-01", vehicleName: "City Delivery Van", annualDistance: 28000, plannedTransitionYear: 2027, currentPreset: "diesel-van" },
-  { vehicleId: "UNIT-02", vehicleName: "Regional Hauler", annualDistance: 54000, plannedTransitionYear: 2029, currentPreset: "diesel-box-truck" },
-  { vehicleId: "UNIT-03", vehicleName: "Urban Courier", annualDistance: 19000, plannedTransitionYear: 2026, currentPreset: "electric-van" },
-  { vehicleId: "UNIT-04", vehicleName: "Service Support", annualDistance: 32000, plannedTransitionYear: 2028, currentPreset: "hybrid-van" },
-  { vehicleId: "UNIT-05", vehicleName: "Depot Shuttle", annualDistance: 24000, plannedTransitionYear: 2030, currentPreset: "diesel-van" },
-  { vehicleId: "UNIT-06", vehicleName: "Long-haul Supply", annualDistance: 61000, plannedTransitionYear: 2031, currentPreset: "diesel-box-truck" },
-];
 
 const distanceFormatter = new Intl.NumberFormat("en-SG");
 
 export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview }: {
-  onVisualize: (vehicles: MockVehicle[]) => void;
+  onVisualize: () => void;
   previewOpen: boolean;
   onClosePreview: () => void;
 }) {
-  const [vehicles, setVehicles] = useState(mockVehicles);
+  const vehicles = useFleetStore((state) => state.vehicles);
+  const assignPreset = useFleetStore((state) => state.assignPreset);
+  const setTransitionYear = useFleetStore((state) => state.setTransitionYear);
+  const selectedYear = useTimelineStore((state) => state.selectedYear);
   const presets = usePresetStore((state) => state.presets);
-
-  function assignPreset(vehicleId: string, currentPreset: string) {
-    const next = vehicles.map((vehicle) => vehicle.vehicleId === vehicleId ? { ...vehicle, currentPreset } : vehicle);
-    setVehicles(next);
-    if (previewOpen) onVisualize(next);
-  }
 
   return <CollapsibleSection title="Fleet Management" defaultOpen description="Sample fleet. Preset choices come from Vehicle Presets; assignments are local to this page for now.">
     <div className="overflow-hidden rounded-lg border border-line-strong bg-control">
@@ -43,7 +24,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
       </div>
       <div className="border-b border-line-strong p-2">
         <button type="button" className="min-h-10 w-full rounded bg-accent px-3 text-xs font-bold text-accent-ink hover:bg-accent/85"
-          onClick={() => previewOpen ? onClosePreview() : onVisualize(vehicles)}>
+          onClick={() => previewOpen ? onClosePreview() : onVisualize()}>
           {previewOpen ? "Return to scene" : "Visualize fleet in 3D"}
         </button>
       </div>
@@ -54,7 +35,9 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
               <span className="font-mono text-[10px] font-bold tracking-wider text-accent">{vehicle.vehicleId}</span>
               <p className="truncate text-sm font-semibold text-primary" title={vehicle.vehicleName}>{vehicle.vehicleName}</p>
             </div>
-            <span className="shrink-0 rounded bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent">{vehicle.plannedTransitionYear}</span>
+            <span className={`shrink-0 rounded px-2 py-1 font-mono text-[11px] ${vehicle.plannedTransitionYear !== null && selectedYear >= vehicle.plannedTransitionYear ? "bg-[#39ff14]/15 text-[#39ff14]" : "bg-accent/10 text-accent"}`}>
+              {vehicle.plannedTransitionYear !== null && selectedYear >= vehicle.plannedTransitionYear ? "Changed" : "Current"}
+            </span>
           </div>
           <div className="flex justify-between gap-2 text-xs text-secondary">
             <span>Annual distance</span><span className="font-mono text-primary">{distanceFormatter.format(vehicle.annualDistance)} km</span>
@@ -67,6 +50,16 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
               className="min-h-9 w-full min-w-0 rounded border border-line-strong bg-panel px-2 text-xs font-medium text-primary focus:border-accent disabled:cursor-default disabled:opacity-50">
               {!presets.some((preset) => preset.id === vehicle.currentPreset) && <option value="">{presets.length ? "Select a preset" : "No presets available"}</option>}
               {presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-[11px] font-semibold text-secondary" htmlFor={`fleet-year-${vehicle.vehicleId}`}>
+            Year to change
+            <select id={`fleet-year-${vehicle.vehicleId}`} aria-label={`Year to change for ${vehicle.vehicleId}`}
+              value={vehicle.plannedTransitionYear ?? ""}
+              onChange={(event) => setTransitionYear(vehicle.vehicleId, event.target.value ? Number(event.target.value) : null)}
+              className="min-h-9 w-full min-w-0 rounded border border-line-strong bg-panel px-2 text-xs font-medium text-primary focus:border-accent">
+              <option value="">No change</option>
+              {Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index).map((year) => <option key={year} value={year}>{year}</option>)}
             </select>
           </label>
         </li>)}
