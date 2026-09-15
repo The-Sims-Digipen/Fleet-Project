@@ -1,5 +1,7 @@
 # F09 — Project Persistence
 
+**Owner:** Tan Wei Jun
+
 ## Goal
 
 Implement backend persistence for projects after the Project/Scenario Controls frontend stub is complete.

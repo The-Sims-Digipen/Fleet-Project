@@ -1,5 +1,7 @@
 # F08 — Power and Feasibility Panel
 
+**Owner:** Dayton Ng Zhi Jie
+
 ## Goal
 
 Create the frontend UI that summarizes whether the selected plan fits within the site's available electrical capacity.

@@ -6,10 +6,12 @@ export type SceneObject = {
   id: string;
   name: string;
   definitionId: string;
+  /** Vehicle preset this instance belongs to. When set and resolvable it supplies the geometry; definitionId is the fallback. */
+  presetId?: string;
   transform: Transform;
   appearance: Appearance;
 };
-export type SceneDocument = { version: 2; objects: SceneObject[]; light: number };
+export type SceneDocument = { version: 3; objects: SceneObject[]; light: number };
 export type TransformProperty = keyof Transform;
 export const identityTransform = (): Transform => ({ position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
 export const copyTransform = (value: Transform): Transform => ({ position: [...value.position], rotation: [...value.rotation], scale: [...value.scale] });
