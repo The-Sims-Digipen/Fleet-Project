@@ -8,6 +8,7 @@ import { ColorControl, RangeControl, SelectControl, Vector3Control } from "./con
 import { useResolvedModelId, useResolvedName } from "../state/presetStore";
 import { VehiclePresets } from "./VehiclePresets";
 import { FleetManagementPanel } from "./FleetManagementPanel";
+import type { MockVehicle } from "./FleetManagementPanel";
 
 const edit = {
   beginEdit: () => useSceneStore.getState().beginEdit(),
@@ -71,11 +72,16 @@ function DebugModule() {
   </CollapsibleSection>;
 }
 
-export function Sidebar({ onResetCamera }: { onResetCamera: () => void }) {
+export function Sidebar({ onResetCamera, onVisualizeFleet, fleetPreviewOpen, onCloseFleetPreview }: {
+  onResetCamera: () => void;
+  onVisualizeFleet: (vehicles: MockVehicle[]) => void;
+  fleetPreviewOpen: boolean;
+  onCloseFleetPreview: () => void;
+}) {
   return <aside className="col-start-3 row-start-1 flex min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain bg-panel p-7 *:shrink-0 max-[900px]:col-start-1 max-[900px]:row-start-3 max-[560px]:px-5 max-[560px]:py-6" id="controls" aria-labelledby="controls-title" tabIndex={-1}>
     <div className="pb-5"><span className="mb-2 block font-mono text-[0.68rem] font-bold tracking-[0.14em] text-accent uppercase">Scene editor</span><h2 className="text-[clamp(1.6rem,3vw,2.15rem)] font-medium tracking-[-0.045em]" id="controls-title">Playground</h2><p className="mt-2.5 max-w-[38ch] text-[0.87rem] leading-relaxed text-secondary">Explore the world, select an object, and adjust its properties.</p></div>
     <ScenarioPanel />
-    <FleetManagementPanel />
+    <FleetManagementPanel onVisualize={onVisualizeFleet} previewOpen={fleetPreviewOpen} onClosePreview={onCloseFleetPreview} />
     <VehiclePresets />
     <WorldObjects />
     <Inspector />

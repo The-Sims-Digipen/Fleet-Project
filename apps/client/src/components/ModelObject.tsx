@@ -28,8 +28,8 @@ const renderers: Record<ObjectDefinition["kind"], ComponentType<RendererProps>> 
   procedural: ProceduralRenderer,
 };
 
-export function ModelObject({ object, isClick }: { object: SceneObject; isClick: () => boolean }) {
-  const selected = useSceneStore((state) => state.editor.selectedObjectId === object.id);
+export function ModelObject({ object, isClick, selectable = true }: { object: SceneObject; isClick: () => boolean; selectable?: boolean }) {
+  const selected = useSceneStore((state) => selectable && state.editor.selectedObjectId === object.id);
   const modelId = useResolvedModelId(object);
   const definition = getDefinition(modelId);
   if (!definition) return null;
@@ -37,7 +37,7 @@ export function ModelObject({ object, isClick }: { object: SceneObject; isClick:
 
   return <group {...object.transform} onClick={(event) => {
     event.stopPropagation();
-    if (isClick()) useSceneStore.getState().selectObject(object.id);
+    if (selectable && isClick()) useSceneStore.getState().selectObject(object.id);
   }}>
     <ObjectBoundary><Renderer object={object} definition={definition} selected={selected} /></ObjectBoundary>
   </group>;

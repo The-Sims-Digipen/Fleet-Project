@@ -2,7 +2,7 @@ import { useState } from "react";
 import { usePresetStore } from "../state/presetStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 
-type MockVehicle = {
+export type MockVehicle = {
   vehicleId: string;
   vehicleName: string;
   annualDistance: number;
@@ -21,14 +21,18 @@ const mockVehicles: MockVehicle[] = [
 
 const distanceFormatter = new Intl.NumberFormat("en-SG");
 
-export function FleetManagementPanel() {
+export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview }: {
+  onVisualize: (vehicles: MockVehicle[]) => void;
+  previewOpen: boolean;
+  onClosePreview: () => void;
+}) {
   const [vehicles, setVehicles] = useState(mockVehicles);
   const presets = usePresetStore((state) => state.presets);
 
   function assignPreset(vehicleId: string, currentPreset: string) {
-    setVehicles((current) => current.map((vehicle) =>
-      vehicle.vehicleId === vehicleId ? { ...vehicle, currentPreset } : vehicle,
-    ));
+    const next = vehicles.map((vehicle) => vehicle.vehicleId === vehicleId ? { ...vehicle, currentPreset } : vehicle);
+    setVehicles(next);
+    if (previewOpen) onVisualize(next);
   }
 
   return <CollapsibleSection title="Fleet Management" defaultOpen description="Sample fleet. Preset choices come from Vehicle Presets; assignments are local to this page for now.">
@@ -36,6 +40,12 @@ export function FleetManagementPanel() {
       <div className="flex items-center justify-between border-b border-line-strong px-3 py-2">
         <span className="text-xs font-semibold text-primary">Vehicles</span>
         <span className="font-mono text-[11px] text-secondary">{vehicles.length} units</span>
+      </div>
+      <div className="border-b border-line-strong p-2">
+        <button type="button" className="min-h-10 w-full rounded bg-accent px-3 text-xs font-bold text-accent-ink hover:bg-accent/85"
+          onClick={() => previewOpen ? onClosePreview() : onVisualize(vehicles)}>
+          {previewOpen ? "Return to scene" : "Visualize fleet in 3D"}
+        </button>
       </div>
       <ul aria-label="Fleet vehicles" className="m-0 max-h-[440px] list-none divide-y divide-line overflow-y-auto overscroll-contain p-0">
         {vehicles.map((vehicle) => <li key={vehicle.vehicleId} className="grid gap-2.5 px-3 py-3">
