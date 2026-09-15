@@ -1,16 +1,34 @@
 import type { SceneDocument } from "../scene/types";
+import type { VehiclePreset } from "../vehicles/types";
 
 export const NAME_MAX_LENGTH = 100;
 
-/** An independent transition plan. Schedules and charging settings will be added here. */
-export type Scenario = { id: string; name: string; scene: SceneDocument };
+export type ScenarioDocument = { version: 1 } & Record<string, unknown>;
+export type ProjectDocument = { version: 2; vehiclePresets: VehiclePreset[] };
 
-/** Saved project inputs. Camera, selection, undo history, and derived results are never stored. */
-export type ProjectDocument = { version: 1; scenarios: Scenario[] };
+export type WorldRecord = {
+  id: string;
+  name: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  document: SceneDocument;
+};
 
-/** Mirrors the planned `/api/v1/projects` record so the backend can replace the in-memory repository. */
+export type Scenario = {
+  id: string;
+  worldId: string;
+  name: string;
+  revision: number;
+  worldRevision: number;
+  createdAt?: string;
+  updatedAt?: string;
+  document: ScenarioDocument;
+};
+
 export type ProjectRecord = {
   id: string;
+  worldId: string;
   name: string;
   revision: number;
   createdAt: string;
@@ -18,9 +36,16 @@ export type ProjectRecord = {
   document: ProjectDocument;
 };
 
-export type ProjectSummary = Pick<ProjectRecord, "id" | "name" | "revision" | "updatedAt"> & { scenarioCount: number };
+export type WorkspaceRecord = { project: ProjectRecord; world: WorldRecord; scenarios: Scenario[] };
+export type ProjectSummary = Pick<ProjectRecord, "id" | "worldId" | "name" | "revision" | "updatedAt"> & { scenarioCount: number };
+export type WorldSummary = Pick<WorldRecord, "id" | "name" | "revision" | "updatedAt">;
 
-/** Returns a readable error, or null when the trimmed name is valid. */
+export type WorkspaceSaveInput = {
+  project: { id: string; name: string; expectedRevision?: number; document: ProjectDocument };
+  world: { id: string; name: string; expectedRevision: number; document: SceneDocument };
+  scenarios: { id: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
+};
+
 export function validateName(value: string): string | null {
   const name = value.trim();
   if (!name) return "Name is required.";

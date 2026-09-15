@@ -1,35 +1,31 @@
 import { createObject } from "../scene/catalog";
 import type { SceneDocument } from "../scene/types";
-import type { ProjectRecord } from "./types";
+import { loadDefaultPresets } from "../vehicles/defaults";
+import type { WorkspaceRecord } from "./types";
 
-function vanRow(prefix: string, count: number): SceneDocument {
+function sampleWorld(): SceneDocument {
   return {
     version: 3,
     light: 65,
-    objects: Array.from({ length: count }, (_, index) => {
-      const van = createObject("van", `${prefix}-van-${index + 1}`)!;
+    objects: Array.from({ length: 4 }, (_, index) => {
+      const van = createObject("van", `sample-van-${index + 1}`)!;
       van.name = `Van ${index + 1}`;
-      van.transform.position = [(index - (count - 1) / 2) * 3, 0, 0];
+      van.transform.position = [(index - 1.5) * 3, 0, 0];
       return van;
     }),
   };
 }
 
-/** Placeholder projects shown in Open Project until backend persistence exists. */
-export function createSampleProjects(): ProjectRecord[] {
+export function createSampleProjects(): WorkspaceRecord[] {
   const timestamp = "2026-09-10T09:00:00.000Z";
-  return [{
-    id: "sample-depot-transition",
-    name: "Sample depot transition",
-    revision: 1,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    document: {
-      version: 1,
-      scenarios: [
-        { id: "sample-plan-a", name: "Plan A · gradual", scene: vanRow("plan-a", 2) },
-        { id: "sample-plan-b", name: "Plan B · fast", scene: vanRow("plan-b", 4) },
-      ],
-    },
-  }];
+  const world = { id: "a7dc705f-e619-4c9c-a3da-70770d63f708", name: "Sample depot", revision: 1, createdAt: timestamp, updatedAt: timestamp, document: sampleWorld() };
+  const project = {
+    id: "b9b840a3-9a17-40e9-979b-e9682843eafa", worldId: world.id, name: "Sample depot transition", revision: 1,
+    createdAt: timestamp, updatedAt: timestamp, document: { version: 2 as const, vehiclePresets: loadDefaultPresets() },
+  };
+  const scenarios = [
+    { id: "63e41b98-588a-4bc7-a974-4ff8fcdbeb94", worldId: world.id, name: "Plan A · gradual", revision: 1, worldRevision: 1, createdAt: timestamp, updatedAt: timestamp, document: { version: 1 as const } },
+    { id: "f5fd6ce9-a8f9-4d91-ad38-b22880658134", worldId: world.id, name: "Plan B · fast", revision: 1, worldRevision: 1, createdAt: timestamp, updatedAt: timestamp, document: { version: 1 as const } },
+  ];
+  return [{ project, world, scenarios }];
 }

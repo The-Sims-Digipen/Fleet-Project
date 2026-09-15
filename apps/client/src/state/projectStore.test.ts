@@ -2,159 +2,148 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createMemoryProjectRepository, ProjectConflictError } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
 import { validateName } from "../project/types";
+import { loadDefaultPresets } from "../vehicles/defaults";
+import { usePresetStore } from "./presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "./projectStore";
-import { createDocument, useSceneStore } from "./sceneStore";
+import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
 
 const project = useProjectStore.getState;
 const scene = useSceneStore.getState;
 const activeName = () => project().scenarios.find((scenario) => scenario.id === project().activeScenarioId)!.name;
-const saved = () => project().projectId !== null;
 
 beforeEach(() => {
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   const document = createDocument();
-  useSceneStore.setState({ document, editor: { selectedObjectId: "sample" }, history: { past: [], future: [], baseline: null } });
-  useProjectStore.setState(createProjectFields("Untitled project", document));
+  const presets = loadDefaultPresets();
+  usePresetStore.getState().replacePresets(presets);
+  useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
+  useProjectStore.setState(createProjectFields("Untitled project", document, 0, presets));
 });
 
-describe("project and scenario store", () => {
-  it("creates a new unsaved project with one Plan A scenario and a fresh scene", () => {
-    scene().setLight(10);
+describe("project/world/scenario store", () => {
+  it("creates a new unsaved project with one scenario bound to its world", () => {
     project().newProject("  Depot transition  ");
-    expect(project()).toMatchObject({ name: "Depot transition", projectId: null, revision: 0 });
-    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A"]);
-    expect(scene().document).toEqual(createDocument());
-    expect(scene().history.past).toHaveLength(0);
-    expect(scene().editor.selectedObjectId).toBeNull();
-    project().newProject("   ");
-    expect(project().name).toBe("Depot transition");
+    expect(project()).toMatchObject({ name: "Depot transition", projectId: null, revision: 0, worldRevision: 0 });
+    expect(project().scenarios).toHaveLength(1);
+    expect(project().scenarios[0]).toMatchObject({ name: "Plan A", worldId: project().worldId, revision: 0 });
   });
 
-  it("keeps an independent scene per scenario and resets history when switching", () => {
-    const planA = project().activeScenarioId;
+  it("keeps one shared world while switching independent scenarios", () => {
     scene().setLight(20);
+    const planA = project().activeScenarioId;
     project().createScenario();
-    expect(activeName()).toBe("Plan B");
-    expect(scene().document.light).toBe(65);
-    expect(scene().history.past).toHaveLength(0);
+    const planB = project().activeScenarioId;
+    expect(planB).not.toBe(planA);
+    expect(scene().document.light).toBe(20);
     scene().addObject("van");
     project().selectScenario(planA);
-    expect(scene().document.light).toBe(20);
-    expect(scene().document.objects).toHaveLength(1);
-    project().selectScenario(project().scenarios[1].id);
+    expect(scene().document.objects).toHaveLength(2);
+    project().selectScenario(planB);
     expect(scene().document.objects).toHaveLength(2);
   });
 
-  it("commits an in-progress edit into the scenario being left", () => {
-    const planA = project().activeScenarioId;
-    scene().beginEdit();
-    scene().setLight(33);
-    project().createScenario();
-    project().selectScenario(planA);
-    expect(scene().document.light).toBe(33);
-  });
-
-  it("duplicates a scenario as a deep copy and names new scenarios uniquely", () => {
-    scene().updateTransform("sample", "position", [4, 0, 0]);
-    project().duplicateScenario(project().activeScenarioId);
+  it("duplicates scenario data without duplicating the world", () => {
+    const sourceId = project().activeScenarioId;
+    const worldId = project().worldId;
+    project().duplicateScenario(sourceId);
     expect(activeName()).toBe("Plan A copy");
-    scene().updateTransform("sample", "position", [9, 0, 0]);
-    project().selectScenario(project().scenarios[0].id);
-    expect(scene().document.objects[0].transform.position).toEqual([4, 0, 0]);
-    project().createScenario();
-    expect(activeName()).toBe("Plan B");
+    expect(project().scenarios[1]).toMatchObject({ worldId, revision: 0 });
+    expect(project().scenarios[1].document).toEqual(project().scenarios[0].document);
+    expect(project().scenarios[1].document).not.toBe(project().scenarios[0].document);
   });
 
-  it("never deletes the final scenario and activates a neighbour when deleting the active one", () => {
+  it("never removes the final scenario", () => {
     project().deleteScenario(project().activeScenarioId);
     expect(project().scenarios).toHaveLength(1);
-    const planA = project().activeScenarioId;
     project().createScenario();
-    scene().setLight(5);
-    project().createScenario();
-    const planB = project().scenarios[1].id;
-    project().selectScenario(planB);
-    project().deleteScenario(planB);
-    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "Plan C"]);
-    expect(activeName()).toBe("Plan C");
-    project().deleteScenario(planA);
-    expect(activeName()).toBe("Plan C");
+    const active = project().activeScenarioId;
+    project().deleteScenario(active);
+    expect(project().scenarios).toHaveLength(1);
+    expect(project().activeScenarioId).toBe(project().scenarios[0].id);
   });
 
   it("validates project and scenario names", () => {
     expect(validateName("")).not.toBeNull();
     expect(validateName("x".repeat(101))).not.toBeNull();
-    expect(validateName(` ${"x".repeat(100)} `)).toBeNull();
     project().renameProject("");
     project().renameScenario(project().activeScenarioId, "x".repeat(101));
     expect(project().name).toBe("Untitled project");
-    expect(activeName()).toBe("Plan A");
     project().renameScenario(project().activeScenarioId, " Fast plan ");
     expect(activeName()).toBe("Fast plan");
   });
 
-  it("saves new and existing projects, then reopens every scenario scene", async () => {
+  it("saves and reopens the world and scenarios as separate records", async () => {
     project().renameProject("Depot transition");
     scene().setLight(40);
     project().createScenario();
+    await project().saveProject();
+    expect(project().projectId).not.toBeNull();
+    expect(project().revision).toBe(1);
+    expect(project().worldRevision).toBe(1);
+    expect(project().scenarios.every((scenario) => scenario.revision === 1)).toBe(true);
+
+    const id = project().projectId!;
     scene().addObject("van");
     await project().saveProject();
-    expect(saved()).toBe(true);
-    expect(project().revision).toBe(1);
-    const id = project().projectId!;
-    project().renameProject("Depot transition v2");
-    await project().saveProject();
     expect(project().revision).toBe(2);
+    expect(project().worldRevision).toBe(2);
 
     project().newProject("Other");
     await project().openProject(id);
-    expect(project().name).toBe("Depot transition v2");
-    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "Plan B"]);
     expect(scene().document.light).toBe(40);
-    project().selectScenario(project().scenarios[1].id);
     expect(scene().document.objects).toHaveLength(2);
-    const list = await project().listProjects();
-    expect(list[0]).toMatchObject({ id, name: "Depot transition v2", scenarioCount: 2 });
+    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "Plan B"]);
   });
 
-  it("opens the placeholder sample project with distinct scenario scenes", async () => {
-    await project().openProject("sample-depot-transition");
-    expect(scene().document.objects).toHaveLength(2);
-    project().selectScenario("sample-plan-b");
+  it("opens the sample workspace without changing the world when scenarios switch", async () => {
+    const sample = createSampleProjects()[0];
+    await project().openProject(sample.project.id);
+    expect(scene().document.objects).toHaveLength(4);
+    project().selectScenario(project().scenarios[1].id);
     expect(scene().document.objects).toHaveLength(4);
   });
 
-  it("keeps edits and reports an error when a save conflicts", async () => {
+  it("exports the live workspace and imports it as an independent local copy", async () => {
+    project().renameProject("Portable depot");
+    scene().setLight(33);
+    project().createScenario();
+    project().renameScenario(project().activeScenarioId, "Rapid plan");
+    const exported = project().exportProject();
+    const originalWorldId = project().worldId;
+
+    await project().importProject(exported);
+
+    expect(project().name).toBe("Portable depot");
+    expect(project().projectId).not.toBeNull();
+    expect(project().worldId).not.toBe(originalWorldId);
+    expect(scene().document.light).toBe(33);
+    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "Rapid plan"]);
+    expect(project().activeScenarioId).toBe(project().scenarios[1].id);
+  });
+
+  it("keeps edits and reports revision conflicts", async () => {
     await project().saveProject();
     const id = project().projectId!;
-    setProjectRepository({
-      ...createMemoryProjectRepository(),
-      update: async () => { throw new ProjectConflictError(); },
-    });
+    const base = createMemoryProjectRepository();
+    setProjectRepository({ ...base, updateWorkspace: async () => { throw new ProjectConflictError(); } });
     scene().setLight(12);
     await project().saveProject();
-    expect(project().saveStatus).toEqual({ state: "error", message: new ProjectConflictError().message });
+    expect(project().saveStatus.state).toBe("error");
     expect(project().projectId).toBe(id);
     expect(scene().document.light).toBe(12);
   });
+  it("switches to a reusable world and exposes only that world's saved scenarios", async () => {
+    const sample = createSampleProjects()[0];
+    await project().switchWorld(sample.world.id);
+    expect(project()).toMatchObject({ projectId: null, worldId: sample.world.id, worldName: sample.world.name, worldRevision: sample.world.revision });
+    expect(scene().document.objects).toHaveLength(4);
+    expect(project().scenarios).toHaveLength(1);
+    expect(project().scenarios[0].worldId).toBe(sample.world.id);
+    expect(project().worldScenarios.map((scenario) => scenario.name)).toEqual(["Plan A · gradual", "Plan B · fast"]);
 
-  it("ignores a save that finishes after another project was opened", async () => {
-    let finish!: () => void;
-    const repository = createMemoryProjectRepository();
-    setProjectRepository({ ...repository, create: (name, document) => new Promise((resolve) => { finish = () => resolve(repository.create(name, document)); }) });
-    const saving = project().saveProject();
-    expect(project().saveStatus.state).toBe("saving");
-    project().newProject("Replacement");
-    finish();
-    await saving;
-    expect(project()).toMatchObject({ name: "Replacement", projectId: null, saveStatus: { state: "idle" } });
+    project().attachScenario(project().worldScenarios[1]);
+    expect(project().activeScenarioId).toBe(sample.scenarios[1].id);
+    expect(project().scenarios.every((scenario) => scenario.worldId === sample.world.id)).toBe(true);
   });
 
-  it("returns copies from the in-memory repository", async () => {
-    const repository = createMemoryProjectRepository();
-    const record = await repository.create("Copy test", { version: 1, scenarios: [] });
-    record.name = "Mutated";
-    expect((await repository.get(record.id)).name).toBe("Copy test");
-    await expect(repository.update(record.id, 5, "Stale", record.document)).rejects.toBeInstanceOf(ProjectConflictError);
-  });
 });

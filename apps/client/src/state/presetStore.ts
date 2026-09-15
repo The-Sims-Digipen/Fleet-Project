@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { objectDefinitions } from "../scene/catalog";
+import { vehicleModelEntries } from "../scene/catalog";
 import { loadDefaultPresets } from "../vehicles/defaults";
 import { copyPreset, normalizePreset, presetFileVersion, type PresetFile, type VehiclePreset } from "../vehicles/types";
 
@@ -9,8 +9,8 @@ export { presetFileVersion, type PresetFile };
 
 export type ImportResult = { ok: true; count: number } | { ok: false; error: string };
 
-const knownModelIds = (): ReadonlySet<string> => new Set(Object.keys(objectDefinitions));
-const firstModelId = () => Object.keys(objectDefinitions)[0] ?? "";
+const knownModelIds = (): ReadonlySet<string> => new Set(vehicleModelEntries.map(([id]) => id));
+const firstModelId = () => vehicleModelEntries[0]?.[0] ?? "";
 
 function blankPreset(id: string, name: string): VehiclePreset {
   return {
@@ -39,6 +39,7 @@ type PresetState = {
   deletePreset: (id: string) => void;
   exportPresets: () => string;
   importPresets: (text: string) => ImportResult;
+  replacePresets: (presets: VehiclePreset[]) => void;
   beginEdit: () => void;
   commitEdit: () => void;
   cancelEdit: () => void;
@@ -91,6 +92,10 @@ export const usePresetStore = create<PresetState>((set, get) => {
       replace(get().presets.filter((preset) => preset.id !== id));
     },
     exportPresets: () => JSON.stringify({ version: presetFileVersion, presets: get().presets } satisfies PresetFile, null, 2),
+    replacePresets: (presets) => {
+      get().commitEdit();
+      replace(presets.map(copyPreset));
+    },
     importPresets: (text) => {
       let parsed: unknown;
       try {
