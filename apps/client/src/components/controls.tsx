@@ -32,6 +32,30 @@ export function NumberControl({ label, value, onChange, min, step = 0.1, edit }:
   </label>;
 }
 
+export function TextControl({ label, value, onChange, maxLength = 100, edit }: {
+  label: string; value: string; onChange: (value: string) => void; maxLength?: number; edit: EditLifecycle;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return <label className="grid min-w-0 gap-2 text-[0.72rem] font-semibold text-secondary"><span>{label}</span>
+    <input className="min-h-11 w-full min-w-0 cursor-text rounded-lg border border-line-strong bg-control px-[11px] py-1.5 text-primary" type="text" value={draft ?? value} maxLength={maxLength} spellCheck={false}
+      onFocus={() => { edit.beginEdit(); setDraft(value); }}
+      onChange={(event) => {
+        const text = event.target.value;
+        setDraft(text);
+        if (text.trim()) { edit.beginEdit(); onChange(text); }
+      }}
+      onBlur={() => { edit.commitEdit(); setDraft(null); }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === "Escape") {
+          event.preventDefault();
+          if (event.key === "Escape") edit.cancelEdit(); else edit.commitEdit();
+          setDraft(null);
+          event.currentTarget.blur();
+        }
+      }} />
+  </label>;
+}
+
 export function Vector3Control({ label, value, onChange, min, step, edit }: {
   label: string; value: Vector3; onChange: (value: Vector3) => void; min?: number; step?: number; edit: EditLifecycle;
 }) {

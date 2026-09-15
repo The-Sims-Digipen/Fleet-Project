@@ -10,6 +10,13 @@ describe("object catalog", () => {
       expect(definition.transform.scale.every((value) => value > 0)).toBe(true);
     }
   });
+  it("carries an optional preset link and name without inventing one", () => {
+    expect(createObject("van", "a")).not.toHaveProperty("presetId");
+    const linked = createObject("van", "b", "electric-van", "  Electric Delivery Van  ")!;
+    expect(linked.presetId).toBe("electric-van");
+    expect(linked.name).toBe("Electric Delivery Van");
+    expect(createObject("van", "c", "electric-van", "   ")!.name).toBe("Low-poly Van");
+  });
   it("copies defaults independently and rejects unknown or inherited keys", () => {
     const first = createObject("van", "a")!;
     const second = createObject("van", "b")!;
