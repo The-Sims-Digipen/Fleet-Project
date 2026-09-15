@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import seedFile from "./defaults.json";
 import { loadDefaultPresets } from "./defaults";
-import { copyPreset, normalizePreset, presetNumericFields, type VehiclePreset } from "./types";
+import { copyPreset, normalizePreset, presetFileVersion, presetNumericFields, type VehiclePreset } from "./types";
 
 const valid = (): VehiclePreset => ({
   id: "test-van",
@@ -59,5 +60,15 @@ describe("vehicle preset validation", () => {
     for (const preset of first) expect(normalizePreset(preset, new Set(["van"]))).toBeDefined();
     first[0].name = "Mutated";
     expect(second[0].name).not.toBe("Mutated");
+  });
+
+  // defaults.json is data rather than type-checked code, and loadDefaultPresets
+  // skips bad records rather than crashing — so the suite, not tsc, is what
+  // catches a broken seed file. Comparing against the raw file means a single
+  // invalid record fails here instead of silently shrinking the library.
+  it("loads every record in defaults.json, so a broken seed cannot pass silently", () => {
+    expect(seedFile.version).toBe(presetFileVersion);
+    expect(loadDefaultPresets()).toHaveLength(seedFile.presets.length);
+    for (const record of seedFile.presets) expect(normalizePreset(record, new Set(["van"]))).toBeDefined();
   });
 });

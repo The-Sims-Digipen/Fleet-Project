@@ -30,6 +30,14 @@ export type PresetNumericField = (typeof presetNumericFields)[number];
 
 export const maxNameLength = 100;
 
+/**
+ * Version of the preset library file. The seed file, the Export download and the
+ * dev-server write-back all use this one shape, so an exported file can be
+ * dropped straight in as the seed.
+ */
+export const presetFileVersion = 1;
+export type PresetFile = { version: number; presets: VehiclePreset[] };
+
 // Ids may later key a record, so refuse names that would reach Object.prototype.
 const reservedIds = new Set(["__proto__", "constructor", "prototype"]);
 

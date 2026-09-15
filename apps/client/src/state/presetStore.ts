@@ -2,12 +2,11 @@ import { create } from "zustand";
 
 import { objectDefinitions } from "../scene/catalog";
 import { loadDefaultPresets } from "../vehicles/defaults";
-import { copyPreset, normalizePreset, type VehiclePreset } from "../vehicles/types";
+import { copyPreset, normalizePreset, presetFileVersion, type PresetFile, type VehiclePreset } from "../vehicles/types";
 
-/** Version of the exported preset file, independent of the scene document version. */
-export const presetFileVersion = 1;
+// Re-exported so callers of the store need only one import.
+export { presetFileVersion, type PresetFile };
 
-export type PresetFile = { version: number; presets: VehiclePreset[] };
 export type ImportResult = { ok: true; count: number } | { ok: false; error: string };
 
 const knownModelIds = (): ReadonlySet<string> => new Set(Object.keys(objectDefinitions));
