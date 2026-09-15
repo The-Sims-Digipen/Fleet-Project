@@ -1,6 +1,6 @@
 # Freeform depot editor specification
 
-The depot editor supports freeform site design, obstacle placement, bay/charger editing, vehicle assignment, scenario-specific layouts, and live 3D feedback. It is future implementation context and is not part of the currently tracked feature set. [Data relationships](contracts.md) define how layouts are saved.
+The depot editor supports freeform site design, obstacle placement, bay/charger editing, vehicle assignment, scenario-specific planning overlays, and live 3D feedback. It is future implementation context and is not part of the currently tracked feature set. [Data relationships](contracts.md) define how the shared world and scenario bindings are saved.
 
 ## Geometry and coordinate conventions
 
@@ -43,8 +43,8 @@ Geometry-invalid but structurally representable documents can be saved so users 
 
 ## Rendering and persistence
 
-Mesh bounds/footprints agree with persisted metre dimensions. Use visible distinctions between active vehicle presets plus legends/labels, not color alone. In edit mode, future chargers are ghosts with their installation year. In Plan/Compare, only installed chargers render. Bays, boundary, and obstacles are static across years within one scenario; they vary between scenario layouts rather than acquiring an unrequested construction timeline.
+Mesh bounds/footprints agree with persisted metre dimensions. Use visible distinctions between active vehicle presets plus legends/labels, not color alone. In edit mode, future chargers are ghosts with their installation year. In Plan/Compare, only installed chargers render. Bays, the site boundary, static obstacles, and other persistent depot geometry belong to the shared world and therefore remain the same across scenarios using that world. Scenario-specific assignments and planned infrastructure may vary by scenario and year without duplicating the world geometry.
 
-Each scenario saves its own layout and assignments. Duplicate scenario deep-copies the layout, preserving internal references within the new namespace. Save inputs only, not meshes or undo stacks. Comparison views read independent snapshots and must not share mutable geometry objects.
+The world saves persistent depot geometry and object transforms once. Each scenario is stored separately, is bound to that world by `worldId`, and saves only its plan, assignments, and other scenario-specific bindings. Duplicate scenario deep-copies those scenario inputs but does not duplicate the world. Save inputs only, not meshes or undo stacks. Comparison views may render independent scene/camera instances, but they read the same persisted world geometry plus each scenario's own overlays and must not mutate shared geometry as a side effect of rendering.
 
 Required checks include concave boundaries, bow-tie polygons, repeated/collinear vertices, edge contact, containment crossing, rotated rectangles, overlap pairs, assignment removal, and undo/redo across deletion.

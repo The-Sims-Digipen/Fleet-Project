@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Group } from "three";
-import { createObject, getDefinition, objectDefinitions } from "./catalog";
+import { createObject, getDefinition, objectDefinitions, vehicleModelEntries } from "./catalog";
 
 describe("object catalog", () => {
   it("resolves every definition to a procedural Group with finite defaults", () => {
@@ -16,6 +16,10 @@ describe("object catalog", () => {
     expect(linked.presetId).toBe("electric-van");
     expect(linked.name).toBe("Electric Delivery Van");
     expect(createObject("van", "c", "electric-van", "   ")!.name).toBe("Low-poly Van");
+  });
+  it("keeps environment models out of vehicle preset choices", () => {
+    expect(getDefinition("depot")).toBeDefined();
+    expect(vehicleModelEntries.map(([id]) => id)).toEqual(["van"]);
   });
   it("copies defaults independently and rejects unknown or inherited keys", () => {
     const first = createObject("van", "a")!;

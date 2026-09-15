@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { objectDefinitions } from "../scene/catalog";
+import { vehicleModelEntries } from "../scene/catalog";
 import { usePresetStore } from "../state/presetStore";
 import { useSceneStore } from "../state/sceneStore";
 import { propulsions, type PresetNumericField, type Propulsion } from "../vehicles/types";
@@ -14,7 +14,7 @@ const edit = {
 };
 
 const propulsionOptions = propulsions.map((value) => ({ value, label: `${value[0].toUpperCase()}${value.slice(1)}` }));
-const modelOptions = Object.entries(objectDefinitions).map(([value, definition]) => ({ value, label: definition.name }));
+const modelOptions = vehicleModelEntries.map(([value, definition]) => ({ value, label: definition.name }));
 
 const numericFields: { field: PresetNumericField; label: string; step?: number }[] = [
   { field: "litresPer100Km", label: "Fuel use (L/100 km)" },

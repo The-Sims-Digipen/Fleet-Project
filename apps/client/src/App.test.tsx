@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { loadDefaultPresets } from "./vehicles/defaults";
 import { usePresetStore } from "./state/presetStore";
-import { createDocument, useSceneStore } from "./state/sceneStore";
+import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
 
 vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
 beforeEach(() => {
@@ -12,7 +12,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
-  useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "sample" }, history: { past: [], future: [], baseline: null } });
+  useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
   usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null });
 });
 afterEach(cleanup);
@@ -42,6 +42,24 @@ describe("inspector architecture", () => {
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(state().document.objects[1].id).toBe(id);
   });
+  it("changes gizmo mode, space and snapping without adding document history", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const toolbar = screen.getByRole("toolbar", { name: "Transform tools" });
+    expect(toolbar).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Rotate/ }));
+    await user.click(screen.getByRole("button", { name: "Transform space: World" }));
+    await user.click(screen.getByRole("button", { name: "Snap" }));
+    expect(state().editor.transformMode).toBe("rotate");
+    expect(state().editor.transformSpace).toBe("local");
+    expect(state().editor.snapEnabled).toBe(false);
+    expect(state().history.past).toHaveLength(0);
+    fireEvent.keyDown(document.body, { key: "r" });
+    fireEvent.keyDown(document.body, { key: "q" });
+    expect(state().editor.transformMode).toBe("scale");
+    expect(state().editor.transformSpace).toBe("world");
+  });
+
   it("resizes the desktop sidebar with the keyboard and limits its size", () => {
     render(<App />);
     const divider = screen.getByRole("separator", { name: "Resize sidebar" });

@@ -3,6 +3,7 @@ import { HistoryControls } from "./components/HistoryControls";
 import { ProjectControls } from "./components/ProjectControls";
 import { Sidebar } from "./components/Sidebar";
 import { ResizableWorkspace } from "./components/ResizableWorkspace";
+import { TransformToolbar } from "./components/TransformToolbar";
 
 const LazyWorldScene = lazy(() => import("./components/WorldScene").then((module) => ({ default: module.WorldScene })));
 
@@ -23,14 +24,15 @@ export default function App() {
       <ProjectControls />
       <div className="flex items-center gap-2">
         <HistoryControls />
-        <span className="flex min-h-9 items-center gap-2 rounded-full border border-line px-[13px] text-xs font-semibold text-secondary max-[560px]:w-9 max-[560px]:justify-center max-[560px]:px-0 max-[560px]:text-[0px]"><i className="size-[7px] shrink-0 rounded-full bg-accent shadow-[0_0_10px_#55d6be80]" aria-hidden="true" />Local scene</span>
+        <span className="flex min-h-9 items-center gap-2 rounded-full border border-line px-[13px] text-xs font-semibold text-secondary max-[560px]:w-9 max-[560px]:justify-center max-[560px]:px-0 max-[560px]:text-[0px]"><i className="size-[7px] shrink-0 rounded-full bg-accent shadow-[0_0_10px_#55d6be80]" aria-hidden="true" />Shared world</span>
       </div>
     </header>
     <ResizableWorkspace>
       <section className="relative min-h-0 min-w-0 overflow-hidden bg-surface" aria-labelledby="scene-title">
         <ViewportBoundary><Suspense fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">Loading 3D world…</div>}><LazyWorldScene cameraReset={cameraReset} /></Suspense></ViewportBoundary>
+        <TransformToolbar />
         <div className="pointer-events-none absolute top-[30px] left-[clamp(20px,3vw,42px)] z-10"><span className="mb-2 block font-mono text-[0.68rem] font-bold tracking-[0.14em] text-accent uppercase">3D viewport</span><h2 className="text-[clamp(1.6rem,3vw,2.25rem)] font-medium tracking-[-0.04em]" id="scene-title">Model scene</h2></div>
-        <div className="pointer-events-none absolute right-[clamp(20px,3vw,42px)] bottom-7 z-10 rounded-lg border border-line-strong/80 bg-surface/80 px-[11px] py-[9px] text-[0.7rem] text-secondary backdrop-blur-[10px]">Click to select · Drag to orbit · Scroll to zoom</div>
+        <div className="pointer-events-none absolute right-[clamp(20px,3vw,42px)] bottom-7 z-10 rounded-lg border border-line-strong/80 bg-surface/80 px-[11px] py-[9px] text-[0.7rem] text-secondary backdrop-blur-[10px]">Click to select · MMB orbit · Shift+MMB pan · Scroll zoom · W/E/R transform · Q space</div>
       </section>
       <Sidebar onResetCamera={() => setCameraReset((value) => value + 1)} />
     </ResizableWorkspace>

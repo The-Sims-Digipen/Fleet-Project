@@ -4,29 +4,25 @@
 
 ## Goal
 
-Create the frontend UI for managing projects and multiple scenarios or transition plans inside each project.
+Create the frontend UI for managing projects and choosing the reusable 3D world plus world-bound scenarios used by the current workspace.
 
-## What this feature should accomplish
+## Current behavior
 
-- Provide New Project, Open Project, and Save Project controls.
-- Allow the project name to be displayed and edited.
-- Show which project is currently open.
-- Allow one project to contain multiple scenarios or transition plans.
-- Provide UI to create and select scenarios.
-- Make the active scenario clear.
+- The header provides New Project, Open Project, Import, Export, and Save Project controls.
+- The project name is editable and save state is visible.
+- A single **World & Scenarios** collapsible in the sidebar makes the dependency explicit:
+  - choose the current 3D world first;
+  - the scenario list shows only scenarios whose `worldId` matches that world;
+  - scenarios already linked to the project are marked **Linked**;
+  - other locally saved scenarios for the world are marked **Saved** and are attached when selected;
+  - New Scenario automatically binds the scenario to the selected world.
+- Duplicate and Remove operate on the active linked scenario. Remove only unlinks an already-saved scenario; it remains available under its world.
+- Switching away from a saved project's world starts a new unsaved workspace instead of mutating the saved project's world reference. This protects its existing scenario links.
 
-The UI should leave room for scenario rename, duplicate, and delete actions later.
+## Persistence dependency
 
-## Stub behavior
-
-- Project and scenario actions may be non-functional.
-- Use placeholder projects/scenarios where needed.
-- Do not implement backend persistence as part of this frontend feature.
-
-## Dependency
-
-[F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) should be implemented after this UI is established so the backend API matches the project/scenario workflow the frontend needs.
+[F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) owns IndexedDB storage. F03 consumes the project/world/scenario repository through the project store and must not access IndexedDB directly.
 
 ## Done when
 
-The intended project and multi-scenario workflow is visible and understandable from the UI.
+The UI makes the relationship `Project → World → world-compatible Scenarios` obvious, and selecting another world never exposes scenarios from an incompatible world.
