@@ -41,6 +41,7 @@ IndexedDB is local to a browser profile and device. It does not synchronize betw
 - Save/open works without Fastify, PostgreSQL, Neon, or environment variables.
 - Projects, worlds, and scenarios remain separate persisted records.
 - Only same-world scenarios can be selected/attached to a project.
+- The sidebar combines the World and Scenario choosers: selecting a world limits the visible saved scenarios to that `worldId`, and choosing an unlinked saved scenario attaches it to the current project.
 - Reusing a saved world from a new project works.
 - Removing a scenario from a project unlinks it instead of deleting the scenario record.
 - A workspace save is atomic.

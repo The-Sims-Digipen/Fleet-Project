@@ -39,7 +39,7 @@ describe("project and scenario controls", () => {
     const user = userEvent.setup();
     render(<App />);
     const world = useSceneStore.getState().document;
-    const list = screen.getByRole("list", { name: "Scenarios" });
+    const list = screen.getByRole("list", { name: "Scenarios for selected world" });
     await user.click(screen.getByRole("button", { name: "New scenario" }));
     expect(within(list).getByRole("button", { name: "Plan B, scenario 2, active" })).toHaveAttribute("aria-pressed", "true");
     const scenarioName = screen.getByLabelText("Active scenario name");
@@ -75,4 +75,23 @@ describe("project and scenario controls", () => {
     expect(screen.getAllByLabelText("Project name")[0]).toHaveValue("Second depot");
     expect(useSceneStore.getState().document.objects).toHaveLength(4);
   });
+  it("shows saved scenarios for the selected world and attaches one when chosen", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<App />);
+
+    const worldSelect = screen.getByRole("combobox", { name: "World" });
+    await vi.waitFor(() => expect(within(worldSelect).getByRole("option", { name: "Sample depot" })).toBeInTheDocument());
+    await user.selectOptions(worldSelect, createSampleProjects()[0].world.id);
+
+    await vi.waitFor(() => expect(useProjectStore.getState().worldName).toBe("Sample depot"));
+    expect(useProjectStore.getState().projectId).toBeNull();
+    const list = screen.getByRole("list", { name: "Scenarios for selected world" });
+    expect(within(list).getByRole("button", { name: /Plan B · fast, scenario .*available/ })).toBeInTheDocument();
+
+    await user.click(within(list).getByRole("button", { name: /Plan B · fast, scenario .*available/ }));
+    expect(useProjectStore.getState().scenarios.some((scenario) => scenario.name === "Plan B · fast")).toBe(true);
+    expect(useProjectStore.getState().scenarios.find((scenario) => scenario.name === "Plan B · fast")?.id).toBe(useProjectStore.getState().activeScenarioId);
+  });
+
 });

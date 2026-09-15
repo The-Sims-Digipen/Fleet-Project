@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { validateName, type ProjectSummary, type Scenario, type WorldSummary } from "../project/types";
+import { validateName, type ProjectSummary, type WorldSummary } from "../project/types";
 import { useProjectStore } from "../state/projectStore";
 
 const secondaryButton = "min-h-9 rounded border border-line-strong px-3 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
@@ -151,36 +151,10 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 export function DeleteScenarioDialog({ scenarioId, onDismiss }: { scenarioId: string; onDismiss: () => void }) {
   const scenario = useProjectStore((state) => state.scenarios.find((item) => item.id === scenarioId));
   if (!scenario) return null;
-  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? Its locally saved scenario record is kept so another project using the same world can reuse it.`} onDismiss={onDismiss}>
+  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? Its locally saved scenario record is kept and will remain available in this world.`} onDismiss={onDismiss}>
     <div className="flex justify-end gap-2">
       <button type="button" className={secondaryButton} onClick={onDismiss}>Cancel</button>
       <button type="button" className={dangerButton} onClick={() => { useProjectStore.getState().deleteScenario(scenario.id); onDismiss(); }}>Remove Scenario</button>
     </div>
-  </Modal>;
-}
-
-export function AddScenarioDialog({ onDismiss }: { onDismiss: () => void }) {
-  const attachedIds = useProjectStore((state) => new Set(state.scenarios.map((scenario) => scenario.id)));
-  const [items, setItems] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; scenarios: Scenario[] }>({ state: "loading" });
-
-  useEffect(() => {
-    let active = true;
-    useProjectStore.getState().listCompatibleScenarios().then(
-      (scenarios) => { if (active) setItems({ state: "ready", scenarios: scenarios.filter((scenario) => !attachedIds.has(scenario.id)) }); },
-      (reason: unknown) => { if (active) setItems({ state: "error", message: reason instanceof Error ? reason.message : "Compatible scenarios could not be loaded." }); },
-    );
-    return () => { active = false; };
-  }, []);
-
-  return <Modal title="Add Existing Scenario" description="Only scenarios bound to this project's 3D world are shown." onDismiss={onDismiss}>
-    {items.state === "loading" && <p className="text-sm text-secondary">Loading compatible scenarios…</p>}
-    {items.state === "error" && <p role="alert" className="text-sm text-red-300">{items.message}</p>}
-    {items.state === "ready" && (items.scenarios.length ? <ul className="m-0 grid max-h-72 list-none gap-2 overflow-y-auto p-0">
-      {items.scenarios.map((scenario) => <li key={scenario.id} className="flex items-center gap-3 rounded-lg border border-line-strong px-3 py-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{scenario.name}</span>
-        <button type="button" className={secondaryButton} onClick={() => { useProjectStore.getState().attachScenario(scenario); onDismiss(); }}>Add</button>
-      </li>)}
-    </ul> : <p className="text-sm text-secondary">No other saved scenarios use this world.</p>)}
-    <div className="flex justify-end"><button type="button" className={secondaryButton} onClick={onDismiss}>Cancel</button></div>
   </Modal>;
 }

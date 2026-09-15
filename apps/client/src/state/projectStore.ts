@@ -21,6 +21,7 @@ type ProjectFields = {
   worldName: string;
   worldRevision: number;
   scenarios: Scenario[];
+  worldScenarios: Scenario[];
   activeScenarioId: string;
   baseline: string;
   saveStatus: SaveStatus;
@@ -30,11 +31,11 @@ type ProjectFields = {
 type ProjectState = ProjectFields & {
   newProject: (name: string) => void;
   newProjectWithWorld: (name: string, worldId: string) => Promise<void>;
+  switchWorld: (worldId: string) => Promise<void>;
   openProject: (id: string) => Promise<void>;
   saveProject: () => Promise<void>;
   listProjects: () => ReturnType<ProjectRepository["listProjects"]>;
   listWorlds: () => Promise<WorldSummary[]>;
-  listCompatibleScenarios: () => Promise<Scenario[]>;
   attachScenario: (scenario: Scenario) => void;
   renameProject: (name: string) => void;
   selectScenario: (id: string) => void;
@@ -76,7 +77,7 @@ export function createProjectFields(name = "Untitled project", world: SceneDocum
   const worldName = `${name} world`;
   return {
     projectId: null, revision: 0, name, worldId, worldName, worldRevision: 0,
-    scenarios: [scenario], activeScenarioId: scenario.id,
+    scenarios: [scenario], worldScenarios: [], activeScenarioId: scenario.id,
     baseline: serializeSnapshot(name, worldId, worldName, world, [scenario], presets),
     saveStatus: { state: "idle" }, session,
   };
@@ -86,7 +87,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
   const scene = () => useSceneStore.getState();
   const presets = () => usePresetStore.getState();
 
-  const loadWorkspace = (record: WorkspaceRecord, preserveActive = false) => {
+  const loadWorkspace = (record: WorkspaceRecord, preserveActive = false, worldScenarios: Scenario[] = record.scenarios) => {
     const activeId = preserveActive && record.scenarios.some((scenario) => scenario.id === get().activeScenarioId)
       ? get().activeScenarioId : record.scenarios[0]?.id;
     if (!activeId) throw new Error("This project has no scenarios.");
@@ -99,6 +100,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       worldName: record.world.name,
       worldRevision: record.world.revision,
       scenarios: copiedScenarios,
+      worldScenarios: clone(worldScenarios),
       activeScenarioId: activeId,
       baseline: serializeSnapshot(record.project.name, record.world.id, record.world.name, record.world.document, copiedScenarios, record.project.document.vehiclePresets),
       saveStatus: { state: "idle" },
@@ -123,12 +125,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     newProjectWithWorld: async (name, worldId) => {
       if (validateName(name)) return;
-      const world = await repository.getWorld(worldId);
+      const [world, savedScenarios] = await Promise.all([repository.getWorld(worldId), repository.listScenarios(worldId)]);
       const nextPresets = loadDefaultPresets();
       const scenario = newScenario(world.id, "Plan A");
       set({
         projectId: null, revision: 0, name: name.trim(), worldId: world.id, worldName: world.name, worldRevision: world.revision,
-        scenarios: [scenario], activeScenarioId: scenario.id,
+        scenarios: [scenario], worldScenarios: clone(savedScenarios), activeScenarioId: scenario.id,
         baseline: serializeSnapshot(name.trim(), world.id, world.name, world.document, [scenario], nextPresets),
         saveStatus: { state: "idle" }, session: get().session + 1,
       });
@@ -136,10 +138,36 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       presets().replacePresets(nextPresets);
     },
 
-    openProject: async (id) => loadWorkspace(await repository.getWorkspace(id)),
+    switchWorld: async (worldId) => {
+      if (worldId === get().worldId) return;
+      scene().commitEdit();
+      presets().commitEdit();
+      const [world, savedScenarios] = await Promise.all([repository.getWorld(worldId), repository.listScenarios(worldId)]);
+      const currentPresets = clone(presets().presets);
+      const scenario = newScenario(world.id, "Plan A");
+      set({
+        projectId: null,
+        revision: 0,
+        worldId: world.id,
+        worldName: world.name,
+        worldRevision: world.revision,
+        scenarios: [scenario],
+        worldScenarios: clone(savedScenarios),
+        activeScenarioId: scenario.id,
+        baseline: serializeSnapshot(get().name, world.id, world.name, world.document, [scenario], currentPresets),
+        saveStatus: { state: "idle" },
+        session: get().session + 1,
+      });
+      scene().loadDocument(world.document);
+    },
+
+    openProject: async (id) => {
+      const record = await repository.getWorkspace(id);
+      const savedScenarios = await repository.listScenarios(record.world.id);
+      loadWorkspace(record, false, savedScenarios);
+    },
     listProjects: () => repository.listProjects(),
     listWorlds: () => repository.listWorlds(),
-    listCompatibleScenarios: () => repository.listScenarios(get().worldId),
 
     saveProject: async () => {
       const state = get();
@@ -167,6 +195,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         if (get().session !== session) return;
 
         const savedById = new Map(record.scenarios.map((scenario) => [scenario.id, scenario]));
+        let savedWorldScenarios = record.scenarios;
+        try { savedWorldScenarios = await repository.listScenarios(record.world.id); } catch { /* Save succeeded; keep the last chooser cache. */ }
         const currentScenarios = get().scenarios.map((scenario) => {
           const saved = savedById.get(scenario.id);
           return saved ? { ...scenario, revision: saved.revision, worldRevision: saved.worldRevision, createdAt: saved.createdAt, updatedAt: saved.updatedAt } : scenario;
@@ -176,6 +206,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           revision: record.project.revision,
           worldRevision: record.world.revision,
           scenarios: currentScenarios,
+          worldScenarios: clone(savedWorldScenarios),
           baseline: capturedBaseline,
           saveStatus: { state: "idle" },
         });
@@ -189,7 +220,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     selectScenario: (id) => { if (get().scenarios.some((scenario) => scenario.id === id)) set({ activeScenarioId: id }); },
 
     createScenario: () => {
-      const scenario = newScenario(get().worldId, scenarioName(get().scenarios));
+      const scenario = newScenario(get().worldId, scenarioName([...get().scenarios, ...get().worldScenarios]));
       set({ scenarios: [...get().scenarios, scenario], activeScenarioId: scenario.id });
     },
 

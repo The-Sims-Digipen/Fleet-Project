@@ -132,4 +132,18 @@ describe("project/world/scenario store", () => {
     expect(project().projectId).toBe(id);
     expect(scene().document.light).toBe(12);
   });
+  it("switches to a reusable world and exposes only that world's saved scenarios", async () => {
+    const sample = createSampleProjects()[0];
+    await project().switchWorld(sample.world.id);
+    expect(project()).toMatchObject({ projectId: null, worldId: sample.world.id, worldName: sample.world.name, worldRevision: sample.world.revision });
+    expect(scene().document.objects).toHaveLength(4);
+    expect(project().scenarios).toHaveLength(1);
+    expect(project().scenarios[0].worldId).toBe(sample.world.id);
+    expect(project().worldScenarios.map((scenario) => scenario.name)).toEqual(["Plan A · gradual", "Plan B · fast"]);
+
+    project().attachScenario(project().worldScenarios[1]);
+    expect(project().activeScenarioId).toBe(sample.scenarios[1].id);
+    expect(project().scenarios.every((scenario) => scenario.worldId === sample.world.id)).toBe(true);
+  });
+
 });
