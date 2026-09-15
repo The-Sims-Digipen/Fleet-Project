@@ -58,6 +58,7 @@ export type PersistenceRepository = {
 
 const iso = (value: Date) => value.toISOString();
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+type ReadDatabase = Pick<Database, "select">;
 
 const toWorld = (row: typeof worlds.$inferSelect): WorldRecord => ({
   id: row.id, name: row.name, revision: row.revision, createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt), document: row.document as WorldDocument,
@@ -70,7 +71,7 @@ const toScenario = (row: typeof scenarios.$inferSelect): ScenarioRecord => ({
   createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt), document: row.document as ScenarioDocument,
 });
 
-async function loadWorkspace(db: Database, projectId: string): Promise<WorkspaceRecord> {
+async function loadWorkspace(db: ReadDatabase, projectId: string): Promise<WorkspaceRecord> {
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
   if (!project) throw new PersistenceNotFoundError("This project no longer exists.");
   const [world] = await db.select().from(worlds).where(eq(worlds.id, project.worldId)).limit(1);
@@ -152,7 +153,7 @@ export function createPersistenceRepository(db: Database): PersistenceRepository
         await tx.insert(projectScenarios).values({ projectId: project.id, scenarioId: scenario.id, worldId: world.id, position });
       }
 
-      return loadWorkspace(tx as Database, project.id);
+      return loadWorkspace(tx, project.id);
     }),
 
     updateWorkspace: async (input) => db.transaction(async (tx) => {
@@ -209,7 +210,7 @@ export function createPersistenceRepository(db: Database): PersistenceRepository
           projectId: project.id, scenarioId: scenario.id, worldId: world.id, position,
         })));
       }
-      return loadWorkspace(tx as Database, project.id);
+      return loadWorkspace(tx, project.id);
     }),
 
     listWorlds: async () => (await db.select({ id: worlds.id, name: worlds.name, revision: worlds.revision, updatedAt: worlds.updatedAt })

@@ -50,7 +50,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   };
 
   app.setErrorHandler((error, _request, reply) => {
-    if (error.message === "DATABASE_UNAVAILABLE") {
+    if (error instanceof Error && error.message === "DATABASE_UNAVAILABLE") {
       return reply.code(503).send({ code: "DATABASE_UNAVAILABLE", message: "DATABASE_URL is not configured." });
     }
     try {
