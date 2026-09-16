@@ -2,27 +2,71 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { createDocument, useSceneStore } from "./state/sceneStore";
+import { loadDefaultPresets } from "./vehicles/defaults";
+import { usePresetStore } from "./state/presetStore";
+import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
+import { initialVehicles, useFleetStore } from "./state/fleetStore";
+import { useTimelineStore } from "./state/timelineStore";
 
-vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
+vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetPreview }: { fleetPreview: { id: string; name: string; appearance: { tint?: string } }[] | null }) =>
+  <div>{fleetPreview?.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
+vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echarts" /> }));
 beforeEach(() => {
   // jsdom has no native dialog top layer; browser checks cover focus trapping.
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
-  useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "sample" }, history: { past: [], future: [], baseline: null } });
+  useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
+  usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null });
+  useFleetStore.setState({ vehicles: initialVehicles });
+  useTimelineStore.getState().resetYear();
 });
 afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
-  it("shows the mocked cost comparison and payback year in the analysis tab", async () => {
+  it("shows the mocked cost comparison and payback year in the analysis section", () => {
+    render(<App />);
+    expect(screen.getByRole("button", { name: "Cost over time" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("heading", { name: "Cost over time" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /cumulative cost comparison/i })).toBeInTheDocument();
+    expect(screen.getByText("Transition becomes cheaper")).toBeInTheDocument();
+  });
+  it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Cost over time" }));
-    expect(screen.getByRole("heading", { name: "Cost over time" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /Cumulative cost comparison/ })).toBeInTheDocument();
-    expect(screen.getByText("Transition becomes cheaper")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Visualize fleet in 3D" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2028");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-02" }), "");
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
+    act(() => useTimelineStore.getState().setSelectedYear(2028));
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#39ff14");
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveTextContent("Changed");
+    expect(screen.getByTestId("fleet-preview-UNIT-02")).toHaveAttribute("data-tint", "#ffffff");
+    act(() => useTimelineStore.getState().resetYear());
+    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
+  });
+  it("groups manual simulation inputs and creates an annual cost table", async () => {
+    const user = userEvent.setup();
+    state().addObject("van", "diesel-van", "Diesel Delivery Van");
+    const linkedVehicleId = state().editor.selectedObjectId!;
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Diesel assumptions" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Electric assumptions" })).toBeInTheDocument();
+    const vehicleSelect = screen.getByRole("combobox", { name: "Vehicle" });
+    expect(vehicleSelect.querySelectorAll("option")).toHaveLength(2);
+    await user.selectOptions(vehicleSelect, linkedVehicleId);
+    expect(screen.queryByLabelText("Diesel consumption (L/100 km)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Electric consumption (kWh/100 km)")).not.toBeInTheDocument();
+    expect(screen.getByText(/Diesel Delivery Van · 9.5 L\/100 km/)).toBeInTheDocument();
+    expect(screen.getByText(/Electric Delivery Van · 22 kWh\/100 km/)).toBeInTheDocument();
+    const distance = screen.getByLabelText("Selected vehicle route distance (km/year)");
+    await user.clear(distance);
+    await user.type(distance, "10000{Enter}");
+    await user.click(screen.getByRole("button", { name: "Finalize simulation" }));
+    expect(screen.getByText(/Year-by-year energy cost comparison/)).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(6);
+    expect(screen.getByText("Total distance:").parentElement).toHaveTextContent("50,000 km");
   });
   it("adds and deletes catalog instances with undoable edits and appearance restoration", async () => {
     const user = userEvent.setup();
@@ -47,6 +91,24 @@ describe("inspector architecture", () => {
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(state().document.objects[1].id).toBe(id);
   });
+  it("changes gizmo mode, space and snapping without adding document history", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const toolbar = screen.getByRole("toolbar", { name: "Transform tools" });
+    expect(toolbar).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Rotate/ }));
+    await user.click(screen.getByRole("button", { name: "Transform space: World" }));
+    await user.click(screen.getByRole("button", { name: "Snap" }));
+    expect(state().editor.transformMode).toBe("rotate");
+    expect(state().editor.transformSpace).toBe("local");
+    expect(state().editor.snapEnabled).toBe(false);
+    expect(state().history.past).toHaveLength(0);
+    fireEvent.keyDown(document.body, { key: "r" });
+    fireEvent.keyDown(document.body, { key: "q" });
+    expect(state().editor.transformMode).toBe("scale");
+    expect(state().editor.transformSpace).toBe("world");
+  });
+
   it("resizes the desktop sidebar with the keyboard and limits its size", () => {
     render(<App />);
     const divider = screen.getByRole("separator", { name: "Resize sidebar" });
@@ -200,5 +262,24 @@ describe("inspector architecture", () => {
     expect(state().history.past).toHaveLength(3);
     await user.click(screen.getByRole("button", { name: "Reset object" }));
     expect(state().document.objects[0]).toEqual(createDocument().objects[0]);
+  });
+  it("places preset instances that follow the preset's name and release it on deletion", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Select Electric Delivery Van" }));
+    await user.click(screen.getByRole("button", { name: "Add to Scene" }));
+    const placed = state().document.objects.at(-1)!;
+    expect(placed).toMatchObject({ presetId: "electric-van", definitionId: "van", name: "Electric Delivery Van" });
+    expect(screen.getByRole("button", { name: "Select Electric Delivery Van, object 2" })).toBeInTheDocument();
+
+    // Renaming the preset relabels its instances without touching the document.
+    act(() => usePresetStore.getState().updatePreset("electric-van", { name: "Electric Van Mk2" }));
+    expect(screen.getByRole("button", { name: "Select Electric Van Mk2, object 2" })).toBeInTheDocument();
+    expect(state().document.objects.at(-1)!.name).toBe("Electric Delivery Van");
+
+    // An orphaned instance falls back to the name and geometry it was placed with.
+    act(() => usePresetStore.getState().deletePreset("electric-van"));
+    expect(screen.getByRole("button", { name: "Select Electric Delivery Van, object 2" })).toBeInTheDocument();
+    expect(state().document.objects.at(-1)!.presetId).toBe("electric-van");
   });
 });

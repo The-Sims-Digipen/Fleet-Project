@@ -1,32 +1,38 @@
 # F03 — Project and Scenario Controls
 
-**Owner:** Brandon Koh Kai Yang
-
 ## Goal
 
-Create the frontend UI for managing projects and multiple scenarios or transition plans inside each project.
+Manage a project's in-memory Worlds and the Scenarios that belong to each World without losing unsaved work when switching between them.
 
-## What this feature should accomplish
+## UI
 
-- Provide New Project, Open Project, and Save Project controls.
-- Allow the project name to be displayed and edited.
-- Show which project is currently open.
-- Allow one project to contain multiple scenarios or transition plans.
-- Provide UI to create and select scenarios.
-- Make the active scenario clear.
+The header provides New Project, Open Project, Import, Export, and Save Project.
 
-The UI should leave room for scenario rename, duplicate, and delete actions later.
+A single **World & Scenarios** collapsible owns both choosers:
 
-## Stub behavior
+- **Worlds** is a visible list, not a dropdown.
+- New creates a fresh in-memory World with Plan A.
+- Duplicate copies the active 3D World into a fresh World ID but does not copy its Scenarios.
+- The active World can be renamed.
+- Selecting another World switches the scene editor to that World's in-memory `SceneDocument`; it does not discard or persist anything.
+- **Scenarios** lists only the Scenarios belonging to the selected World.
+- New and Duplicate create in-memory Scenarios bound to the selected `worldId`.
+- Rename edits the active Scenario in memory.
+- Remove deletes the Scenario from the in-memory project immediately; the deletion reaches IndexedDB only on Save Project.
+- Every World must retain at least one Scenario.
 
-- Project and scenario actions may be non-functional.
-- Use placeholder projects/scenarios where needed.
-- Do not implement backend persistence as part of this frontend feature.
+## Workspace semantics
 
-## Dependency
+Worlds and Scenarios are **working-memory state first**. Scene edits update the active World's in-memory document immediately. Switching Worlds stashes/restores those in-memory documents and their Scenario lists.
 
-[F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) should be implemented after this UI is established so the backend API matches the project/scenario workflow the frontend needs.
+**Save Project** is the persistence boundary. It snapshots every in-memory World and every Scenario in the project and writes them atomically through F09.
 
-## Done when
+[F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) owns storage. F03 must not access IndexedDB directly.
 
-The intended project and multi-scenario workflow is visible and understandable from the UI.
+
+### World removal
+
+- The active world can be removed when the project contains more than one world.
+- Removal happens in the in-memory workspace immediately and is persisted only on **Save Project**.
+- Removing a world also removes its scenarios from that project workspace.
+- The final world cannot be removed.

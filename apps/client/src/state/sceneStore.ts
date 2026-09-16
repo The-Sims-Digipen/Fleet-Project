@@ -1,30 +1,48 @@
 import { create } from "zustand";
 
 import { createObject, getDefinition } from "../scene/catalog";
-import { copyTransform, type Appearance, type SceneDocument, type SceneObject, type TransformProperty, type Vector3 } from "../scene/types";
+import { copyTransform, type Appearance, type SceneDocument, type SceneObject, type Transform, type TransformProperty, type Vector3 } from "../scene/types";
+
+export type TransformMode = "translate" | "rotate" | "scale";
+export type TransformSpace = "world" | "local";
+export type EditorState = {
+  selectedObjectId: string | null;
+  transformMode: TransformMode;
+  transformSpace: TransformSpace;
+  snapEnabled: boolean;
+};
 
 export function createDocument(): SceneDocument {
   return {
-    version: 2,
+    version: 3,
     light: 65,
     objects: [createObject("van", "sample")!],
   };
 }
 
+export function createEditorState(selectedObjectId: string | null = "sample"): EditorState {
+  return { selectedObjectId, transformMode: "translate", transformSpace: "world", snapEnabled: true };
+}
+
 type History = { past: SceneDocument[]; future: SceneDocument[]; baseline: SceneDocument | null };
 type SceneState = {
   document: SceneDocument;
-  editor: { selectedObjectId: string | null };
+  editor: EditorState;
   history: History;
   selectObject: (id: string | null) => void;
+  setTransformMode: (mode: TransformMode) => void;
+  setTransformSpace: (space: TransformSpace) => void;
+  setSnapEnabled: (enabled: boolean) => void;
   updateTransform: (id: string, property: TransformProperty, value: Vector3) => void;
+  updateObjectTransform: (id: string, transform: Transform) => void;
   updateAppearance: (id: string, patch: Appearance) => void;
   restoreAppearance: (id: string) => void;
-  addObject: (definitionId: string) => void;
+  addObject: (definitionId: string, presetId?: string, name?: string) => void;
   deleteObject: (id: string) => void;
   setLight: (value: number) => void;
   resetObject: (id: string) => void;
   resetScene: () => void;
+  loadDocument: (document: SceneDocument) => void;
   beginEdit: () => void;
   commitEdit: () => void;
   cancelEdit: () => void;
@@ -34,11 +52,20 @@ type SceneState = {
 
 const equal = (a: SceneDocument, b: SceneDocument) => JSON.stringify(a) === JSON.stringify(b);
 const push = (items: SceneDocument[], item: SceneDocument) => [...items, item].slice(-100);
+const validVector = (value: Vector3) => value.length === 3 && value.every(Number.isFinite);
+const validTransform = (transform: Transform) =>
+  validVector(transform.position) && validVector(transform.rotation) && validVector(transform.scale) && transform.scale.every((axis) => axis > 0);
 
 // Immutable snapshots are sufficient for this deliberately small document.
 // Gesture previews change the document but do not enter history until committed.
 export const useSceneStore = create<SceneState>((set, get) => {
-  const validEditor = (document: SceneDocument) => ({ selectedObjectId: document.objects.some((object) => object.id === get().editor.selectedObjectId) ? get().editor.selectedObjectId : null });
+  const validEditor = (document: SceneDocument): EditorState => {
+    const editor = get().editor;
+    return {
+      ...editor,
+      selectedObjectId: document.objects.some((object) => object.id === editor.selectedObjectId) ? editor.selectedObjectId : null,
+    };
+  };
   const change = (next: SceneDocument) => {
     const { document, history } = get();
     if (equal(document, next)) return;
@@ -48,18 +75,35 @@ export const useSceneStore = create<SceneState>((set, get) => {
     const document = get().document;
     change({ ...document, objects: document.objects.map((object) => object.id === id ? { ...object, ...patch } : object) });
   };
+  const patchEditor = (patch: Partial<EditorState>) => set({ editor: { ...get().editor, ...patch } });
   return {
     document: createDocument(),
-    editor: { selectedObjectId: "sample" },
+    editor: createEditorState(),
     history: { past: [], future: [], baseline: null },
     selectObject: (id) => {
       get().commitEdit();
-      if (id === null || get().document.objects.some((object) => object.id === id)) set({ editor: { selectedObjectId: id } });
+      if (id === null || get().document.objects.some((object) => object.id === id)) patchEditor({ selectedObjectId: id });
+    },
+    setTransformMode: (mode) => {
+      get().commitEdit();
+      if (["translate", "rotate", "scale"].includes(mode)) patchEditor({ transformMode: mode });
+    },
+    setTransformSpace: (space) => {
+      get().commitEdit();
+      if (["world", "local"].includes(space)) patchEditor({ transformSpace: space });
+    },
+    setSnapEnabled: (enabled) => {
+      get().commitEdit();
+      patchEditor({ snapEnabled: enabled });
     },
     updateTransform: (id, property, value) => {
-      if (!["position", "rotation", "scale"].includes(property) || value.length !== 3 || !value.every(Number.isFinite) || (property === "scale" && value.some((axis) => axis <= 0))) return;
+      if (!["position", "rotation", "scale"].includes(property) || !validVector(value) || (property === "scale" && value.some((axis) => axis <= 0))) return;
       const object = get().document.objects.find((item) => item.id === id);
       if (object) changeObject(id, { transform: { ...object.transform, [property]: [...value] } });
+    },
+    updateObjectTransform: (id, transform) => {
+      if (!validTransform(transform)) return;
+      if (get().document.objects.some((item) => item.id === id)) changeObject(id, { transform: copyTransform(transform) });
     },
     updateAppearance: (id, patch) => {
       if (patch.tint !== undefined && !/^#[0-9a-f]{6}$/i.test(patch.tint)) return;
@@ -77,12 +121,12 @@ export const useSceneStore = create<SceneState>((set, get) => {
       changeObject(id, { appearance });
     },
     restoreAppearance: (id) => { get().commitEdit(); changeObject(id, { appearance: {} }); },
-    addObject: (definitionId) => {
-      const object = createObject(definitionId, crypto.randomUUID());
+    addObject: (definitionId, presetId, name) => {
+      const object = createObject(definitionId, crypto.randomUUID(), presetId, name);
       if (!object) return;
       get().commitEdit();
       change({ ...get().document, objects: [...get().document.objects, object] });
-      set({ editor: { selectedObjectId: object.id } });
+      patchEditor({ selectedObjectId: object.id });
     },
     deleteObject: (id) => {
       get().commitEdit();
@@ -98,6 +142,12 @@ export const useSceneStore = create<SceneState>((set, get) => {
       if (definition) changeObject(id, { transform: copyTransform(definition.transform), appearance: {} });
     },
     resetScene: () => { get().commitEdit(); change(createDocument()); },
+    // Replaces the document for another scenario or project; history never spans documents.
+    loadDocument: (document) => set({
+      document,
+      editor: { ...get().editor, selectedObjectId: null },
+      history: { past: [], future: [], baseline: null },
+    }),
     beginEdit: () => {
       if (!get().history.baseline) set({ history: { ...get().history, baseline: get().document } });
     },

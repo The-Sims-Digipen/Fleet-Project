@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createDocument, useSceneStore } from "./sceneStore";
+import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
 
 const state = useSceneStore.getState;
-beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: { selectedObjectId: "sample" }, history: { past: [], future: [], baseline: null } }));
+beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } }));
 
 describe("scene document and history", () => {
   it("creates unique instances and supports undo/redo of creation, deletion and selection cleanup", () => {
@@ -115,6 +115,32 @@ describe("scene document and history", () => {
     state().undo();
     expect(state().document.light).toBe(10);
   });
+  it("keeps gizmo settings outside document history and preserves them across selection", () => {
+    state().setTransformMode("rotate");
+    state().setTransformSpace("local");
+    state().setSnapEnabled(false);
+    state().selectObject(null);
+    expect(state().editor).toEqual({ selectedObjectId: null, transformMode: "rotate", transformSpace: "local", snapEnabled: false });
+    expect(state().history.past).toHaveLength(0);
+    state().undo();
+    expect(state().editor.transformMode).toBe("rotate");
+    expect(state().editor.transformSpace).toBe("local");
+    expect(state().editor.snapEnabled).toBe(false);
+  });
+
+  it("groups full gizmo transforms into one undo step and rejects invalid scale", () => {
+    state().beginEdit();
+    state().updateObjectTransform("sample", { position: [1, 2, 3], rotation: [0, Math.PI / 2, 0], scale: [1.2, 1.2, 1.2] });
+    state().updateObjectTransform("sample", { position: [2, 2, 3], rotation: [0, Math.PI, 0], scale: [1.5, 1.5, 1.5] });
+    state().commitEdit();
+    expect(state().history.past).toHaveLength(1);
+    expect(state().document.objects[0].transform.position).toEqual([2, 2, 3]);
+    state().undo();
+    expect(state().document.objects[0].transform).toEqual(createDocument().objects[0].transform);
+    state().updateObjectTransform("sample", { position: [0, 0, 0], rotation: [0, 0, 0], scale: [0, 1, 1] });
+    expect(state().document.objects[0].transform.scale).toEqual([1, 1, 1]);
+  });
+
   it("does not record a gesture returning to its starting value and bounds history", () => {
     state().beginEdit();
     state().setLight(10);

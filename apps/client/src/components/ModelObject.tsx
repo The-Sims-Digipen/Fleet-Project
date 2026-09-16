@@ -1,7 +1,9 @@
-import { Component, useLayoutEffect, useMemo, type ComponentType, type ReactNode } from "react";
+import { Component, useCallback, useLayoutEffect, useMemo, type ComponentType, type ReactNode } from "react";
+import type { Group } from "three";
 import { createProceduralInstance } from "../models/proceduralModel";
 import { getDefinition, type ObjectDefinition } from "../scene/catalog";
 import type { SceneObject } from "../scene/types";
+import { useResolvedModelId } from "../state/presetStore";
 import { useSceneStore } from "../state/sceneStore";
 
 class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -27,15 +29,22 @@ const renderers: Record<ObjectDefinition["kind"], ComponentType<RendererProps>> 
   procedural: ProceduralRenderer,
 };
 
-export function ModelObject({ object, isClick }: { object: SceneObject; isClick: () => boolean }) {
-  const selected = useSceneStore((state) => state.editor.selectedObjectId === object.id);
-  const definition = getDefinition(object.definitionId);
+export function ModelObject({ object, isClick, selectable = true, registerRoot }: {
+  object: SceneObject;
+  isClick: () => boolean;
+  selectable?: boolean;
+  registerRoot?: (id: string, root: Group | null) => void;
+}) {
+  const selected = useSceneStore((state) => selectable && state.editor.selectedObjectId === object.id);
+  const modelId = useResolvedModelId(object);
+  const definition = getDefinition(modelId);
+  const setRoot = useCallback((root: Group | null) => registerRoot?.(object.id, root), [object.id, registerRoot]);
   if (!definition) return null;
   const Renderer = renderers[definition.kind];
 
-  return <group {...object.transform} onClick={(event) => {
+  return <group ref={registerRoot ? setRoot : undefined} {...object.transform} onClick={(event) => {
     event.stopPropagation();
-    if (isClick()) useSceneStore.getState().selectObject(object.id);
+    if (selectable && isClick()) useSceneStore.getState().selectObject(object.id);
   }}>
     <ObjectBoundary><Renderer object={object} definition={definition} selected={selected} /></ObjectBoundary>
   </group>;

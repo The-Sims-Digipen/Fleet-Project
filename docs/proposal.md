@@ -8,7 +8,7 @@ Success means a user can create or load a sample fleet, author a depot, schedule
 
 ## Committed product
 
-A single-user browser application runs locally with a Fastify API and PostgreSQL persistence. It includes fleet editing, staged transition scheduling, depot/external/mixed charging, a custom calculation engine, a flat freeform depot editor, scenario-driven 3D visualization, suitability explanations, charts, and two-plan comparison. No account or public hosting is required.
+A single-user browser application runs locally with browser-local IndexedDB project persistence and a Fastify API available for later backend features. It includes fleet editing, staged transition scheduling, depot/external/mixed charging, a custom calculation engine, a flat freeform depot editor, scenario-driven 3D visualization, suitability explanations, charts, and two-plan comparison. No account or public hosting is required.
 
 Synthetic sample data provides an immediate demonstration. Fleet size and vehicle type are not restricted to the 100-van example. Sample values are explicitly illustrative. Use realistic synthetic or historical data unless ChargedUp explicitly approves other data.
 
@@ -16,15 +16,15 @@ Synthetic sample data provides an immediate demonstration. Fleet size and vehicl
 
 | Requirement | Required outcome |
 |---|---|
-| R01 — Persistent workspace | Create/open a project and create/rename/duplicate/delete/save/reopen independent scenarios; failed or stale saves preserve the working copy and last valid stored state. |
+| R01 — Persistent workspace | Create/open a project, create/rename/duplicate reusable worlds, and create/rename/duplicate/delete/save/reopen independent scenarios; failed or stale saves preserve the working copy and last valid stored state. |
 | R02 — Fleet and generic transition planning | Build user-defined vehicle presets and a heterogeneous fleet; filter/group/select vehicles; assign any target preset and transition year; produce correct annual fleet composition. |
 | R03 — Calculations | Recalculate TCO, CAPEX, OPEX, payback, energy, and emissions from explicit editable assumptions with deterministic annual/cumulative breakdowns. |
 | R04 — Charging and feasibility | Model depot/external/mixed charging, charger inventory/timing, connection capacity, dwell/readiness, and depot-space constraints. |
-| R05 — Depot authoring | Build an irregular flat depot with obstacles, bays, and chargers; edit with snapping/numeric properties, assignments, validation, cancel, undo/redo, and scenario-specific persistence. |
+| R05 — Depot authoring | Build an irregular flat depot with obstacles, bays, and chargers; edit with snapping/numeric properties, assignments, validation, cancel, undo/redo, and shared-world persistence with separate world-bound scenario data. |
 | R06 — 3D digital twin | Inspect the data-driven depot, selected-year vehicle/charger state, constraint overlays, and independent comparison scenes with full viewport interaction. |
 | R07 — Explainable choices | Rank transition candidates using operational/economic/feasibility factors and show factor-level reasons and assumption impacts without automatic schedule mutation. |
 | R08 — Comparison and analytics | Compare two independent plans at the same analysis year using synchronized metrics, charts, roadmaps, feasibility, and 3D state. |
-| R09 — Technical quality | Keep primary panels reachable responsively, handle invalid/error states safely, meet performance targets, and support reproducible clean builds/database setup. |
+| R09 — Technical quality | Keep primary panels reachable responsively, handle invalid/error states safely, meet performance targets, and support reproducible clean builds/browser-storage setup. |
 
 The application must support these end-to-end scenarios using generic preset transitions:
 

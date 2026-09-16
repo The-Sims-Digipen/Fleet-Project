@@ -9,9 +9,14 @@
     "build": "pnpm --filter @starter/server build && pnpm --filter @starter/client build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @starter/server build && pnpm --filter @starter/client build"
+    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @starter/server build && pnpm --filter @starter/client build",
+    "db:migrate": "pnpm --filter @starter/server db:migrate",
+    "vercel-build": "node scripts/vercel-build.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

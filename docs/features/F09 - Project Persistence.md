@@ -1,33 +1,47 @@
 # F09 — Project Persistence
 
-**Owner:** Tan Wei Jun
-
 ## Goal
 
-Implement backend persistence for projects after the Project/Scenario Controls frontend stub is complete.
+Persist the complete prototype workspace locally in the browser without requiring PostgreSQL, Neon, accounts, or manual database setup.
 
-## What this feature should accomplish
+## Domain ownership
 
-- Add the PostgreSQL schema required to store projects.
-- Add Drizzle schema definitions and database migrations.
-- Implement the `/api/v1/projects` API.
-- Support project CRUD operations:
-  - Create.
-  - List.
-  - Read.
-  - Update.
-  - Delete.
+- A **Project** can contain multiple reusable 3D Worlds.
+- Each **World** has its own persistent `SceneDocument` and stable `worldId`.
+- Each **Scenario** is stored separately and is permanently bound to exactly one `worldId`.
+- A Scenario never contains the World document.
+- The Project records which Worlds and Scenarios belong to it; the Project record also remembers which World was active on the last save.
 
-## Dependency
+## In-memory first
 
-Do this after [F03 — Project and Scenario Controls](./F03%20-%20Project%20and%20Scenario%20Controls.md) is established so the persisted shape and API support the actual frontend project/scenario workflow.
+Creating, duplicating, renaming, switching, or editing Worlds and Scenarios changes only the in-memory project workspace.
 
-## Scope for now
+Nothing is written to IndexedDB until **Save Project**.
 
-- Focus on project persistence only.
-- Authentication, accounts, permissions, collaboration, background jobs, and production hosting are not required.
-- Keep the backend structure flexible enough for a project to contain multiple scenarios/transition plans.
+Save Project captures all in-memory Worlds and all Scenarios in one consistent snapshot. Failed saves leave the in-memory workspace untouched.
 
-## Done when
+## IndexedDB
 
-The database migrations run successfully and `/api/v1/projects` can create, list, read, update, and delete projects.
+Database: `fleet-transition-planner`, version 2.
+
+Object stores:
+
+- `projects`
+- `worlds`
+- `scenarios` with `worldId` index
+- `projectWorlds` with ordered Project → World links
+- `projectScenarios` with ordered Project → Scenario links and `worldId`
+
+One Save Project operation uses a single read/write transaction across all stores. Project, World, and Scenario revisions detect stale writes from another browser tab.
+
+Removing a Scenario removes its Project link on the next Save Project. Its backing Scenario record is deleted when no other Project links it.
+
+## Export/import
+
+Export captures the entire live workspace, including all Worlds, their Scenarios, and unsaved edits, in a versioned `.fleetproject` file.
+
+Import validates the file, assigns fresh Project/World/Scenario IDs, and saves the imported copy locally. Version 1 single-World exports remain importable; new exports use version 2.
+
+## Limitations
+
+IndexedDB is local to one browser profile and origin. Teammates do not automatically share projects. Use Export/Import for the prototype. A future PostgreSQL repository can implement the same workspace contract later.

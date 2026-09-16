@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { objectDefinitions } from "../scene/catalog";
+import type { SceneObject } from "../scene/types";
+import { useResolvedName } from "../state/presetStore";
 import { useSceneStore } from "../state/sceneStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 
@@ -44,6 +46,20 @@ function AddObjectDialog({ onDismiss }: { onDismiss: () => void }) {
   </dialog>;
 }
 
+// A row is its own component so each one can resolve its preset's current name.
+function ObjectRow({ object, index, selected, onSelect }: { object: SceneObject; index: number; selected: boolean; onSelect: () => void }) {
+  const name = useResolvedName(object);
+  return <li>
+    <button type="button" aria-label={`Select ${name}, object ${index + 1}`} aria-pressed={selected}
+      className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-xs text-secondary hover:bg-white/5 aria-pressed:bg-accent/15 aria-pressed:text-primary"
+      onClick={onSelect}>
+      <span aria-hidden="true" className="shrink-0 text-accent">◇</span>
+      <span className="min-w-0 flex-1 truncate" title={name}>{name}</span>
+      <span aria-hidden="true" className="shrink-0 font-mono text-[10px] opacity-60">{index + 1}</span>
+    </button>
+  </li>;
+}
+
 export function WorldObjects() {
   const objects = useSceneStore((state) => state.document.objects);
   const selectedId = useSceneStore((state) => state.editor.selectedObjectId);
@@ -61,15 +77,8 @@ export function WorldObjects() {
       </div>
       <div className="h-44 overflow-y-auto overscroll-contain p-1">
         {objects.length ? <ul aria-label="World objects" className="m-0 list-none p-0">
-          {objects.map((object, index) => <li key={object.id}>
-            <button type="button" aria-label={`Select ${object.name}, object ${index + 1}`} aria-pressed={object.id === selectedId}
-              className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-xs text-secondary hover:bg-white/5 aria-pressed:bg-accent/15 aria-pressed:text-primary"
-              onClick={() => selectObject(object.id)}>
-              <span aria-hidden="true" className="shrink-0 text-accent">◇</span>
-              <span className="min-w-0 flex-1 truncate" title={object.name}>{object.name}</span>
-              <span aria-hidden="true" className="shrink-0 font-mono text-[10px] opacity-60">{index + 1}</span>
-            </button>
-          </li>)}
+          {objects.map((object, index) =>
+            <ObjectRow key={object.id} object={object} index={index} selected={object.id === selectedId} onSelect={() => selectObject(object.id)} />)}
         </ul> : <p className="px-2 py-4 text-xs text-secondary">No objects in the world. Click Add Object to get started.</p>}
       </div>
       <div className="flex items-center justify-between border-t border-line-strong px-2 py-1 text-[11px] text-secondary">

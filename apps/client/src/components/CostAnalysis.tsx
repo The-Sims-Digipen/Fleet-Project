@@ -79,4 +79,4 @@ export function CostAnalysis() {
     </div>
     <p className="mt-2 border-t border-line pt-4 text-xs leading-relaxed text-secondary"><strong className="text-accent">How to read this:</strong> The plan costs more during the transition, crosses below the current fleet in {breakEvenYear}, and saves ${endSavings}k by 2036. Values are illustrative and will be replaced by simulation results.</p>
   </CollapsibleSection>;
-}   
+}
