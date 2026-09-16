@@ -15,6 +15,8 @@ Technical design for persistent fleet projects. A project contains shared projec
 
 Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication copies planning data only; the project continues to reference the same World.
 
+The current frontend stub persists per-vehicle transition decisions in `ScenarioDocument.vehiclePlans`, keyed by the shared fleet vehicle ID. Each entry may contain `transitionYear` and `targetPresetId`. These are scenario-owned inputs: duplicating a scenario deep-copies them, editing one scenario must not mutate another, and derived comparison results are never persisted. The structure is intentionally a subset of the fuller scenario contract described in the simulation design.
+
 ## Validation and consistency
 
 - Names are nonempty and limited to 100 characters.

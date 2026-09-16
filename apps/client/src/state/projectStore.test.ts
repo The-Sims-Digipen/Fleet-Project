@@ -50,6 +50,33 @@ describe("project/world/scenario workspace", () => {
     expect(project().worlds).toHaveLength(2);
   });
 
+  it("keeps scenario vehicle plans independent when duplicating and editing a plan", () => {
+    const sourceId = project().activeScenarioId;
+    project().updateScenarioVehiclePlan(sourceId, "UNIT-01", { transitionYear: 2028, targetPresetId: "electric-van" });
+    project().duplicateScenario(sourceId);
+    const copyId = project().activeScenarioId;
+
+    project().updateScenarioVehiclePlan(copyId, "UNIT-01", { transitionYear: 2026 });
+
+    const source = project().scenarios.find((scenario) => scenario.id === sourceId)!;
+    const copy = project().scenarios.find((scenario) => scenario.id === copyId)!;
+    expect(source.document.vehiclePlans?.["UNIT-01"]).toEqual({ transitionYear: 2028, targetPresetId: "electric-van" });
+    expect(copy.document.vehiclePlans?.["UNIT-01"]).toEqual({ transitionYear: 2026, targetPresetId: "electric-van" });
+  });
+
+  it("persists scenario vehicle plans through Save Project", async () => {
+    const scenarioId = project().activeScenarioId;
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
+    await project().saveProject();
+    const projectId = project().projectId!;
+
+    project().newProject("Other");
+    await project().openProject(projectId);
+
+    expect(project().scenarios.find((scenario) => scenario.id === scenarioId)?.document.vehiclePlans?.["UNIT-02"])
+      .toEqual({ transitionYear: 2030, targetPresetId: "electric-box-truck" });
+  });
+
   it("keeps scenarios with their world when switching away and back", async () => {
     const firstWorldId = project().worldId;
     project().createScenario();

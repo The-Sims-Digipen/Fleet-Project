@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { END_YEAR, START_YEAR, useTimelineStore } from "../state/timelineStore";
 import { useFleetStore } from "../state/fleetStore";
+import { resolveVehiclePlan } from "../project/comparisonModel";
+import { usePresetStore } from "../state/presetStore";
+import { useProjectStore } from "../state/projectStore";
 
 const chargerEvents = [
   { year: 2029, kind: "charger", label: "Depot charger installation" },
@@ -15,10 +18,16 @@ export function TimelineControl() {
   const setSelectedYear = useTimelineStore((state) => state.setSelectedYear);
   const resetYear = useTimelineStore((state) => state.resetYear);
   const vehicles = useFleetStore((state) => state.vehicles);
+  const presets = usePresetStore((state) => state.presets);
+  const scenarios = useProjectStore((state) => state.scenarios);
+  const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
+  const scenario = scenarios.find((item) => item.id === activeScenarioId) ?? scenarios[0];
   const [playing, setPlaying] = useState(false);
-  const vehicleEvents = vehicles.filter((vehicle) => vehicle.plannedTransitionYear !== null).map((vehicle) => ({
-    year: vehicle.plannedTransitionYear!, kind: "vehicle" as const, label: `${vehicle.vehicleId} vehicle change`,
-  }));
+  const vehicleEvents = scenario ? vehicles.flatMap((vehicle) => {
+    const plan = resolveVehiclePlan(scenario, vehicle, presets);
+    if (plan.transitionYear === null || plan.targetPresetId === vehicle.currentPreset) return [];
+    return [{ year: plan.transitionYear, kind: "vehicle" as const, label: `${vehicle.vehicleId} vehicle change` }];
+  }) : [];
   const events = [...vehicleEvents, ...chargerEvents].sort((a, b) => a.year - b.year);
   const vehicleYears = [...new Set(vehicleEvents.map((event) => event.year))];
 
@@ -32,7 +41,7 @@ export function TimelineControl() {
     return () => window.clearInterval(timer);
   }, [playing]);
 
-  return <CollapsibleSection title="Timeline" defaultOpen description="Vehicle changes follow the years chosen in Fleet Management. Charger events are sample data.">
+  return <CollapsibleSection title="Timeline" defaultOpen description="Vehicle changes follow the active scenario. Charger events are sample data.">
     <div className="flex items-center justify-between gap-3">
       <label htmlFor="timeline-year" className="text-xs font-semibold text-secondary">Selected year</label>
       <output htmlFor="timeline-year" className="font-mono text-xl font-bold text-accent">{selectedYear}</output>
