@@ -11,7 +11,6 @@ type DemoPlan = {
   name: string;
   summary: string;
   electric: number;
-  hybrid: number;
   diesel: number;
   chargers: number;
   tco: number;
@@ -34,8 +33,7 @@ const PLANS: [DemoPlan, DemoPlan] = [
     name: "Gradual Transition",
     summary: "Lower upfront spend with vehicles replaced progressively as they reach replacement age.",
     electric: 4,
-    hybrid: 2,
-    diesel: 4,
+    diesel: 6,
     chargers: 4,
     tco: 4_180_000,
     capex: 1_050_000,
@@ -53,8 +51,7 @@ const PLANS: [DemoPlan, DemoPlan] = [
     name: "Accelerated Electrification",
     summary: "More vehicles replaced early to reduce fuel use and operating emissions sooner.",
     electric: 8,
-    hybrid: 1,
-    diesel: 1,
+    diesel: 2,
     chargers: 8,
     tco: 3_860_000,
     capex: 1_520_000,
@@ -99,21 +96,20 @@ function PlanColumn({ plan }: { plan: DemoPlan }) {
         <span className="rounded border border-line-strong bg-panel/90 px-2 py-1 font-mono text-[10px] text-secondary backdrop-blur">10 parked vehicles</span>
       </div>
       <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-3 rounded border border-line-strong bg-panel/90 px-3 py-2 text-[10px] text-secondary backdrop-blur">
-        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-accent" /> Electric</span>
-        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#d9ba63]" /> Hybrid</span>
-        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#d7dfdc]" /> Diesel</span>
+        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#3b82f6]" /> Electric</span>
+        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#22c55e]" /> Diesel</span>
       </div>
     </div>
 
     <div className="grid grid-cols-3 gap-2 p-4">
-      <Metric label="Fleet mix" value={`${plan.electric} EV`} detail={`${plan.hybrid} hybrid · ${plan.diesel} diesel`} />
+      <Metric label="Fleet mix" value={`${plan.electric} electric`} detail={`${plan.diesel} diesel`} />
       <Metric label="Chargers" value={String(plan.chargers)} detail="Installed at the depot" />
       <Metric label="Peak power" value={`${number.format(plan.peakPower)} kW`} detail="800 kW site capacity" />
       <Metric label="10-year TCO" value={currency.format(plan.tco)} detail="Illustrative whole-fleet cost" />
       <Metric label="Transition CAPEX" value={currency.format(plan.capex)} detail="Vehicles + charging infrastructure" />
       <Metric label="Annual OPEX" value={currency.format(plan.opex)} detail="Energy + operating cost" />
       <Metric label="10-year emissions" value={`${number.format(plan.emissions)} tCO₂e`} detail="Operational fleet emissions" />
-      <Metric label="Vehicles transitioned" value={`${plan.electric + plan.hybrid} / 10`} detail="By the selected year" />
+      <Metric label="Vehicles transitioned" value={`${plan.electric} / 10`} detail="By the selected year" />
       <div className="rounded-lg border border-[#355149] bg-[#0f211d] px-3 py-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-secondary">Feasibility</p>
         <p className="mt-1 text-sm font-semibold text-accent">{plan.feasibility}</p>

@@ -8,22 +8,22 @@ import { ModelObject } from "./ModelObject";
 
 export type DemoPlanKey = "gradual" | "accelerated";
 
-const PARKING_BAYS: Array<[number, number, number]> = [
-  [-6.4, -7, Math.PI],
-  [-3.2, -7, Math.PI],
-  [0, -7, Math.PI],
-  [3.2, -7, Math.PI],
-  [6.4, -7, Math.PI],
-  [-6.4, 1, 0],
-  [-3.2, 1, 0],
-  [0, 1, 0],
-  [3.2, 1, 0],
-  [6.4, 1, 0],
+const PARKING_BAYS: Array<[number, number]> = [
+  [-6.4, -7],
+  [-3.2, -7],
+  [0, -7],
+  [3.2, -7],
+  [6.4, -7],
+  [-6.4, 1],
+  [-3.2, 1],
+  [0, 1],
+  [3.2, 1],
+  [6.4, 1],
 ];
 
-const PLAN_FLEETS: Record<DemoPlanKey, Array<"diesel" | "hybrid" | "electric">> = {
-  gradual: ["electric", "diesel", "diesel", "hybrid", "electric", "diesel", "electric", "hybrid", "diesel", "electric"],
-  accelerated: ["electric", "electric", "electric", "hybrid", "electric", "electric", "electric", "diesel", "electric", "electric"],
+const PLAN_FLEETS: Record<DemoPlanKey, Array<"diesel" | "electric">> = {
+  gradual: ["electric", "diesel", "diesel", "diesel", "electric", "diesel", "electric", "diesel", "diesel", "electric"],
+  accelerated: ["electric", "electric", "electric", "diesel", "electric", "electric", "electric", "diesel", "electric", "electric"],
 };
 
 function Camera({ reset }: { reset: number }) {
@@ -39,26 +39,26 @@ function Camera({ reset }: { reset: number }) {
     makeDefault
     enableDamping
     dampingFactor={0.06}
-    minDistance={10}
+    minDistance={2}
     maxDistance={60}
-    maxPolarAngle={Math.PI / 2.03}
-    target={[0, 0, -0.5]}
-    mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.PAN, RIGHT: -1 as MOUSE }}
+    maxPolarAngle={Math.PI / 2.02}
+    target={[0, 0, 0]}
+    mouseButtons={{ LEFT: -1 as MOUSE, MIDDLE: MOUSE.ROTATE, RIGHT: -1 as MOUSE }}
   />;
 }
 
-function tintFor(type: "diesel" | "hybrid" | "electric") {
-  if (type === "electric") return "#55d6be";
-  if (type === "hybrid") return "#d9ba63";
-  return "#d7dfdc";
+function tintFor(type: "diesel" | "electric") {
+  return type === "electric" ? "#3b82f6" : "#22c55e";
 }
 
 export function buildDemoFleetObjects(plan: DemoPlanKey): SceneObject[] {
   return PLAN_FLEETS[plan].map((type, index) => {
     const object = createObject("van", `demo-${plan}-van-${index + 1}`, undefined, `Vehicle ${index + 1}`)!;
-    const [x, z, rotationY] = PARKING_BAYS[index];
+    const [x, z] = PARKING_BAYS[index];
     object.transform.position = [x, 0, z];
-    object.transform.rotation = [0, rotationY, 0];
+    // The depot building is at +Z and the van model faces -Z, so a zero
+    // Y rotation points every parked van away from the depot.
+    object.transform.rotation = [0, 0, 0];
     object.appearance = { tint: tintFor(type) };
     return object;
   });
@@ -73,6 +73,7 @@ export function ComparisonViewport({ plan, reset }: { plan: DemoPlanKey; reset: 
     className="absolute inset-0"
     onMouseDownCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
     onAuxClickCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
+    onPointerDownCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
   >
     <Canvas
       dpr={[1, 1.35]}
