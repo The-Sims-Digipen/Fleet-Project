@@ -11,7 +11,7 @@ import { createProjectFields, useProjectStore } from "./state/projectStore";
 
 vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetPreview }: { fleetPreview: { id: string; name: string; appearance: { tint?: string } }[] | null }) =>
   <div>{fleetPreview?.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
-vi.mock("./components/ComparisonViewport", () => ({ ComparisonViewport: () => <div data-testid="comparison-viewport" /> }));
+vi.mock("./components/ComparisonViewport", () => ({ ComparisonViewport: ({ year }: { year: number }) => <div data-testid="comparison-viewport" data-year={year} /> }));
 vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echarts" /> }));
 beforeEach(() => {
   // jsdom has no native dialog top layer; browser checks cover focus trapping.
@@ -38,6 +38,10 @@ describe("inspector architecture", () => {
     expect(screen.getByRole("heading", { name: "Accelerated Electrification" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Plan B minus Plan A" })).toBeInTheDocument();
     expect(screen.getByText("Vehicles replaced each year")).toBeInTheDocument();
+    const comparisonYear = screen.getByRole("slider", { name: "Comparison year" });
+    expect(screen.getAllByTestId("comparison-viewport").every((viewport) => viewport.getAttribute("data-year") === "2030")).toBe(true);
+    fireEvent.change(comparisonYear, { target: { value: "2031" } });
+    expect(screen.getAllByTestId("comparison-viewport").every((viewport) => viewport.getAttribute("data-year") === "2031")).toBe(true);
   });
   it("shows the mocked cost comparison and payback year in the analysis section", () => {
     render(<App />);

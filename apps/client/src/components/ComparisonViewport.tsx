@@ -8,6 +8,9 @@ import { ModelObject } from "./ModelObject";
 
 export type DemoPlanKey = "gradual" | "accelerated";
 
+const START_YEAR = 2026;
+const END_YEAR = 2035;
+
 const PARKING_BAYS: Array<[number, number]> = [
   [-6.4, -7],
   [-3.2, -7],
@@ -21,9 +24,14 @@ const PARKING_BAYS: Array<[number, number]> = [
   [6.4, 1],
 ];
 
-const PLAN_FLEETS: Record<DemoPlanKey, Array<"diesel" | "electric">> = {
-  gradual: ["electric", "diesel", "diesel", "diesel", "electric", "diesel", "electric", "diesel", "diesel", "electric"],
-  accelerated: ["electric", "electric", "electric", "diesel", "electric", "electric", "electric", "diesel", "electric", "electric"],
+const ROADMAPS: Record<DemoPlanKey, number[]> = {
+  gradual: [1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+  accelerated: [2, 2, 1, 1, 2, 1, 1, 0, 0, 0],
+};
+
+const ELECTRIFICATION_ORDER: Record<DemoPlanKey, number[]> = {
+  gradual: [0, 4, 6, 9, 1, 5, 2, 8, 3, 7],
+  accelerated: [0, 1, 2, 4, 5, 6, 8, 9, 3, 7],
 };
 
 function Camera({ reset }: { reset: number }) {
@@ -51,10 +59,19 @@ function tintFor(type: "diesel" | "electric") {
   return type === "electric" ? "#3b82f6" : "#22c55e";
 }
 
-export function buildDemoFleetObjects(plan: DemoPlanKey): SceneObject[] {
-  return PLAN_FLEETS[plan].map((type, index) => {
+function electricCountAtYear(plan: DemoPlanKey, year: number) {
+  const clampedYear = Math.max(START_YEAR, Math.min(END_YEAR, year));
+  const index = clampedYear - START_YEAR;
+  return Math.min(10, ROADMAPS[plan].slice(0, index + 1).reduce((total, count) => total + count, 0));
+}
+
+export function buildDemoFleetObjects(plan: DemoPlanKey, year = 2030): SceneObject[] {
+  const electricCount = electricCountAtYear(plan, year);
+  const electricIndices = new Set(ELECTRIFICATION_ORDER[plan].slice(0, electricCount));
+
+  return PARKING_BAYS.map(([x, z], index) => {
+    const type = electricIndices.has(index) ? "electric" : "diesel";
     const object = createObject("van", `demo-${plan}-van-${index + 1}`, undefined, `Vehicle ${index + 1}`)!;
-    const [x, z] = PARKING_BAYS[index];
     object.transform.position = [x, 0, z];
     // The depot building is at +Z and the van model faces -Z, so a zero
     // Y rotation points every parked van away from the depot.
@@ -64,9 +81,9 @@ export function buildDemoFleetObjects(plan: DemoPlanKey): SceneObject[] {
   });
 }
 
-export function ComparisonViewport({ plan, reset }: { plan: DemoPlanKey; reset: number }) {
+export function ComparisonViewport({ plan, year, reset }: { plan: DemoPlanKey; year: number; reset: number }) {
   const depot = useMemo(() => createObject("depot", `demo-${plan}-depot`, undefined, "Fleet depot")!, [plan]);
-  const fleetObjects = useMemo(() => buildDemoFleetObjects(plan), [plan]);
+  const fleetObjects = useMemo(() => buildDemoFleetObjects(plan, year), [plan, year]);
   const isClick = () => false;
 
   return <div
