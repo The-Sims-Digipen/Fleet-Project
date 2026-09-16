@@ -5,6 +5,7 @@ import { WorldScenarioPanel } from "./WorldScenarioPanel";
 import { getDefinition } from "../scene/catalog";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorControl, RangeControl, SelectControl, Vector3Control } from "./controls";
+import { CostAnalysis } from "./CostAnalysis";
 import { SimulationSettings } from "./SimulationSettings";
 import { PowerFeasibility } from "./PowerFeasibility";
 import { useResolvedModelId, useResolvedName } from "../state/presetStore";
@@ -91,6 +92,7 @@ export function Sidebar({ onResetCamera, onVisualizeFleet, fleetPreviewOpen, onC
     <Inspector />
     <PowerFeasibility />
     <SceneModule onResetCamera={onResetCamera} />
+    <CostAnalysis />
     <DebugModule />
   </aside>;
 }

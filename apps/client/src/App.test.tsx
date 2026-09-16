@@ -10,6 +10,7 @@ import { useTimelineStore } from "./state/timelineStore";
 
 vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetPreview }: { fleetPreview: { id: string; name: string; appearance: { tint?: string } }[] | null }) =>
   <div>{fleetPreview?.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
+vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echarts" /> }));
 beforeEach(() => {
   // jsdom has no native dialog top layer; browser checks cover focus trapping.
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
@@ -24,6 +25,13 @@ afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
+  it("shows the mocked cost comparison and payback year in the analysis section", () => {
+    render(<App />);
+    expect(screen.getByRole("button", { name: "Cost over time" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("heading", { name: "Cost over time" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /cumulative cost comparison/i })).toBeInTheDocument();
+    expect(screen.getByText("Transition becomes cheaper")).toBeInTheDocument();
+  });
   it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();
     render(<App />);
