@@ -47,12 +47,6 @@ export default function App() {
     return [object];
   }) : null, [activeScenario, fleetPreviewOpen, presets, selectedYear, vehicles]);
 
-  const editScenario = (scenarioId: string) => {
-    useProjectStore.getState().selectScenario(scenarioId);
-    setFleetPreviewOpen(false);
-    setWorkspaceMode("plan");
-  };
-
   return <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface">
     <a className="fixed top-3 left-3 z-50 -translate-y-[160%] rounded-lg bg-accent px-3.5 py-2.5 font-extrabold text-accent-ink focus:translate-y-0" href={workspaceMode === "compare" ? "#compare-workspace" : "#controls"}>Skip to workspace</a>
     <header className="flex shrink-0 min-h-[72px] flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-line bg-surface/95 px-[clamp(18px,3vw,40px)] py-3 max-[560px]:min-h-16 max-[560px]:px-4">
@@ -70,7 +64,7 @@ export default function App() {
       </div>
     </header>
 
-    {workspaceMode === "compare" ? <CompareWorkspace onEditScenario={editScenario} /> : <ResizableWorkspace>
+    {workspaceMode === "compare" ? <CompareWorkspace /> : <ResizableWorkspace>
       <section className="relative min-h-0 min-w-0 overflow-hidden bg-surface" aria-labelledby="scene-title">
         <ViewportBoundary><Suspense fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">Loading 3D world…</div>}><LazyWorldScene cameraReset={cameraReset} fleetPreview={previewObjects} /></Suspense></ViewportBoundary>
         {!fleetPreviewOpen && <TransformToolbar />}

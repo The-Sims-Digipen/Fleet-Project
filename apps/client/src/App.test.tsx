@@ -28,15 +28,16 @@ afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
-  it("opens the comparison workspace and can duplicate the current plan", async () => {
+  it("opens the client-demo comparison workspace with two sample plans", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("tab", { name: "Compare" }));
-    expect(screen.getByRole("heading", { name: "A second scenario is required" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Duplicate current plan" }));
     expect(screen.getAllByTestId("comparison-viewport")).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "Two possible fleet transition plans" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Gradual Transition" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Accelerated Electrification" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Plan B minus Plan A" })).toBeInTheDocument();
-    expect(screen.getByText("Vehicles changing by year")).toBeInTheDocument();
+    expect(screen.getByText("Vehicles replaced each year")).toBeInTheDocument();
   });
   it("shows the mocked cost comparison and payback year in the analysis section", () => {
     render(<App />);
