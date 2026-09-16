@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSceneStore } from "../state/sceneStore";
+import { topBarControl } from "./topBarStyles";
 
 export function HistoryControls() {
   const canUndo = useSceneStore(
@@ -36,7 +37,7 @@ export function HistoryControls() {
     <div className="flex gap-2" aria-label="Edit history">
       <button
         type="button"
-        className="min-h-9 rounded-lg border border-line-strong bg-transparent px-3 text-xs font-bold text-secondary transition-colors duration-150 enabled:hover:border-[#668078] enabled:hover:text-primary disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none"
+        className={topBarControl}
         disabled={!canUndo}
         onClick={undo}
       >
@@ -44,7 +45,7 @@ export function HistoryControls() {
       </button>
       <button
         type="button"
-        className="min-h-9 rounded-lg border border-line-strong bg-transparent px-3 text-xs font-bold text-secondary transition-colors duration-150 enabled:hover:border-[#668078] enabled:hover:text-primary disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none"
+        className={topBarControl}
         disabled={!canRedo}
         onClick={redo}
       >

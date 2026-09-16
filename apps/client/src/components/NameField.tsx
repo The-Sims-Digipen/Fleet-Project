@@ -14,7 +14,7 @@ export function NameField({ label, value, onCommit, compact = false }: {
     <label htmlFor={id} className={compact ? "sr-only" : "text-[0.72rem] font-semibold text-secondary"}>{label}</label>
     <input id={id} type="text" value={draft ?? value} spellCheck={false} aria-invalid={error !== null} aria-describedby={error ? `${id}-error` : undefined}
       className={compact
-        ? "h-9 w-full min-w-0 truncate rounded-lg border border-transparent bg-transparent px-2 text-[1.05rem] font-semibold text-primary hover:border-line-strong focus:border-line-strong focus:bg-control aria-invalid:border-red-400 max-[560px]:text-[0.92rem]"
+        ? "h-9 w-full min-w-0 truncate rounded-lg border border-line-strong bg-control px-3 text-sm font-semibold text-primary transition-colors duration-150 hover:border-[#668078] focus:border-accent aria-invalid:border-red-400 motion-reduce:transition-none"
         : "min-h-11 w-full min-w-0 rounded-lg border border-line-strong bg-control px-[11px] text-sm text-primary aria-invalid:border-red-400"}
       onFocus={() => setDraft(value)}
       onChange={(event) => setDraft(event.target.value)}
