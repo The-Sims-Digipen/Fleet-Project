@@ -7,9 +7,11 @@ import { usePresetStore } from "./state/presetStore";
 import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
 import { initialVehicles, useFleetStore } from "./state/fleetStore";
 import { useTimelineStore } from "./state/timelineStore";
+import { createProjectFields, useProjectStore } from "./state/projectStore";
 
 vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetPreview }: { fleetPreview: { id: string; name: string; appearance: { tint?: string } }[] | null }) =>
   <div>{fleetPreview?.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
+vi.mock("./components/ComparisonViewport", () => ({ ComparisonViewport: () => <div data-testid="comparison-viewport" /> }));
 vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echarts" /> }));
 beforeEach(() => {
   // jsdom has no native dialog top layer; browser checks cover focus trapping.
@@ -19,12 +21,23 @@ beforeEach(() => {
   useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
   usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null });
   useFleetStore.setState({ vehicles: initialVehicles });
+  useProjectStore.setState(createProjectFields("Untitled project", useSceneStore.getState().document, 0, usePresetStore.getState().presets));
   useTimelineStore.getState().resetYear();
 });
 afterEach(cleanup);
 const state = useSceneStore.getState;
 
 describe("inspector architecture", () => {
+  it("opens the comparison workspace and can duplicate the current plan", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "Compare" }));
+    expect(screen.getByRole("heading", { name: "A second scenario is required" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Duplicate current plan" }));
+    expect(screen.getAllByTestId("comparison-viewport")).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "Plan B minus Plan A" })).toBeInTheDocument();
+    expect(screen.getByText("Vehicles changing by year")).toBeInTheDocument();
+  });
   it("shows the mocked cost comparison and payback year in the analysis section", () => {
     render(<App />);
     expect(screen.getByRole("button", { name: "Cost over time" })).toHaveAttribute("aria-expanded", "true");

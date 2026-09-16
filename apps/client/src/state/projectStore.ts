@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { createIndexedDbProjectRepository } from "../project/indexedDbRepository";
 import { createPortableProject, type PortableProjectFile } from "../project/portableProject";
 import { type ProjectRepository } from "../project/repository";
-import { validateName, NAME_MAX_LENGTH, type Scenario, type WorkspaceRecord, type WorkspaceSaveInput, type WorkspaceWorld, type WorldSummary } from "../project/types";
+import { validateName, NAME_MAX_LENGTH, type Scenario, type ScenarioVehiclePlan, type WorkspaceRecord, type WorkspaceSaveInput, type WorkspaceWorld, type WorldSummary } from "../project/types";
 import type { SceneDocument } from "../scene/types";
 import { loadDefaultPresets } from "../vehicles/defaults";
 import type { VehiclePreset } from "../vehicles/types";
@@ -47,6 +47,7 @@ type ProjectState = ProjectFields & {
   duplicateScenario: (id: string) => void;
   renameScenario: (id: string, name: string) => void;
   deleteScenario: (id: string) => void;
+  updateScenarioVehiclePlan: (scenarioId: string, vehicleId: string, patch: Partial<ScenarioVehiclePlan>) => void;
   exportProject: () => PortableProjectFile;
   importProject: (file: PortableProjectFile) => Promise<void>;
 };
@@ -364,6 +365,26 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const activeScenarioId = get().activeScenarioId === id ? remaining[Math.min(index, remaining.length - 1)].id : get().activeScenarioId;
       const worlds = captureWorlds().map((item) => item.id === world.id ? { ...item, scenarios: remaining } : item);
       set({ worlds, scenarios: clone(remaining), activeScenarioId });
+    },
+
+    updateScenarioVehiclePlan: (scenarioId, vehicleId, patch) => {
+      replaceActiveWorld((world) => ({
+        ...world,
+        scenarios: world.scenarios.map((scenario) => {
+          if (scenario.id !== scenarioId) return scenario;
+          const current = scenario.document.vehiclePlans?.[vehicleId] ?? {};
+          return {
+            ...scenario,
+            document: {
+              ...scenario.document,
+              vehiclePlans: {
+                ...scenario.document.vehiclePlans,
+                [vehicleId]: { ...current, ...patch },
+              },
+            },
+          };
+        }),
+      }));
     },
 
     exportProject: () => {

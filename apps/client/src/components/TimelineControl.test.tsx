@@ -3,11 +3,18 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { TimelineControl } from "./TimelineControl";
 import { END_YEAR, START_YEAR, useTimelineStore } from "../state/timelineStore";
 import { initialVehicles, useFleetStore } from "../state/fleetStore";
+import { loadDefaultPresets } from "../vehicles/defaults";
+import { usePresetStore } from "../state/presetStore";
+import { createDocument } from "../state/sceneStore";
+import { createProjectFields, useProjectStore } from "../state/projectStore";
 
 beforeEach(() => {
   vi.useFakeTimers();
   useTimelineStore.getState().resetYear();
   useFleetStore.setState({ vehicles: initialVehicles });
+  const presets = loadDefaultPresets();
+  usePresetStore.getState().replacePresets(presets);
+  useProjectStore.setState(createProjectFields("Timeline test", createDocument(), 0, presets));
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
@@ -21,10 +28,11 @@ test("slider and event markers select the shared year", () => {
 
 test("vehicle markers follow scheduled years and disappear for No change", () => {
   render(<TimelineControl />);
-  act(() => useFleetStore.getState().setTransitionYear("UNIT-01", 2035));
+  const scenarioId = useProjectStore.getState().activeScenarioId;
+  act(() => useProjectStore.getState().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2035 }));
   expect(screen.getByRole("button", { name: "2035: 1 vehicle changes" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "2027: 1 vehicle changes" })).not.toBeInTheDocument();
-  act(() => useFleetStore.getState().setTransitionYear("UNIT-01", null));
+  act(() => useProjectStore.getState().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: null }));
   expect(screen.queryByRole("button", { name: "2035: 1 vehicle changes" })).not.toBeInTheDocument();
 });
 

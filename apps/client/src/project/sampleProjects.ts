@@ -25,7 +25,20 @@ export function createSampleProjects(): WorkspaceRecord[] {
   };
   const scenarios = [
     { id: "63e41b98-588a-4bc7-a974-4ff8fcdbeb94", worldId: world.id, name: "Plan A · gradual", revision: 1, worldRevision: 1, createdAt: timestamp, updatedAt: timestamp, document: { version: 1 as const } },
-    { id: "f5fd6ce9-a8f9-4d91-ad38-b22880658134", worldId: world.id, name: "Plan B · fast", revision: 1, worldRevision: 1, createdAt: timestamp, updatedAt: timestamp, document: { version: 1 as const } },
+    {
+      id: "f5fd6ce9-a8f9-4d91-ad38-b22880658134", worldId: world.id, name: "Plan B · fast", revision: 1, worldRevision: 1, createdAt: timestamp, updatedAt: timestamp,
+      document: {
+        version: 1 as const,
+        vehiclePlans: {
+          "UNIT-01": { transitionYear: 2026, targetPresetId: "electric-van" },
+          "UNIT-02": { transitionYear: 2027, targetPresetId: "electric-box-truck" },
+          "UNIT-03": { transitionYear: 2026, targetPresetId: "electric-van" },
+          "UNIT-04": { transitionYear: 2026, targetPresetId: "electric-van" },
+          "UNIT-05": { transitionYear: 2027, targetPresetId: "electric-van" },
+          "UNIT-06": { transitionYear: 2028, targetPresetId: "electric-box-truck" },
+        },
+      },
+    },
   ];
   return [{ project, worlds: [world], scenarios }];
 }

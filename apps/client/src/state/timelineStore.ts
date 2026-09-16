@@ -1,7 +1,7 @@
 import { create } from "zustand";
+import { END_YEAR, START_YEAR } from "../project/analysisPeriod";
 
-export const START_YEAR = 2026;
-export const END_YEAR = 2035;
+export { END_YEAR, START_YEAR };
 
 type TimelineState = {
   selectedYear: number;

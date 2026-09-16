@@ -3,7 +3,16 @@ import type { VehiclePreset } from "../vehicles/types";
 
 export const NAME_MAX_LENGTH = 100;
 
-export type ScenarioDocument = { version: 1 } & Record<string, unknown>;
+export type ScenarioVehiclePlan = {
+  transitionYear?: number | null;
+  targetPresetId?: string;
+};
+
+export type ScenarioDocument = {
+  version: 1;
+  /** Scenario-specific transition decisions keyed by shared fleet vehicle id. */
+  vehiclePlans?: Record<string, ScenarioVehiclePlan>;
+} & Record<string, unknown>;
 export type ProjectDocument = { version: 2; vehiclePresets: VehiclePreset[] };
 
 export type WorldRecord = {
