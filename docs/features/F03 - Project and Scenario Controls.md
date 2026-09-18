@@ -25,9 +25,9 @@ A single **World & Scenarios** collapsible owns both choosers:
 
 Worlds and Scenarios are **working-memory state first**. Scene edits update the active World's in-memory document immediately. Switching Worlds stashes/restores those in-memory documents and their Scenario lists.
 
-**Save Project** is the persistence boundary. It snapshots every in-memory World and every Scenario in the project and writes them atomically through F09.
+**Save Project** is the persistence boundary. It snapshots every in-memory World and every Scenario in the project and writes them atomically through T01.
 
-[F09 — Project Persistence](./F09%20-%20Project%20Persistence.md) owns storage. F03 must not access IndexedDB directly.
+[T01 — Project Persistence](../tech-tasks/T01%20-%20Project%20Persistence.md) owns storage. F03 must not access IndexedDB directly.
 
 
 ### World removal

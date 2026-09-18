@@ -29,6 +29,6 @@ This week focuses on frontend UI/UX stubs. The frontend features may use mock da
 - [F07 — Timeline Control](features/F07%20-%20Timeline%20Control.md) — Jarrel Tay Wee Han
 - [F08 — Power / Feasibility Panel](features/F08%20-%20Power%20and%20Feasibility%20Panel.md) — Dayton Ng Zhi Jie
 
-## Backend
+## Technical tasks
 
-- [F09 — Project Persistence](features/F09%20-%20Project%20Persistence.md) — Tan Wei Jun — do after F03 Project and Scenario Controls is complete.
+- [T01 — Project Persistence](tech-tasks/T01%20-%20Project%20Persistence.md) — Chew Shee Yang — do after F03 Project and Scenario Controls is complete.

@@ -10,7 +10,7 @@ import { normalizePreset, type VehiclePreset } from "./types";
  * Values are indicative synthetic planning figures, not manufacturer
  * specifications or suggested user defaults.
  *
- * This function is the single seam between preset data and its source: F09
+ * This function is the single seam between preset data and its source: T01
  * replaces its body with an API call and nothing else in the feature changes.
  */
 export function loadDefaultPresets(): VehiclePreset[] {

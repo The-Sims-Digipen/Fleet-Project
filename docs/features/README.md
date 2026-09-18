@@ -12,5 +12,4 @@ These are the only implementation features currently tracked.
 | [F06](./F06%20-%20Graphs.md) | Graphs | Frontend UI stub | Yap Zhi Kai |
 | [F07](./F07%20-%20Timeline%20Control.md) | Timeline Control | Frontend UI stub | Jarrel Tay Wee Han |
 | [F08](./F08%20-%20Power%20and%20Feasibility%20Panel.md) | Power / Feasibility Panel | Frontend UI stub | Dayton Ng Zhi Jie |
-| [F09](./F09%20-%20Project%20Persistence.md) | Project Persistence | Backend | Tan Wei Jun |
 

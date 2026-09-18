@@ -12,6 +12,7 @@
 
 ## Technical implementation
 
+- [Technical tasks](tech-tasks/README.md)
 - [Architecture](tech/architecture.md)
 - [Data model and API](tech/contracts.md)
 - [Simulation](tech/simulation.md)
