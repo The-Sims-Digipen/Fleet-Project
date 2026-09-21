@@ -53,7 +53,7 @@ describe("inspector architecture", () => {
   it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Visualize fleet in 3D" }));
+    await user.click(screen.getByRole("button", { name: "Visualize active plan in 3D" }));
     await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2028");
     await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-02" }), "");
     expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
