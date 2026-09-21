@@ -1,6 +1,6 @@
 # Data model and persistence contract
 
-Technical design for persistent fleet projects. A project contains shared project data and one reusable World together with independent Scenarios. Save/load preserves inputs, not rendered Three.js objects or calculated results.
+Technical design for persistent fleet projects. A project contains shared project data, one or more reusable Worlds, and independent Scenarios bound to those Worlds. Save/load preserves authoritative inputs, not rendered Three.js objects or calculated results.
 
 ## Data model
 
@@ -15,7 +15,7 @@ Technical design for persistent fleet projects. A project contains shared projec
 
 Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication copies planning data only; the project continues to reference the same World.
 
-The current frontend stub persists per-vehicle transition decisions in `ScenarioDocument.vehiclePlans`, keyed by the shared fleet vehicle ID. Each entry may contain `transitionYear` and `targetPresetId`. These are scenario-owned inputs: duplicating a scenario deep-copies them, editing one scenario must not mutate another, and derived comparison results are never persisted. The structure is intentionally a subset of the fuller scenario contract described in the simulation design.
+T03 Fleet & Scenario Data Engine owns the canonical fleet/scenario contracts. Per-vehicle transition decisions live in `ScenarioDocument.vehiclePlans`, keyed by stable shared fleet vehicle ID. Each entry may contain `transitionYear` and `targetPresetId`. These are scenario-owned inputs: duplicating a scenario deep-copies them, editing one scenario must not mutate another, and derived results are never persisted. The structure remains intentionally compatible with the fuller scenario contract described in the simulation design.
 
 ## Validation and consistency
 

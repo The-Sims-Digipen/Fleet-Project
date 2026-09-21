@@ -1,36 +1,32 @@
 # F01 — Vehicle Presets
 
-**Owner:** Tan Wei Jun
+**M1 priority:** MUST  
+**Primary owner:** Tan Wei Jun
 
-## Goal
+## User capability
 
-Create the frontend UI for managing reusable vehicle presets. This week is UI-only: use mock data and do not connect persistence or calculations yet.
+Users can view, create and edit reusable vehicle presets and select a target vehicle preset for replacement planning.
 
-## What this feature should accomplish
+## User need
 
-- Show a list of saved vehicle presets.
-- Provide controls to create, save, edit, and delete a preset.
-- Provide a form for editing preset attributes.
-- Allow a preset to choose which 3D vehicle model it uses.
+Vehicle presets provide a consistent source of vehicle specifications for fleet management, transition planning, simulation and 3D representation.
 
-## Required fields for the stub
+## M1 scope
 
-- Preset name.
-- Fuel consumption.
-- Electric consumption.
-- Purchase price.
-- Battery capacity.
-- Charging power.
-- 3D model selection.
+- List available vehicle presets.
+- Create and edit a preset.
+- Delete a preset only when reference integrity is preserved or the user is shown the affected references.
+- Configure the fields required by M1 calculations and visualisation, including propulsion/energy source, efficiency, purchase cost, battery/charging attributes and 3D model selection where applicable.
+- Use stable preset IDs so fleet/scenario references survive edits and persistence.
+- Allow scenario transition planning to select a target preset.
 
-The UI should leave room for additional vehicle attributes later without requiring a redesign.
+## Technical dependencies
 
-## Stub behavior
+- [T01 — Project Persistence & Serialization Library](../tech-tasks/T01%20-%20Project%20Persistence%20and%20Serialization%20Library.md)
+- [T02 — Company Design System & UI Component Library](../tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md)
+- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
+- [T05 — Simulation & Financial Engine](../tech-tasks/T05%20-%20Simulation%20and%20Financial%20Engine.md)
 
-- Use mock preset data.
-- Buttons and forms may be non-functional.
-- The purpose this week is to establish the layout, interaction flow, and visual hierarchy.
+## M1 evidence
 
-## Done when
-
-A user can see how presets will be listed, created, edited, deleted, and configured, including all required fields above.
+Create or edit a preset, assign it to a fleet/scenario transition, save/reopen the project, and show that the same preset data is used by the transition and simulation workflow.

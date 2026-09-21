@@ -2,17 +2,17 @@
 
 ## Product and delivery
 
+- [M1 contract proposal, team roles and milestone gates](deliverables.md)
 - [Product specification](SPECS.md)
 - [Implementation features](features/README.md)
 - [Weekly implementation plan](weekly-plan.md)
-- [Team roles and milestones](deliverables.md)
 - [Product definition](proposal.md)
 - [Product design](design/product-design.md)
 - [Wireframes](design/ui-ux/wireframes.md)
 
 ## Technical implementation
 
-- [Technical tasks](tech-tasks/README.md)
+- [M1 technical deliverables](tech-tasks/README.md)
 - [Architecture](tech/architecture.md)
 - [Data model and API](tech/contracts.md)
 - [Simulation](tech/simulation.md)

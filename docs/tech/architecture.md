@@ -16,27 +16,40 @@ Design for the [Fleet Transition Planner](../proposal.md): a single-user browser
 
 ## Component relationships
 
+The M1 architecture is organized around seven owned technical deliverables rather than around screen-local state.
+
 ```mermaid
 flowchart LR
-  Operator[Fleet operator] --> UI[Forms and comparison views]
-  UI <--> State[Editable project and scenarios]
-  State --> Simulation[Simulation engine]
-  State --> Geometry[Geometry validation]
-  Simulation --> Results[Annual results and explanations]
-  Results --> Charts[Charts]
-  Results --> Scene[3D depot scenes]
-  Geometry --> Scene
-  State --> Scene
-  State <--> Repo[ProjectRepository]
+  Operator[Fleet operator] --> UI[Product feature UI]
+  UI --> Design[T02 Design system]
+  UI <--> Workspace[T06 Workspace orchestration]
+  Workspace <--> Domain[T03 Fleet & scenario data]
+  Domain --> Timeline[T04 Timeline / playback]
+  Domain --> Simulation[T05 Simulation / financial]
+  Timeline --> Scene[3D fleet / depot view]
+  Timeline --> Analytics[T07 Analytics results]
+  Simulation --> Analytics
+  Domain --> Scene
+  Workspace <--> Repo[T01 Persistence / serialization]
   Repo --> IDB[(IndexedDB)]
   Repo -. future adapter .-> API[Fastify API]
 ```
 
-Simulation and geometry remain independent of rendering and persistence. The editor talks to a repository abstraction rather than to IndexedDB directly.
+The ownership boundaries are deliberate:
+
+- **T01** stores/restores authoritative workspace data and portable project files.
+- **T02** supplies reusable company-aligned UI primitives; it does not own product behavior.
+- **T03** owns fleet/scenario domain data, references and effective selected-year vehicle state.
+- **T04** owns the analysis clock, playback and event projection; it does not reimplement transition rules.
+- **T05** owns deterministic numerical/financial results and is independent of React/persistence.
+- **T06** owns Project/World/Scenario lifecycle, active selections, dirty state and workspace invariants.
+- **T07** turns T05 outputs into KPI/chart view models; it does not independently recalculate financial truth.
+
+Simulation, rendering and persistence remain separable so they can be tested independently and integrated through typed contracts.
 
 ## Data ownership and interaction
 
-A project shares its vehicle presets, fleet, analysis period, energy-price assumptions, emissions factors, and one reusable 3D world. Scenarios are separate saved transition plans bound to that world; they do not own or duplicate the world document.
+A project shares its vehicle presets, fleet, analysis period, energy-price assumptions and other project-level inputs across one or more reusable 3D Worlds. Scenarios are separate saved transition plans bound to a World; they do not own or duplicate the World document.
 
 ```mermaid
 sequenceDiagram
@@ -77,4 +90,4 @@ The [simulation model](simulation.md) and [depot editor](depot-editor.md) define
 
 The editor keeps the active version 3 world document in Zustand while it is being edited, with separate editor selection/transform-tool settings and snapshot undo history. Serializable types live in `apps/client/src/scene/types.ts`; the developer catalog maps stable object definitions to procedural `THREE.Group` factories under `apps/client/src/models`. The viewport iterates document objects and dispatches through a typed renderer registry rather than depending on particular object IDs or shapes.
 
-Each factory call creates an independently owned hierarchy, geometry, and materials. The renderer applies instance appearance overrides and creates a bounding outline, then disposes those resources on unmount. Inspector and viewport-gizmo editing change document transforms only; gizmo mode, world/local space, and snapping remain editor-only state. Project/scenario controls save through the browser-local repository; the 3D world remains in the scene store while editing but is persisted as its own World record. Simulation remains future work. See [extending the editor](extending-the-editor.md) for catalog registration and resource ownership.
+Each factory call creates an independently owned hierarchy, geometry, and materials. The renderer applies instance appearance overrides and creates a bounding outline, then disposes those resources on unmount. Inspector and viewport-gizmo editing change document transforms only; gizmo mode, world/local space, and snapping remain editor-only state. Project/scenario controls save through the browser-local repository; the 3D world remains in the scene store while editing but is persisted as its own World record. M1 simulation work is owned by T05 and consumes T03 contracts rather than scene/rendering objects. See [extending the editor](extending-the-editor.md) for catalog registration and resource ownership.
