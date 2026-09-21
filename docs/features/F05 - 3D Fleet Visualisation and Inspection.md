@@ -3,6 +3,10 @@
 **M1 priority:** MUST  
 **Primary owner:** Chew Shee Yang
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads T03 `EffectiveVehicleState` using T04's selected year and renders it without independently applying transition rules or mutating scenario/simulation state.
+
 ## User capability
 
 Users can view the depot/fleet in 3D, navigate the scene, select relevant objects or vehicles, inspect information, and see the displayed fleet state respond to the active scenario and selected year.

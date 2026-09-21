@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F01-F07
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T02 provides presentation primitives only: shared controls may accept domain values and validation messages, but must not own or duplicate authoritative project, scenario, timeline or simulation state.
+
 ## Goal
 
 Implement the company's visual style guide as a reusable React design system with centralized tokens and accessible shared interaction components used across the M1 product screens.
