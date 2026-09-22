@@ -38,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Divider", href: "#divider" },
       { label: "Input", href: "#input" },
       { label: "Label", href: "#label" },
+      { label: "List Panel", href: "#list-panel" },
       { label: "Modal", href: "#modal" },
       { label: "Select", href: "#select" },
       { label: "Spinner", href: "#spinner" },

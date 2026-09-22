@@ -13,6 +13,7 @@ import { CollapsibleSectionPage } from "./pages/CollapsibleSectionPage";
 import { DividerPage } from "./pages/DividerPage";
 import { InputPage } from "./pages/InputPage";
 import { LabelPage } from "./pages/LabelPage";
+import { ListPanelPage } from "./pages/ListPanelPage";
 import { ModalPage } from "./pages/ModalPage";
 import { SelectPage } from "./pages/SelectPage";
 import { SpinnerPage } from "./pages/SpinnerPage";
@@ -34,6 +35,7 @@ const HASH_TO_PAGE: Record<string, FC> = {
   "#divider": DividerPage,
   "#input": InputPage,
   "#label": LabelPage,
+  "#list-panel": ListPanelPage,
   "#modal": ModalPage,
   "#select": SelectPage,
   "#spinner": SpinnerPage,
