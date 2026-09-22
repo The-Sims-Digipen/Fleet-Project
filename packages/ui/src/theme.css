@@ -1,0 +1,20 @@
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "@fontsource/montserrat/700.css";
+@import "@fontsource/open-sans/400.css";
+
+@source "./components/**/*.{ts,tsx}";
+
+@theme {
+  --color-chargedup-night: #020143;
+  --color-chargedup-gold: #e8ba44;
+  --color-chargedup-white: #ffffff;
+  --color-chargedup-grey: #dedede;
+  --color-chargedup-blue: #004aad;
+  --color-status-danger: #b42318;
+
+  --font-heading: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+}

@@ -12,6 +12,21 @@ Follow the [M1 integration contract](../tech/m1-integration-contract.md). T02 pr
 
 Implement the company's visual style guide as a reusable React design system with centralized tokens and accessible shared interaction components used across the M1 product screens.
 
+## Foundation package
+
+The initial design-system slice lives in the source-based `@chargedup/ui` workspace package. Its visual source of truth is the [ChargeUp BrandBook](../pdf/ChargeUp%20BrandBook.pdf). Import components and the additive theme stylesheet separately:
+
+```tsx
+import { Button } from "@chargedup/ui";
+import "@chargedup/ui/theme.css";
+```
+
+The stylesheet registers the approved palette, heading/body fonts and package source discovery; it does not reset application elements. Consuming applications remain responsible for importing Tailwind CSS once.
+
+When extending tokens, preserve BrandBook values under the `chargedup-*` namespace. Name non-brand colours by semantic purpose (for example `status-danger`), document why they are needed, and do not present them as BrandBook colours. Prefer extending an existing semantic token over adding a component-specific colour.
+
+This foundation provides tokens, self-hosted fonts, the four-variant Button and a standalone showcase. Dayton remains responsible for the remaining component catalogue and for coordinating later product-screen migrations.
+
 ## Responsibilities
 
 - Centralize company-aligned colour, typography, spacing and sizing tokens.
