@@ -6,6 +6,7 @@ import type { PropsRow } from "../components/PropsTable";
 
 const props: PropsRow[] = [
   { name: "variant", type: '"default" | "success" | "warning" | "danger" | "info"', default: '"default"', description: "Colour and semantic meaning of the badge." },
+  { name: "dot", type: "boolean", default: "false", description: "Render a leading status dot in the badge's tone colour, for state pills." },
   { name: "className", type: "string", description: "Extra classes appended to the span element." },
   { name: "...rest", type: "ComponentPropsWithoutRef<\"span\">", description: "All native span props are forwarded." },
 ];
@@ -62,6 +63,24 @@ export function BadgePage() {
   <span>Van A · Fleet-001</span>
   <Badge variant="success">Electric</Badge>
 </div>`}
+      />
+
+      <SectionHeading>Status pills</SectionHeading>
+
+      <ComponentSection
+        title="With a status dot"
+        description="Set the dot prop to prefix a tone-coloured dot. Useful for entity state such as saved, unsaved, or active markers in browsers and lists."
+        preview={
+          <LivePreview className="flex-wrap gap-3">
+            <Badge variant="success" dot>Active</Badge>
+            <Badge variant="warning" dot>Unsaved</Badge>
+            <Badge variant="default" dot>Saved</Badge>
+            <Badge variant="danger" dot>Error</Badge>
+          </LivePreview>
+        }
+        code={`<Badge variant="success" dot>Active</Badge>
+<Badge variant="warning" dot>Unsaved</Badge>
+<Badge variant="default" dot>Saved</Badge>`}
       />
 
       <ComponentSection

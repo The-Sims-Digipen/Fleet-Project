@@ -10,14 +10,24 @@ import { ButtonPage } from "./pages/ButtonPage";
 import { CardPage } from "./pages/CardPage";
 import { CheckboxPage } from "./pages/CheckboxPage";
 import { CollapsibleSectionPage } from "./pages/CollapsibleSectionPage";
+import { DataTablePage } from "./pages/DataTablePage";
 import { DividerPage } from "./pages/DividerPage";
+import { FieldsPage } from "./pages/FieldsPage";
+import { FieldsetPage } from "./pages/FieldsetPage";
 import { InputPage } from "./pages/InputPage";
 import { LabelPage } from "./pages/LabelPage";
 import { ListPanelPage } from "./pages/ListPanelPage";
 import { ModalPage } from "./pages/ModalPage";
+import { ProgressBarPage } from "./pages/ProgressBarPage";
+import { SegmentedControlPage } from "./pages/SegmentedControlPage";
 import { SelectPage } from "./pages/SelectPage";
+import { SliderPage } from "./pages/SliderPage";
+import { SplitPanePage } from "./pages/SplitPanePage";
 import { SpinnerPage } from "./pages/SpinnerPage";
+import { StatCardPage } from "./pages/StatCardPage";
+import { StatusBannerPage } from "./pages/StatusBannerPage";
 import { TextareaPage } from "./pages/TextareaPage";
+import { ToastPage } from "./pages/ToastPage";
 
 const HASH_TO_PAGE: Record<string, FC> = {
   "": OverviewPage,
@@ -32,14 +42,24 @@ const HASH_TO_PAGE: Record<string, FC> = {
   "#card": CardPage,
   "#checkbox": CheckboxPage,
   "#collapsible-section": CollapsibleSectionPage,
+  "#data-table": DataTablePage,
   "#divider": DividerPage,
+  "#fields": FieldsPage,
+  "#fieldset": FieldsetPage,
   "#input": InputPage,
   "#label": LabelPage,
   "#list-panel": ListPanelPage,
   "#modal": ModalPage,
+  "#progress-bar": ProgressBarPage,
+  "#segmented-control": SegmentedControlPage,
   "#select": SelectPage,
+  "#slider": SliderPage,
+  "#split-pane": SplitPanePage,
   "#spinner": SpinnerPage,
+  "#stat-card": StatCardPage,
+  "#status-banner": StatusBannerPage,
   "#textarea": TextareaPage,
+  "#toast": ToastPage,
 };
 
 function getPage(hash: string): FC {

@@ -6,6 +6,7 @@ import type { PropsRow } from "../components/PropsTable";
 
 const props: PropsRow[] = [
   { name: "variant", type: '"primary" | "secondary" | "ghost" | "danger"', default: '"primary"', description: "Visual style of the button." },
+  { name: "size", type: '"md" | "toolbar"', default: '"md"', description: "Standard size, or the compact toolbar size for dense panel action rows." },
   { name: "disabled", type: "boolean", default: "false", description: "Prevents interaction and applies reduced opacity." },
   { name: "type", type: '"button" | "submit" | "reset"', default: '"button"', description: "Native button type. Set to submit inside forms." },
   { name: "className", type: "string", description: "Extra classes appended to the button — useful for width overrides." },
@@ -78,6 +79,25 @@ export function ButtonPage() {
 <Button variant="secondary" disabled>Secondary</Button>
 <Button variant="ghost" disabled>Ghost</Button>
 <Button variant="danger" disabled>Danger</Button>`}
+      />
+
+      <SectionHeading>Sizes</SectionHeading>
+
+      <ComponentSection
+        title="Toolbar size"
+        description="The compact toolbar size suits dense action rows — panel toolbars, list-panel headers, and inline controls. It pairs naturally with the ghost and secondary variants."
+        preview={
+          <LivePreview className="items-center">
+            <Button size="toolbar" variant="secondary">New</Button>
+            <Button size="toolbar" variant="ghost">Duplicate</Button>
+            <Button size="toolbar" variant="ghost">Delete</Button>
+            <span className="mx-2 h-5 w-px bg-chargedup-night/15" aria-hidden="true" />
+            <Button variant="secondary">Standard size</Button>
+          </LivePreview>
+        }
+        code={`<Button size="toolbar" variant="secondary">New</Button>
+<Button size="toolbar" variant="ghost">Duplicate</Button>
+<Button size="toolbar" variant="ghost">Delete</Button>`}
       />
 
       <ComponentSection

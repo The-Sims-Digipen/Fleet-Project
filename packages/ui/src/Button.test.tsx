@@ -25,6 +25,20 @@ describe("Button", () => {
     expect(screen.getByRole("button", { name: variant })).toHaveClass(expectedClass);
   });
 
+  it("uses the md size by default", () => {
+    render(<Button>Default size</Button>);
+
+    expect(screen.getByRole("button", { name: "Default size" })).toHaveClass("min-h-11");
+  });
+
+  it("applies the compact toolbar size", () => {
+    render(<Button size="toolbar">Add</Button>);
+
+    const button = screen.getByRole("button", { name: "Add" });
+    expect(button).toHaveClass("min-h-8", "text-xs");
+    expect(button).not.toHaveClass("min-h-11");
+  });
+
   it("forwards native props and allows the type to be overridden", () => {
     render(
       <Button aria-label="Save changes" data-testid="save" name="intent" type="submit">

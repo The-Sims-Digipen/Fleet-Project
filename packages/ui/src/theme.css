@@ -49,3 +49,54 @@
   --duration-base: 150ms;
   --duration-slow: 250ms;
 }
+
+@layer components {
+  /* Slider range track/thumb. Fill up to the thumb is driven by --range-fill,
+     which the Slider component sets from its value. Track/thumb need separate
+     browser-specific pseudo-elements. */
+  .cu-range,
+  input[type="range"].cu-range {
+    --range-fill: 0%;
+  }
+
+  .cu-range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--color-chargedup-blue) var(--range-fill),
+      color-mix(in srgb, var(--color-chargedup-night) 15%, transparent) var(--range-fill)
+    );
+  }
+
+  .cu-range::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    appearance: none;
+    border: 3px solid var(--color-chargedup-white);
+    border-radius: 50%;
+    background: var(--color-chargedup-blue);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-chargedup-night) 25%, transparent);
+  }
+
+  .cu-range::-moz-range-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--color-chargedup-night) 15%, transparent);
+  }
+
+  .cu-range::-moz-range-progress {
+    height: 4px;
+    border-radius: 9999px;
+    background: var(--color-chargedup-blue);
+  }
+
+  .cu-range::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 3px solid var(--color-chargedup-white);
+    border-radius: 50%;
+    background: var(--color-chargedup-blue);
+  }
+}

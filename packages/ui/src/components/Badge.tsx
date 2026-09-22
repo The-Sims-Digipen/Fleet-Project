@@ -4,6 +4,8 @@ export type BadgeVariant = "default" | "success" | "warning" | "danger" | "info"
 
 export type BadgeProps = ComponentPropsWithoutRef<"span"> & {
   variant?: BadgeVariant;
+  /** Render a leading status dot in the badge's tone colour. */
+  dot?: boolean;
 };
 
 const variantClasses: Record<BadgeVariant, string> = {
@@ -19,14 +21,21 @@ const variantClasses: Record<BadgeVariant, string> = {
     "bg-chargedup-blue/10 text-chargedup-blue border-chargedup-blue/25",
 };
 
-export function Badge({ variant = "default", className, ...props }: BadgeProps) {
+export function Badge({ variant = "default", dot = false, className, children, ...props }: BadgeProps) {
   const classes = [
-    "inline-flex items-center rounded-full border px-2.5 py-0.5 font-body text-xs font-semibold leading-5",
+    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-body text-xs font-semibold leading-5",
     variantClasses[variant],
     className,
   ]
     .filter(Boolean)
     .join(" ");
 
-  return <span className={classes} {...props} />;
+  return (
+    <span className={classes} {...props}>
+      {dot && (
+        <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
+      )}
+      {children}
+    </span>
+  );
 }

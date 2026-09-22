@@ -2,12 +2,21 @@ import { forwardRef, type ComponentPropsWithoutRef } from "react";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
+export type ButtonSize = "md" | "toolbar";
+
 export type ButtonProps = ComponentPropsWithoutRef<"button"> & {
   variant?: ButtonVariant;
+  size?: ButtonSize;
 };
 
 const baseClasses =
-  "inline-flex min-h-11 items-center justify-center rounded-[6px] border px-4 py-2 font-heading text-sm font-bold leading-5 transition-[filter,background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chargedup-blue focus-visible:ring-offset-2 focus-visible:ring-offset-chargedup-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none";
+  "inline-flex items-center justify-center rounded-[6px] border font-heading font-bold transition-[filter,background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chargedup-blue focus-visible:ring-offset-2 focus-visible:ring-offset-chargedup-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none";
+
+const sizeClasses: Record<ButtonSize, string> = {
+  md: "min-h-11 px-4 py-2 text-sm leading-5",
+  // Compact size for dense toolbars and panel action rows.
+  toolbar: "min-h-8 px-2.5 py-1 text-xs leading-4",
+};
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
@@ -21,10 +30,10 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, type = "button", variant = "primary", ...props },
+  { className, type = "button", variant = "primary", size = "md", ...props },
   ref,
 ) {
-  const classes = [baseClasses, variantClasses[variant], className]
+  const classes = [baseClasses, sizeClasses[size], variantClasses[variant], className]
     .filter(Boolean)
     .join(" ");
 

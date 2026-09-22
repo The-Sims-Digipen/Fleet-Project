@@ -25,7 +25,7 @@ export function TextareaPage() {
       <ComponentSection
         title="States"
         preview={
-          <LivePreview className="flex-col items-stretch gap-5 max-w-sm max-h-[480px] overflow-y-auto">
+          <LivePreview className="flex-col flex-nowrap items-stretch gap-5 max-w-sm">
             <Textarea label="Scenario notes" placeholder="Add notes about this transition plan…" rows={3} />
             <Textarea label="Assumptions" helperText="Describe any non-standard assumptions used in this scenario." rows={3} />
             <Textarea label="Vehicle description" error="Description is required." rows={3} />
