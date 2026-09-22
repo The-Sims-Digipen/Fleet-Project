@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
 import { copyFleetVehicle, createFleetVehicle, isYearInPeriod, normalizeAnalysisSettings, normalizeFleetVehicle, uniqueVehicleName } from "../domain/fleet";
-import { createMockAnalysis, createMockFleet } from "../domain/mockProject";
+import { createMockAnalysis } from "../domain/mockProject";
 import { usePresetStore } from "./presetStore";
 
 /**
@@ -40,7 +40,9 @@ const firstPresetId = () => usePresetStore.getState().presets[0]?.id;
 
 export const useFleetStore = create<FleetState>((set, get) => {
   return {
-    vehicles: createMockFleet(),
+    // A session starts with no fleet for the same reason a new project does:
+    // which vehicles a company runs is the user's own data, never invented.
+    vehicles: [],
     analysis: createMockAnalysis(),
     baseline: null,
 

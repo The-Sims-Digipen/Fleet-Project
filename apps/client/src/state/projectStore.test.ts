@@ -32,6 +32,19 @@ describe("project/world/scenario workspace", () => {
     expect(project().scenarios[0]).toMatchObject({ name: "Plan A", worldId: project().worldId, revision: 0 });
   });
 
+  it("starts a new project with the preset catalogue but no invented fleet", () => {
+    useFleetStore.getState().replaceFleet(createMockFleet());
+    project().newProject("Fresh start");
+
+    // Presets are a reusable catalogue, so they are seeded; which vehicles a
+    // company runs is the user's own data and is never invented for them.
+    expect(useFleetStore.getState().vehicles).toEqual([]);
+    expect(usePresetStore.getState().presets.length).toBeGreaterThan(0);
+    // A vehicle still needs a preset to reference, so adding one must work.
+    expect(useFleetStore.getState().createVehicle()).toBeTruthy();
+    expect(useFleetStore.getState().vehicles).toHaveLength(1);
+  });
+
   it("keeps world scene edits in memory while switching worlds", async () => {
     const firstWorldId = project().worldId;
     scene().setLight(22);

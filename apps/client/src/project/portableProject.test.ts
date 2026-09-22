@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { M1ProjectDocument } from "../domain/contracts";
 import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
 import { createMockPresets } from "../domain/mockProject";
 import { createDocument } from "../state/sceneStore";
@@ -28,12 +29,17 @@ describe("portable project files", () => {
       exportedAt: new Date().toISOString(),
       project: { name: "Old", document: { version: 2, vehiclePresets: createMockPresets() } },
       world: { name: "World", document: createDocument() },
-      scenarios: [{ name: "Plan A", document: { version: 1 } }],
+      scenarios: [{ name: "Plan A", document: { version: 1, vehiclePlans: { "UNIT-01": { transitionYear: 2028, targetPresetId: "electric-van" } } } }],
       activeScenarioIndex: 0,
     };
     const parsed = parsePortableProject(oldFile);
     expect(parsed.version).toBe(2);
     expect(parsed.worlds).toHaveLength(1);
+    // A legacy file carries no fleet, so it imports without invented vehicles,
+    // and its plans for those vehicles are dropped rather than failing the import.
+    expect(parsed.project.document.version).toBe(3);
+    expect((parsed.project.document as M1ProjectDocument).fleetVehicles).toEqual([]);
+    expect(parsed.worlds[0].scenarios[0].document.vehiclePlans).toEqual({});
   });
 
   it("rejects unsupported or malformed files", () => {

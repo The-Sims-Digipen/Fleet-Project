@@ -37,17 +37,6 @@ export const LEGACY_SCENARIO_ASSUMPTION_DEFAULTS: ScenarioAssumptions = {
   externalElectricityPricePerKWh: 0,
 };
 
-// Version 2 projects used this fixed application fleet rather than storing it.
-// Reconstructing that historical source is the only lossless path to version 3.
-const LEGACY_FLEET = [
-  { id: "UNIT-01", name: "City Delivery Van", annualKm: 28_000, transitionYear: 2027, currentPresetId: "diesel-van" },
-  { id: "UNIT-02", name: "Regional Hauler", annualKm: 54_000, transitionYear: 2029, currentPresetId: "diesel-box-truck" },
-  { id: "UNIT-03", name: "Urban Courier", annualKm: 19_000, transitionYear: 2026, currentPresetId: "electric-van" },
-  { id: "UNIT-04", name: "Service Support", annualKm: 32_000, transitionYear: 2028, currentPresetId: "hybrid-van" },
-  { id: "UNIT-05", name: "Depot Shuttle", annualKm: 24_000, transitionYear: 2030, currentPresetId: "diesel-van" },
-  { id: "UNIT-06", name: "Long-haul Supply", annualKm: 61_000, transitionYear: 2031, currentPresetId: "diesel-box-truck" },
-] as const;
-
 export class ProjectValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -224,28 +213,12 @@ export function normalizeProjectDocument(value: unknown, path = "project.documen
     if (!Array.isArray(source.vehiclePresets)) fail(`${path}.vehiclePresets`, "must be an array.");
     const vehiclePresets = source.vehiclePresets.map((preset, index) => legacyPreset(preset, `${path}.vehiclePresets[${index}]`));
     unique(vehiclePresets.map((preset) => preset.id), `${path}.vehiclePresets`);
-    const presetIds = new Set(vehiclePresets.map((preset) => preset.id));
-    const fleetVehicles: FleetVehicle[] = LEGACY_FLEET
-      .filter((vehicle) => presetIds.has(vehicle.currentPresetId))
-      .map((vehicle) => ({
-        id: vehicle.id,
-        name: vehicle.name,
-        currentPresetId: vehicle.currentPresetId,
-        annualKm: vehicle.annualKm,
-        typicalDailyKm: vehicle.annualKm / 260,
-        operatingDays: 260,
-        utilisation: 1,
-        routePattern: "predictable",
-        returnsToDepot: true,
-        depotDwellHours: 8,
-        externalChargingAccess: true,
-        replacementYear: null,
-        currentHolding: { kind: "owned", currentValue: 0, endResidualValue: 0 },
-      }));
+    // A version 2 document stored no fleet, so it reopens without one. Inventing
+    // vehicles here would present data the user never entered as their own.
     return {
       version: M1_PROJECT_DOCUMENT_VERSION,
       vehiclePresets,
-      fleetVehicles,
+      fleetVehicles: [],
       analysis: clone(LEGACY_ANALYSIS_DEFAULTS),
     };
   }
@@ -306,32 +279,28 @@ function scenarioAssumptions(value: unknown, path: string): ScenarioAssumptions 
   };
 }
 
-function legacyDefaultPlans(project: M1ProjectDocument): Record<string, ScenarioVehiclePlan> {
-  const presets = new Map(project.vehiclePresets.map((preset) => [preset.id, preset]));
-  const firstElectric = project.vehiclePresets.find((preset) => preset.propulsion === "electric");
-  const plans: Record<string, ScenarioVehiclePlan> = {};
-  for (const vehicle of project.fleetVehicles) {
-    const legacy = LEGACY_FLEET.find((item) => item.id === vehicle.id);
-    if (!legacy) continue;
-    const current = presets.get(vehicle.currentPresetId);
-    const target = project.vehiclePresets.find((preset) => preset.category === current?.category && preset.propulsion === "electric")
-      ?? firstElectric
-      ?? current;
-    if (target) plans[vehicle.id] = { transitionYear: legacy.transitionYear, targetPresetId: target.id };
-  }
-  return plans;
+/**
+ * Drops plan entries naming a vehicle the project no longer has.
+ *
+ * Only legacy documents are pruned. A version 2 project stored no fleet, so its
+ * scenarios can carry plans for vehicles that no longer exist; silently dropping
+ * those keeps the project openable. An authoritative version 2 scenario is held
+ * to the stricter rule in `validateScenarioReferences`, where a dangling
+ * reference is corruption rather than history.
+ */
+function prunedPlans(plans: Record<string, ScenarioVehiclePlan>, project: M1ProjectDocument): Record<string, ScenarioVehiclePlan> {
+  const vehicleIds = new Set(project.fleetVehicles.map((vehicle) => vehicle.id));
+  return Object.fromEntries(Object.entries(plans).filter(([vehicleId]) => vehicleIds.has(vehicleId)));
 }
 
 /** Validate a current document or migrate the supported version 1 scenario document. */
 export function normalizeScenarioDocument(value: unknown, path = "scenario.document", project?: M1ProjectDocument): M1ScenarioDocument {
   const source = record(value, path);
   if (source.version === 1) {
+    const stored = vehiclePlans(source.vehiclePlans, `${path}.vehiclePlans`);
     return {
       version: M1_SCENARIO_DOCUMENT_VERSION,
-      vehiclePlans: {
-        ...(project ? legacyDefaultPlans(project) : {}),
-        ...vehiclePlans(source.vehiclePlans, `${path}.vehiclePlans`),
-      },
+      vehiclePlans: project ? prunedPlans(stored, project) : stored,
       assumptions: clone(LEGACY_SCENARIO_ASSUMPTION_DEFAULTS),
     };
   }
