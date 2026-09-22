@@ -1,7 +1,4 @@
 @import "tailwindcss";
-/* Additive ChargedUp brand tokens, fonts, and component utilities from the ui package.
-   Exposes the chargedup and status tokens plus font-heading/font-body in the client.
-   The local tokens below stay unchanged, so existing screens are unaffected. */
 @import "@chargedup/ui/theme.css";
 
 @theme {
