@@ -43,12 +43,12 @@ describe("inspector architecture", () => {
     fireEvent.change(comparisonYear, { target: { value: "2031" } });
     expect(screen.getAllByTestId("comparison-viewport").every((viewport) => viewport.getAttribute("data-year") === "2031")).toBe(true);
   });
-  it("shows the mocked cost comparison and payback year in the analysis section", () => {
+  it("shows live cost comparison and payback information in the analysis section", () => {
     render(<App />);
     expect(screen.getByRole("button", { name: "Cost over time" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("heading", { name: "Cost over time" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /cumulative cost comparison/i })).toBeInTheDocument();
-    expect(screen.getByText("Transition becomes cheaper")).toBeInTheDocument();
+    expect(screen.getByText("End-of-year cash breakeven")).toBeInTheDocument();
   });
   it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();

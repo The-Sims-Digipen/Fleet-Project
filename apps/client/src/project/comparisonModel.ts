@@ -19,6 +19,7 @@ export type ResolvedVehiclePlan = {
 export type ComparisonYearPoint = {
   year: number;
   cumulativeCost: number;
+  annualCost: number;
   annualOpex: number;
   annualEmissionsTonnes: number;
   transitionedCount: number;
@@ -126,7 +127,7 @@ export function calculateScenarioComparison(
     cumulativeCost += annualOpex + annualCapex;
     totalCapex += annualCapex;
     totalEmissions += annualEmissions;
-    yearly.push({ year, cumulativeCost, annualOpex, annualEmissionsTonnes: annualEmissions, transitionedCount });
+    yearly.push({ year, cumulativeCost, annualCost: annualOpex + annualCapex, annualOpex, annualEmissionsTonnes: annualEmissions, transitionedCount });
   }
 
   let electricCount = 0;
