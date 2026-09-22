@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeProjectDocument, normalizeScenarioDocument } from "../project/serialization";
-import { createMockAnalysis, createMockFleet, createMockPresets } from "./mockProject";
+import { createMockAnalysis, createMockPresets } from "./mockProject";
 import { createProjectDocument } from "./projectDocument";
 import { createScenarioDocument, defaultScenarioAssumptions } from "./scenario";
 
@@ -11,38 +11,29 @@ import { createScenarioDocument, defaultScenarioAssumptions } from "./scenario";
  */
 
 describe("project document writer", () => {
-  it("writes version 3 with the project-owned inputs", () => {
+  it("writes the inputs every depot shares, and nothing else", () => {
     const presets = createMockPresets();
-    const fleet = createMockFleet();
     const analysis = createMockAnalysis();
-    const document = createProjectDocument(presets, fleet, analysis);
+    const document = createProjectDocument(presets, analysis);
 
-    expect(document.version).toBe(3);
+    expect(document.version).toBe(4);
     expect(document.vehiclePresets).toHaveLength(presets.length);
-    expect(document.fleetVehicles).toHaveLength(fleet.length);
     expect(document.analysis).toEqual(analysis);
+    // Vehicles belong to the depot they stand in, so they are not project data.
+    expect(document).not.toHaveProperty("fleetVehicles");
   });
 
   it("copies inputs so later store edits cannot reach a written document", () => {
     const presets = createMockPresets();
-    const fleet = createMockFleet();
-    const document = createProjectDocument(presets, fleet, createMockAnalysis());
+    const document = createProjectDocument(presets, createMockAnalysis());
     presets[0].name = "Mutated";
-    fleet[0].annualKm = 1;
     expect(document.vehiclePresets[0].name).not.toBe("Mutated");
-    expect(document.fleetVehicles[0].annualKm).not.toBe(1);
-  });
-
-  it("writes an empty fleet without inventing vehicles", () => {
-    const document = createProjectDocument(createMockPresets(), [], createMockAnalysis());
-    expect(document.fleetVehicles).toEqual([]);
-    expect(normalizeProjectDocument(document).fleetVehicles).toEqual([]);
   });
 });
 
 describe("writer and reader agree", () => {
   it("round-trips a written document through the serializer unchanged", () => {
-    const document = createProjectDocument(createMockPresets(), createMockFleet(), createMockAnalysis());
+    const document = createProjectDocument(createMockPresets(), createMockAnalysis());
     const stored = JSON.parse(JSON.stringify(document));
     expect(normalizeProjectDocument(stored)).toEqual(document);
   });

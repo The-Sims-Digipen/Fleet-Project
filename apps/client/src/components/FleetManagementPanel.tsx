@@ -3,9 +3,10 @@ import { useState } from "react";
 import { analysisYears } from "../domain/contracts";
 import { effectiveVehicleState } from "../domain/effectiveState";
 import { deleteFleetVehicle, vehicleDeletionImpact } from "../domain/fleetCommands";
-import { useFleetStore } from "../state/fleetStore";
+import { updateFleetVehicle, useFleetStore, useFleetVehicles } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { useProjectStore } from "../state/projectStore";
+import { useSceneStore } from "../state/sceneStore";
 import { useTimelineStore } from "../state/timelineStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 
@@ -20,9 +21,9 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
   previewOpen: boolean;
   onClosePreview: () => void;
 }) {
-  const vehicles = useFleetStore((state) => state.vehicles);
+  const vehicles = useFleetVehicles();
   const analysis = useFleetStore((state) => state.analysis);
-  const updateVehicle = useFleetStore((state) => state.updateVehicle);
+  const selectedObjectId = useSceneStore((state) => state.editor.selectedObjectId);
   const selectedYear = useTimelineStore((state) => state.selectedYear);
   const presets = usePresetStore((state) => state.presets);
   const scenarios = useProjectStore((state) => state.scenarios);
@@ -40,7 +41,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
   const removeVehicle = (id: string, name: string) => {
     deleteFleetVehicle(id);
     setConfirmingId(null);
-    setNotice(`Deleted ${name}.`);
+    setNotice(`Removed ${name} from the depot.`);
   };
 
   return <CollapsibleSection title="Fleet Management" defaultOpen description="Shared fleet inputs plus transition decisions for the active scenario. Target preset and transition year are stored per scenario.">
@@ -49,22 +50,17 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
         <span className="text-xs font-semibold text-primary">Vehicles · {scenario?.name ?? "No scenario"}</span>
         <span className="font-mono text-[11px] text-secondary">{vehicles.length} units</span>
       </div>
-      <div className="grid gap-2 border-b border-line-strong p-2">
+      <div className="border-b border-line-strong p-2">
         <button type="button" className="min-h-10 w-full rounded bg-accent px-3 text-xs font-bold text-accent-ink hover:bg-accent/85"
           onClick={() => previewOpen ? onClosePreview() : onVisualize()}>
           {previewOpen ? "Return to scene" : "Visualize active plan in 3D"}
         </button>
-        <button type="button" className={actionClass} disabled={!presets.length}
-          onClick={() => {
-            const id = useFleetStore.getState().createVehicle();
-            setNotice(id ? "Added a vehicle. Set its distance and preset below." : "Add a vehicle preset before adding a vehicle.");
-          }}>Add vehicle</button>
       </div>
 
       {notice && <p role="status" className="border-b border-line-strong px-3 py-2 text-[11px] text-secondary">{notice}</p>}
 
       {confirming && <div role="alert" className="border-b border-line-strong bg-[#241a12] px-3 py-3 text-xs text-secondary">
-        <p className="mb-2.5">Delete <b className="text-primary">{confirming.name}</b>?{affectedPlans.length
+        <p className="mb-2.5">Remove <b className="text-primary">{confirming.name}</b> from this depot? Its 3D model is deleted with it.{affectedPlans.length
           ? ` ${affectedPlans.length} scenario ${affectedPlans.length === 1 ? "plan loses its" : "plans lose their"} transition entry: ${affectedPlans.map((reference) => reference.scenarioName).join(", ")}.`
           : " No scenario plans reference it."}</p>
         <span className="flex gap-2">
@@ -79,10 +75,12 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
           const state = effectiveVehicleState(vehicle, plan, presetIds, selectedYear);
           return <li key={vehicle.id} className="grid gap-2.5 px-3 py-3">
             <div className="flex min-w-0 items-start justify-between gap-2">
-              <div className="min-w-0">
-                <span className="font-mono text-[10px] font-bold tracking-wider text-accent">{vehicle.id}</span>
+              <button type="button" aria-label={`Select ${vehicle.name} in the depot`} aria-pressed={vehicle.id === selectedObjectId}
+                className="min-w-0 flex-1 text-left aria-pressed:text-accent"
+                onClick={() => useSceneStore.getState().selectObject(vehicle.id)}>
+                <span className="font-mono text-[10px] font-bold tracking-wider text-accent">{vehicle.id.slice(0, 8)}</span>
                 <p className="truncate text-sm font-semibold text-primary" title={vehicle.name}>{vehicle.name}</p>
-              </div>
+              </button>
               <span className={`shrink-0 rounded px-2 py-1 font-mono text-[11px] ${state.transitioned ? "bg-[#39ff14]/15 text-[#39ff14]" : "bg-accent/10 text-accent"}`}>
                 {state.transitioned ? "Changed" : "Current"}
               </span>
@@ -91,7 +89,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
               Annual distance (km) <span className="font-normal text-secondary">· shared</span>
               <input id={`fleet-distance-${vehicle.id}`} aria-label={`Annual distance for ${vehicle.id}`} type="number" min={0} step={100} className={fieldClass}
                 value={vehicle.annualKm}
-                onChange={(event) => updateVehicle(vehicle.id, { annualKm: Number(event.target.value) })} />
+                onChange={(event) => updateFleetVehicle(vehicle.id, { annualKm: Number(event.target.value) })} />
             </label>
             <div className="flex justify-between gap-2 text-xs text-secondary">
               <span>Daily distance</span><span className="font-mono text-primary">{distanceFormatter.format(vehicle.typicalDailyKm)} km · {vehicle.operatingDays} days</span>
@@ -99,7 +97,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
             <label className={labelClass} htmlFor={`fleet-preset-${vehicle.id}`}>
               Current preset <span className="font-normal text-secondary">· shared</span>
               <select id={`fleet-preset-${vehicle.id}`} aria-label={`Current preset for ${vehicle.id}`} value={presetIds.has(vehicle.currentPresetId) ? vehicle.currentPresetId : ""}
-                onChange={(event) => updateVehicle(vehicle.id, { currentPresetId: event.target.value })}
+                onChange={(event) => updateFleetVehicle(vehicle.id, { currentPresetId: event.target.value })}
                 disabled={!presets.length} className={fieldClass}>
                 {!presetIds.has(vehicle.currentPresetId) && <option value="">{presets.length ? "Select a preset" : "No presets available"}</option>}
                 {presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
@@ -129,7 +127,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
               onClick={() => { setNotice(null); setConfirmingId(vehicle.id); }}>Delete</button>
           </li>;
         })}
-      </ul> : <p className="px-3 py-4 text-xs text-secondary">No fleet vehicles yet. Add one to start planning.</p>}
+      </ul> : <p className="px-3 py-4 text-xs text-secondary">No vehicles in this depot yet. Place a vehicle preset to add one.</p>}
     </div>
   </CollapsibleSection>;
 }

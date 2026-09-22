@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
+import { sim01Fleet, sim01Project, sim01Scenario } from "../domain/m1Fixture";
 import { createMockPresets } from "../domain/mockProject";
 import { createDocument } from "../state/sceneStore";
 import {
@@ -30,10 +30,10 @@ describe("project document serialization", () => {
       vehiclePlans: { "UNIT-01": { transitionYear: 2028, targetPresetId: "electric-van" } },
     });
 
-    expect(project).toMatchObject({ version: 3, analysis: LEGACY_ANALYSIS_DEFAULTS });
+    expect(project).toMatchObject({ version: 4, analysis: LEGACY_ANALYSIS_DEFAULTS });
     expect(project.vehiclePresets.every((preset) => preset.chargingEfficiency === 1)).toBe(true);
     // A version 2 document stored no fleet, so reopening one invents no vehicles.
-    expect(project.fleetVehicles).toEqual([]);
+    expect(project).not.toHaveProperty("fleetVehicles");
     // Without a project to check against, stored plans are kept as written.
     expect(scenario).toEqual({
       version: 2,
@@ -53,10 +53,10 @@ describe("project document serialization", () => {
         "UNIT-01": { transitionYear: 2028, targetPresetId: "electric-van" },
         "UNIT-02": { transitionYear: 2030, targetPresetId: "electric-box-truck" },
       },
-    }, "scenario.document", project);
+    }, "scenario.document", []);
 
     expect(scenario.vehiclePlans).toEqual({});
-    expect(() => validateScenarioReferences(project, scenario)).not.toThrow();
+    expect(() => validateScenarioReferences(project, [], scenario)).not.toThrow();
   });
 
   it("keeps legacy plans for vehicles the project still has", () => {
@@ -67,10 +67,10 @@ describe("project document serialization", () => {
         "SIM01-VEHICLE": { transitionYear: 2027, targetPresetId: "sim01-electric" },
         "GONE-01": { transitionYear: 2027, targetPresetId: "sim01-electric" },
       },
-    }, "scenario.document", project);
+    }, "scenario.document", sim01Fleet);
 
     expect(scenario.vehiclePlans).toEqual({ "SIM01-VEHICLE": { transitionYear: 2027, targetPresetId: "sim01-electric" } });
-    expect(() => validateScenarioReferences(project, scenario)).not.toThrow();
+    expect(() => validateScenarioReferences(project, sim01Fleet, scenario)).not.toThrow();
   });
 
   it("still rejects a dangling plan in an authoritative version 2 scenario", () => {
@@ -79,10 +79,10 @@ describe("project document serialization", () => {
     const scenario = normalizeScenarioDocument({
       ...sim01Scenario,
       vehiclePlans: { "GONE-01": { transitionYear: 2027, targetPresetId: "sim01-electric" } },
-    }, "scenario.document", sim01Project);
+    }, "scenario.document", sim01Fleet);
 
     expect(scenario.vehiclePlans).toHaveProperty("GONE-01");
-    expect(() => validateScenarioReferences(sim01Project, scenario)).toThrow(/GONE-01.*fleet vehicle/i);
+    expect(() => validateScenarioReferences(sim01Project, sim01Fleet, scenario)).toThrow(/GONE-01.*depot/i);
   });
 
   it("rejects unsupported versions, non-finite values, and broken references with a path", () => {
@@ -96,7 +96,7 @@ describe("project document serialization", () => {
       ...sim01Scenario,
       vehiclePlans: { missing: { transitionYear: 2026, targetPresetId: "sim01-electric" } },
     });
-    expect(() => validateScenarioReferences(sim01Project, brokenScenario)).toThrow(/missing.*fleet vehicle/i);
+    expect(() => validateScenarioReferences(sim01Project, sim01Fleet, brokenScenario)).toThrow(/missing.*depot/i);
   });
 
   it("validates complete current workspace relationships before persistence", () => {

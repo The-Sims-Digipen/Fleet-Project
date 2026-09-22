@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { createMemoryProjectRepository } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
-import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
+import { createMockAnalysis, createMockPresets } from "../domain/mockProject";
 import { useFleetStore } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "../state/projectStore";
@@ -17,10 +17,9 @@ beforeEach(() => {
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   const document = createDocument();
-  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  const inputs = { presets: createMockPresets(), analysis: createMockAnalysis() };
   usePresetStore.getState().replacePresets(inputs.presets);
   useFleetStore.getState().updateAnalysis(inputs.analysis);
-  useFleetStore.getState().replaceFleet(inputs.fleet);
   useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
   useProjectStore.setState(createProjectFields("Untitled project", document, 0, inputs));
 });
@@ -109,7 +108,7 @@ describe("project and scenario controls", () => {
     const dialog = screen.getByRole("dialog", { name: "Open Project" });
     await user.click(await within(dialog).findByRole("button", { name: "Open Sample depot transition" }));
     expect(screen.getByLabelText("Project name")).toHaveValue("Sample depot transition");
-    expect(useSceneStore.getState().document.objects).toHaveLength(4);
+    expect(useSceneStore.getState().document.objects).toHaveLength(6);
   });
 
   it("can start a new project from a saved world", async () => {
@@ -124,7 +123,7 @@ describe("project and scenario controls", () => {
     await user.selectOptions(within(dialog).getByLabelText("3D world"), createSampleProjects()[0].worlds[0].id);
     await user.click(within(dialog).getByRole("button", { name: "Create Project" }));
     expect(screen.getAllByLabelText("Project name")[0]).toHaveValue("Second depot");
-    expect(useSceneStore.getState().document.objects).toHaveLength(4);
+    expect(useSceneStore.getState().document.objects).toHaveLength(6);
   });
   it("keeps newly created worlds visible while switching between them", async () => {
     const user = userEvent.setup();

@@ -10,9 +10,9 @@ The importable, framework-independent contract is `apps/client/src/domain/contra
 
 The contract fixes these decisions:
 
-- Project-owned inputs: vehicle presets, fleet vehicles, analysis period, currency, common fuel price, and common emissions factors.
+- Project-owned inputs: vehicle presets, analysis period, currency, common fuel price, and common emissions factors. A vehicle preset is a reusable type shared by every World in the project.
+- World-owned inputs: serializable 3D objects and transforms, **and the fleet**. A vehicle is an object placed in one depot, carrying its planning data in `SceneObject.vehicle`, so the fleet shown in Fleet Management is exactly what stands in the World being edited. Placing a preset instantiates a vehicle; deleting the object removes it. Vehicles placed in one World never appear in another.
 - Scenario-owned inputs: per-vehicle target preset/transition year and scenario electricity/charging assumptions.
-- World-owned inputs: serializable 3D objects and transforms.
 - Editor-only state: selection, camera, transform tool, drafts and undo mechanics.
 - Derived state: simulation, analytics and effective-year projections are recomputed and are never authoritative persisted data.
 - Transition semantics: current preset before the transition year and target preset from the transition year onward.
@@ -20,17 +20,17 @@ The contract fixes these decisions:
 
 ### Validation and reference invariants
 
-- IDs are stable and immutable after creation; project preset IDs and fleet vehicle IDs are unique.
+- IDs are stable and immutable after creation; project preset IDs are unique, and fleet vehicle IDs are unique within their World.
 - Every numeric domain value is finite. Distances, prices, costs and emissions factors are nonnegative; `yearCount` is a positive integer; utilisation and charging share are within 0–1; charging efficiency is greater than 0 and at most 1.
-- Every fleet `currentPresetId` and scenario `targetPresetId` resolves inside the same project. Every `vehiclePlans` key resolves to a project fleet vehicle.
+- Every fleet `currentPresetId` and scenario `targetPresetId` resolves inside the same project. Every `vehiclePlans` key resolves to a vehicle in the World that scenario is bound to.
 - A transition year is null/absent or inside the project's inclusive analysis period.
 - Deleting a referenced preset is blocked and the UI lists the fleet/scenario references that must first be reassigned or cleared.
-- Deleting a fleet vehicle requires confirmation that lists affected scenario plans, then removes the vehicle and all of those plan entries as one domain edit.
+- Deleting a fleet vehicle requires confirmation that lists affected scenario plans, then removes the placed object and all of those plan entries as one domain edit. Because a vehicle is a scene object, placing and deleting one are undoable scene edits.
 - Scenario duplication deep-copies plans and assumptions. The last scenario for a World cannot be deleted.
 - Invalid form drafts remain component-local and never replace the last valid domain value.
 - When the analysis period changes, T04 clamps the selected year to the new period and stops playback. Scenario switching retains the selected year because the period is project-owned.
 
-Legacy project document version 2 and scenario document version 1 remain readable during integration. The authoritative M1 shapes are project version 3 and scenario version 2. T01 owns format migration and rejection of unsupported versions; feature components must not implement migrations.
+Legacy project document versions 2 and 3, scenario document version 1 and world document version 3 remain readable. The authoritative M1 shapes are project version 4, scenario version 2 and world version 4. Project version 3 stored the fleet on the project; reopening one moves those vehicles into the World that was active, preserving their IDs so scenario plans keep resolving. T01 owns format migration and rejection of unsupported versions; feature components must not implement migrations.
 
 ## Ownership and shared-file boundaries
 
@@ -38,7 +38,7 @@ Legacy project document version 2 and scenario document version 1 remain readabl
 |---|---|---|---|
 | T01 persistence | Chew Shee Yang | Save/load/export/import authoritative documents; never persist results | `project/repository.ts`, `project/indexedDbRepository.ts`, `project/portableProject.ts` |
 | T02 design system | Dayton Ng Zhi Jie | Presentation primitives only; no product state | `components/controls.tsx`, global tokens in `index.css` |
-| T03 domain | Tan Wei Jun | Fleet/preset CRUD, reference integrity, effective-year state | `domain/contracts.ts`, the real fleet/scenario domain store and selectors |
+| T03 domain | Tan Wei Jun | Fleet/preset CRUD, reference integrity, effective-year state | `domain/contracts.ts`, `domain/worldFleet.ts`, the fleet/scenario domain store and selectors |
 | T04 timeline | Jarrel Tay Wee Han | Selected year, seek/play/pause/reset, transition-event projection | `state/timelineStore.ts`, `components/TimelineControl.tsx` |
 | T05 simulation | Elijah Chua Jye Kang | Pure `SimulationInput -> SimulationResult`; no React/storage/chart imports | the new simulation engine directory |
 | T06 workspace | Brandon Koh Kai Yang | Active project/world/scenario, dirty state and valid snapshots | `state/projectStore.ts`, workspace panels |
@@ -62,7 +62,7 @@ T02 may progress in parallel when changes remain inside reusable primitives. F08
 
 ## Known stub truth to remove
 
-- `state/fleetStore.ts`: `MockVehicle` and `initialVehicles`.
+- ~~`state/fleetStore.ts`: `MockVehicle` and `initialVehicles`~~ — removed; the fleet is derived from the active World.
 - `project/analysisPeriod.ts` and `state/timelineStore.ts`: fixed analysis years.
 - `components/TimelineControl.tsx`: sample charger events and component-owned playback state.
 - `components/SimulationSettings.tsx`: local authoritative assumptions and local calculator.

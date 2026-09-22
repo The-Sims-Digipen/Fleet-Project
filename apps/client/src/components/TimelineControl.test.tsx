@@ -5,17 +5,19 @@ import { END_YEAR, START_YEAR, useTimelineStore } from "../state/timelineStore";
 import { useFleetStore } from "../state/fleetStore";
 import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
 import { usePresetStore } from "../state/presetStore";
-import { createDocument } from "../state/sceneStore";
+import { placeMigratedFleet } from "../domain/worldFleet";
+import { createDocument, useSceneStore } from "../state/sceneStore";
 import { createProjectFields, useProjectStore } from "../state/projectStore";
 
 beforeEach(() => {
   vi.useFakeTimers();
   useTimelineStore.getState().resetYear();
-  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  const inputs = { presets: createMockPresets(), analysis: createMockAnalysis() };
   usePresetStore.getState().replacePresets(inputs.presets);
   useFleetStore.getState().updateAnalysis(inputs.analysis);
-  useFleetStore.getState().replaceFleet(inputs.fleet);
-  useProjectStore.setState(createProjectFields("Timeline test", createDocument(), 0, inputs));
+  const depot = { ...createDocument(), objects: placeMigratedFleet(createMockFleet(), inputs.presets, []) };
+  useSceneStore.setState({ document: depot });
+  useProjectStore.setState(createProjectFields("Timeline test", depot, 0, inputs));
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 

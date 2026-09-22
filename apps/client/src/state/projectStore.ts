@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { create } from "zustand";
 
-import type { AnalysisSettings, FleetVehicle, M1ProjectDocument, M1ScenarioDocument } from "../domain/contracts";
+import type { AnalysisSettings, M1ProjectDocument, M1ScenarioDocument } from "../domain/contracts";
 import { isYearInPeriod } from "../domain/fleet";
 import { createMockAnalysis, createMockPresets } from "../domain/mockProject";
 import { createProjectDocument } from "../domain/projectDocument";
@@ -13,7 +13,7 @@ import { type ProjectRepository } from "../project/repository";
 import { validateName, NAME_MAX_LENGTH, type Scenario, type ScenarioVehiclePlan, type WorkspaceRecord, type WorkspaceSaveInput, type WorkspaceScenario, type WorkspaceWorld, type WorldSummary } from "../project/types";
 import type { SceneDocument } from "../scene/types";
 import type { VehiclePreset } from "../vehicles/types";
-import { useFleetStore } from "./fleetStore";
+import { currentFleet, useFleetStore } from "./fleetStore";
 import { usePresetStore } from "./presetStore";
 import { createDocument, useSceneStore } from "./sceneStore";
 
@@ -88,7 +88,7 @@ function createWorkspaceWorld(name: string, document: SceneDocument, id = crypto
   return { id, name, revision: 0, document: clone(document), scenarios: [scenario] };
 }
 
-type ProjectInputs = { presets: VehiclePreset[]; fleet: FleetVehicle[]; analysis: AnalysisSettings };
+type ProjectInputs = { presets: VehiclePreset[]; analysis: AnalysisSettings };
 
 function serializeSnapshot(name: string, activeWorldId: string, worlds: WorkspaceWorld[], inputs: ProjectInputs) {
   return JSON.stringify({
@@ -101,7 +101,6 @@ function serializeSnapshot(name: string, activeWorldId: string, worlds: Workspac
       scenarios: world.scenarios.map(({ id, name: scenarioNameValue, document }) => ({ id, name: scenarioNameValue, document })),
     })),
     presets: inputs.presets,
-    fleet: inputs.fleet,
     analysis: inputs.analysis,
   });
 }
@@ -114,7 +113,7 @@ function serializeSnapshot(name: string, activeWorldId: string, worlds: Workspac
  * left empty: which vehicles a company runs is the user's own data, and starting
  * with invented vans would present them as real.
  */
-const newProjectInputs = (): ProjectInputs => ({ presets: createMockPresets(), fleet: [], analysis: createMockAnalysis() });
+const newProjectInputs = (): ProjectInputs => ({ presets: createMockPresets(), analysis: createMockAnalysis() });
 
 function withActiveScene(worlds: WorkspaceWorld[], activeWorldId: string, document: SceneDocument): WorkspaceWorld[] {
   return worlds.map((world) => world.id === activeWorldId ? { ...world, document: clone(document) } : world);
@@ -150,13 +149,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
   const scene = () => useSceneStore.getState();
   const presets = () => usePresetStore.getState();
   const fleet = () => useFleetStore.getState();
-  const inputs = (): ProjectInputs => ({ presets: clone(presets().presets), fleet: clone(fleet().vehicles), analysis: { ...fleet().analysis } });
+  const inputs = (): ProjectInputs => ({ presets: clone(presets().presets), analysis: { ...fleet().analysis } });
 
   /** Applies project-owned inputs to the stores that own them. */
   const loadInputs = (document: M1ProjectDocument) => {
     presets().replacePresets(document.vehiclePresets);
     fleet().updateAnalysis(document.analysis);
-    fleet().replaceFleet(document.fleetVehicles);
   };
 
   const captureWorlds = () => withActiveScene(get().worlds, get().worldId, scene().document);
@@ -201,7 +199,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       name: record.project.name,
       worlds,
       ...activeFields(activeWorld),
-      baseline: serializeSnapshot(record.project.name, activeWorld.id, worlds, { presets: document.vehiclePresets, fleet: document.fleetVehicles, analysis: document.analysis }),
+      baseline: serializeSnapshot(record.project.name, activeWorld.id, worlds, { presets: document.vehiclePresets, analysis: document.analysis }),
       saveStatus: { state: "idle" },
       session: get().session + 1,
     });
@@ -212,7 +210,6 @@ export const useProjectStore = create<ProjectState>((set, get) => {
   return {
     ...createProjectFields("Untitled project", useSceneStore.getState().document, 0, {
       presets: usePresetStore.getState().presets,
-      fleet: useFleetStore.getState().vehicles,
       analysis: useFleetStore.getState().analysis,
     }),
 
@@ -222,7 +219,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const world = createDocument();
       set(createProjectFields(name.trim(), world, get().session + 1, next));
       scene().loadDocument(world);
-      loadInputs(createProjectDocument(next.presets, next.fleet, next.analysis));
+      loadInputs(createProjectDocument(next.presets, next.analysis));
     },
 
     newProjectWithWorld: async (name, worldId) => {
@@ -241,7 +238,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         session: get().session + 1,
       });
       scene().loadDocument(world.document);
-      loadInputs(createProjectDocument(next.presets, next.fleet, next.analysis));
+      loadInputs(createProjectDocument(next.presets, next.analysis));
     },
 
     switchWorld: async (worldId) => {
@@ -325,7 +322,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const projectId = state.projectId ?? crypto.randomUUID();
       const allScenarios = capturedWorlds.flatMap((world) => world.scenarios.map((scenario) => ({ ...scenario, worldId: world.id })));
       const base: WorkspaceSaveInput = {
-        project: { id: projectId, name: state.name, activeWorldId: state.worldId, document: createProjectDocument(capturedInputs.presets, capturedInputs.fleet, capturedInputs.analysis) },
+        project: { id: projectId, name: state.name, activeWorldId: state.worldId, document: createProjectDocument(capturedInputs.presets, capturedInputs.analysis) },
         worlds: capturedWorlds.map((world) => ({ id: world.id, name: world.name, expectedRevision: world.revision, document: clone(world.document) })),
         scenarios: allScenarios.map((scenario) => ({ id: scenario.id, worldId: scenario.worldId, name: scenario.name, expectedRevision: scenario.revision, document: clone(scenario.document) })),
       };
@@ -416,9 +413,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     },
 
     updateScenarioVehiclePlan: (scenarioId, vehicleId, patch) => {
-      // T03 reference rules: a plan may only name a vehicle and preset this
-      // project has, in a year inside its analysis period.
-      if (!fleet().vehicles.some((vehicle) => vehicle.id === vehicleId)) return;
+      // T03 reference rules: a plan may only name a vehicle standing in this
+      // depot and a preset the project has, in a year inside the analysis period.
+      if (!currentFleet().some((vehicle) => vehicle.id === vehicleId)) return;
       if (!isYearInPeriod(fleet().analysis, patch.transitionYear)) return;
       if (patch.targetPresetId !== undefined && !presets().presets.some((preset) => preset.id === patch.targetPresetId)) return;
 
@@ -458,7 +455,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const worlds = withActiveScene(state.worlds, state.worldId, scene().document);
       return createPortableProject({
         projectName: state.name,
-        projectDocument: createProjectDocument(captured.presets, captured.fleet, captured.analysis),
+        projectDocument: createProjectDocument(captured.presets, captured.analysis),
         worlds: worlds.map((world) => ({ name: world.name, document: clone(world.document), scenarios: world.scenarios.map((scenario) => ({ name: scenario.name, document: clone(scenario.document) })) })),
         activeWorldIndex: Math.max(0, worlds.findIndex((world) => world.id === state.worldId)),
         activeScenarioIndex: Math.max(0, state.scenarios.findIndex((scenario) => scenario.id === state.activeScenarioId)),
@@ -503,14 +500,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 export function useProjectDirty() {
   const world = useSceneStore((state) => state.document);
   const presets = usePresetStore((state) => state.presets);
-  const fleet = useFleetStore((state) => state.vehicles);
   const analysis = useFleetStore((state) => state.analysis);
   const name = useProjectStore((state) => state.name);
   const worlds = useProjectStore((state) => state.worlds);
   const worldId = useProjectStore((state) => state.worldId);
   const baseline = useProjectStore((state) => state.baseline);
-  return useMemo(() => serializeSnapshot(name, worldId, withActiveScene(worlds, worldId, world), { presets, fleet, analysis }) !== baseline,
-    [name, worlds, worldId, world, presets, fleet, analysis, baseline]);
+  // Vehicles ride inside each world document, so the scene snapshot already covers them.
+  return useMemo(() => serializeSnapshot(name, worldId, withActiveScene(worlds, worldId, world), { presets, analysis }) !== baseline,
+    [name, worlds, worldId, world, presets, analysis, baseline]);
 }
 
 // Scene edits are workspace edits first. Keep the active World's in-memory document synchronized,

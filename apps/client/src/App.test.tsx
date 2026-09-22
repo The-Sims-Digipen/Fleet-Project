@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { createMockAnalysis, createMockFleet, createMockPresets } from "./domain/mockProject";
 import { usePresetStore } from "./state/presetStore";
+import { placeMigratedFleet } from "./domain/worldFleet";
 import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
 import { useFleetStore } from "./state/fleetStore";
 import { useTimelineStore } from "./state/timelineStore";
@@ -19,9 +20,9 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  const inputs = { presets: createMockPresets(), analysis: createMockAnalysis() };
   usePresetStore.setState({ presets: inputs.presets, selectedPresetId: null, baseline: null });
-  useFleetStore.setState({ vehicles: inputs.fleet, analysis: inputs.analysis, baseline: null });
+  useFleetStore.setState({ analysis: inputs.analysis, baseline: null });
   useProjectStore.setState(createProjectFields("Untitled project", useSceneStore.getState().document, 0, inputs));
   useTimelineStore.getState().resetYear();
 });
@@ -53,6 +54,10 @@ describe("inspector architecture", () => {
   });
   it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();
+    // Vehicles are objects standing in the depot, so the fleet is seeded there.
+    const document = { ...createDocument(), objects: placeMigratedFleet(createMockFleet(), createMockPresets(), []) };
+    useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
+    useProjectStore.setState(createProjectFields("Fleet preview", document, 0, { presets: createMockPresets(), analysis: createMockAnalysis() }));
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Visualize active plan in 3D" }));
     await user.selectOptions(screen.getByRole("combobox", { name: "Target preset for UNIT-01" }), "electric-van");
@@ -287,7 +292,7 @@ describe("inspector architecture", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Select Electric Delivery Van" }));
-    await user.click(screen.getByRole("button", { name: "Add to Scene" }));
+    await user.click(screen.getByRole("button", { name: "Place in depot" }));
     const placed = state().document.objects.at(-1)!;
     expect(placed).toMatchObject({ presetId: "electric-van", definitionId: "van", name: "Electric Delivery Van" });
     expect(screen.getByRole("button", { name: "Select Electric Delivery Van, object 2" })).toBeInTheDocument();

@@ -9,7 +9,7 @@ import type { OwnershipTerms, VehiclePreset } from "../vehicles/types";
  */
 
 export const ANNUAL_MODEL_VERSION = "annual-v1" as const;
-export const M1_PROJECT_DOCUMENT_VERSION = 3 as const;
+export const M1_PROJECT_DOCUMENT_VERSION = 4 as const;
 export const M1_SCENARIO_DOCUMENT_VERSION = 2 as const;
 
 export type { OwnershipTerms };
@@ -25,11 +25,14 @@ export type CurrentVehicleHolding =
   | { kind: "owned"; currentValue: number; endResidualValue: number }
   | { kind: "leased"; annualPayment: number; exitFee: number };
 
-/** Shared project fleet data. Transition decisions do not belong here. */
-export type FleetVehicle = {
-  id: string;
-  name: string;
-  currentPresetId: string;
+/**
+ * Planning data carried by a vehicle placed in a depot.
+ *
+ * This is the half of a fleet vehicle that is not already on its scene object:
+ * identity, display name and current preset come from the object itself. It is
+ * stored on the object, so a depot's vehicles are exactly what stands in it.
+ */
+export type VehicleData = {
   annualKm: number;
   typicalDailyKm: number;
   operatingDays: number;
@@ -40,6 +43,16 @@ export type FleetVehicle = {
   externalChargingAccess: boolean;
   replacementYear: number | null;
   currentHolding: CurrentVehicleHolding;
+};
+
+/**
+ * One vehicle in a depot, assembled from its placed object. Transition
+ * decisions are scenario-owned and do not belong here.
+ */
+export type FleetVehicle = VehicleData & {
+  id: string;
+  name: string;
+  currentPresetId: string;
 };
 
 /** Common assumptions shared by every scenario in a project. */
@@ -69,10 +82,14 @@ export type ScenarioVehiclePlan = {
   targetPresetId?: string;
 };
 
+/**
+ * Project-owned inputs. Vehicle presets are shared by every depot in the
+ * project; the vehicles themselves belong to the depot they stand in and travel
+ * with its world document.
+ */
 export type M1ProjectDocument = {
   version: typeof M1_PROJECT_DOCUMENT_VERSION;
   vehiclePresets: M1VehiclePreset[];
-  fleetVehicles: FleetVehicle[];
   analysis: AnalysisSettings;
 };
 
@@ -145,6 +162,8 @@ export type SimulationResult = {
 
 export type SimulationInput = {
   project: M1ProjectDocument;
+  /** The depot's vehicles, derived from the world the scenario is bound to. */
+  fleetVehicles: FleetVehicle[];
   scenario: M1ScenarioDocument;
 };
 

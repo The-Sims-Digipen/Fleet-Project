@@ -1,7 +1,8 @@
-import type { M1ProjectDocument, M1ScenarioDocument } from "../domain/contracts";
+import type { FleetVehicle, M1ProjectDocument, M1ScenarioDocument } from "../domain/contracts";
+import { fleetFromDocument, placeMigratedFleet } from "../domain/worldFleet";
 import type { SceneDocument } from "../scene/types";
 import {
-  normalizeProjectDocument,
+  readProjectDocument,
   normalizeScenarioDocument,
   normalizeSceneDocument,
   validateScenarioReferences,
@@ -55,21 +56,28 @@ function exportedAt(value: unknown, legacy = false): string {
   throw new Error("The export timestamp in this file is invalid.");
 }
 
-function portableWorld(value: unknown, project: M1ProjectDocument, path: string): PortableWorld {
+function portableWorld(value: unknown, project: M1ProjectDocument, displacedFleet: readonly FleetVehicle[], path: string): PortableWorld {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(`${path} must be an object.`);
   const source = value as Record<string, unknown>;
   if (!Array.isArray(source.scenarios) || !source.scenarios.length) throw new Error(`${path} must contain at least one scenario.`);
+
+  const scene = normalizeSceneDocument(source.document, `${path}.document`);
+  // A legacy file stored its fleet on the project; those vehicles land in this depot.
+  const placed = displacedFleet.length ? placeMigratedFleet(displacedFleet, project.vehiclePresets, scene.objects) : [];
+  const document = placed.length ? { ...scene, objects: [...scene.objects, ...placed] } : scene;
+  const fleet = fleetFromDocument(document);
+
   const scenarios = source.scenarios.map((scenario, scenarioIndex) => {
     const scenarioPath = `${path}.scenarios[${scenarioIndex}]`;
     if (typeof scenario !== "object" || scenario === null || Array.isArray(scenario)) throw new Error(`${scenarioPath} must be an object.`);
     const item = scenario as Record<string, unknown>;
-    const document = normalizeScenarioDocument(item.document, `${scenarioPath}.document`, project);
-    validateScenarioReferences(project, document, `${scenarioPath}.document`);
-    return { name: nonEmptyName(item.name, `${scenarioPath}.name`), document };
+    const scenarioDocument = normalizeScenarioDocument(item.document, `${scenarioPath}.document`, fleet);
+    validateScenarioReferences(project, fleet, scenarioDocument, `${scenarioPath}.document`);
+    return { name: nonEmptyName(item.name, `${scenarioPath}.name`), document: scenarioDocument };
   });
   return {
     name: nonEmptyName(source.name, `${path}.name`),
-    document: normalizeSceneDocument(source.document, `${path}.document`),
+    document,
     scenarios,
   };
 }
@@ -83,7 +91,7 @@ export function parsePortableProject(value: unknown): PortableProjectFile {
   if (typeof source.project !== "object" || source.project === null || Array.isArray(source.project)) throw new Error("The project file is incomplete.");
   const projectSource = source.project as Record<string, unknown>;
   const rawProjectDocument = projectSource.document;
-  const projectDocument = normalizeProjectDocument(rawProjectDocument, "project.document");
+  const { document: projectDocument, displacedFleet } = readProjectDocument(rawProjectDocument, "project.document");
   const project = { name: nonEmptyName(projectSource.name, "project.name"), document: projectDocument };
 
   // Backward-compatible import of the previous single-world export format.
@@ -91,7 +99,7 @@ export function parsePortableProject(value: unknown): PortableProjectFile {
     if (!Array.isArray(source.scenarios)) throw new Error("The project file is incomplete.");
     if (typeof source.world !== "object" || source.world === null || Array.isArray(source.world)) throw new Error("The project file is incomplete.");
     const worldSource = source.world as Record<string, unknown>;
-    const world = portableWorld({ ...worldSource, scenarios: source.scenarios }, projectDocument, "world");
+    const world = portableWorld({ ...worldSource, scenarios: source.scenarios }, projectDocument, displacedFleet, "world");
     return {
       format: PORTABLE_PROJECT_FORMAT,
       version: PORTABLE_PROJECT_VERSION,
@@ -104,7 +112,7 @@ export function parsePortableProject(value: unknown): PortableProjectFile {
   }
 
   if (!Array.isArray(source.worlds) || !source.worlds.length) throw new Error("The world data in this file is invalid.");
-  const worlds = source.worlds.map((world, worldIndex) => portableWorld(world, projectDocument, `worlds[${worldIndex}]`));
+  const worlds = source.worlds.map((world, worldIndex) => portableWorld(world, projectDocument, worldIndex === 0 ? displacedFleet : [], `worlds[${worldIndex}]`));
   const activeWorldIndex = index(source.activeWorldIndex, worlds.length, "The active world in this file");
   const activeScenarioIndex = index(source.activeScenarioIndex, worlds[activeWorldIndex].scenarios.length, "The active scenario in this file");
   return {
@@ -125,8 +133,8 @@ export function createPortableProject(input: {
   activeWorldIndex: number;
   activeScenarioIndex: number;
 }): PortableProjectFile {
-  const projectDocument = normalizeProjectDocument(input.projectDocument);
-  const worlds = input.worlds.map((world, worldIndex) => portableWorld(world, projectDocument, `worlds[${worldIndex}]`));
+  const projectDocument = readProjectDocument(input.projectDocument).document;
+  const worlds = input.worlds.map((world, worldIndex) => portableWorld(world, projectDocument, [], `worlds[${worldIndex}]`));
   const activeWorldIndex = index(input.activeWorldIndex, worlds.length, "The active world");
   const activeScenarioIndex = index(input.activeScenarioIndex, worlds[activeWorldIndex].scenarios.length, "The active scenario");
   return {

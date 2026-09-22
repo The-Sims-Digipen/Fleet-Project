@@ -1,11 +1,13 @@
-import type { M1ProjectDocument, M1ScenarioDocument } from "./contracts";
+import { M1_PROJECT_DOCUMENT_VERSION, type FleetVehicle, type M1ProjectDocument, type M1ScenarioDocument } from "./contracts";
+import { SCENE_DOCUMENT_VERSION, type SceneDocument } from "../scene/types";
+import { placeMigratedFleet } from "./worldFleet";
 
 /**
  * Shared SIM01 handoff fixture. T01, T03, T04, T05 and T07 tests should reuse
  * this data instead of inventing subtly different sample assumptions.
  */
 export const sim01Project: M1ProjectDocument = {
-  version: 3,
+  version: M1_PROJECT_DOCUMENT_VERSION,
   vehiclePresets: [
     {
       id: "sim01-diesel",
@@ -40,23 +42,6 @@ export const sim01Project: M1ProjectDocument = {
       acquisition: { kind: "owned", endResidualValue: 2_000 },
     },
   ],
-  fleetVehicles: [
-    {
-      id: "SIM01-VEHICLE",
-      name: "SIM01 vehicle",
-      currentPresetId: "sim01-diesel",
-      annualKm: 10_000,
-      typicalDailyKm: 100,
-      operatingDays: 100,
-      utilisation: 1,
-      routePattern: "predictable",
-      returnsToDepot: true,
-      depotDwellHours: 8,
-      externalChargingAccess: true,
-      replacementYear: null,
-      currentHolding: { kind: "owned", currentValue: 0, endResidualValue: 0 },
-    },
-  ],
   analysis: {
     startYear: 2026,
     yearCount: 4,
@@ -66,6 +51,25 @@ export const sim01Project: M1ProjectDocument = {
     electricityEmissionsKgCo2ePerKWh: 0.5,
   },
 };
+
+/** SIM01's depot fleet. Vehicles belong to the world they stand in, not the project. */
+export const sim01Fleet: FleetVehicle[] = [
+  {
+    id: "SIM01-VEHICLE",
+    name: "SIM01 vehicle",
+    currentPresetId: "sim01-diesel",
+    annualKm: 10_000,
+    typicalDailyKm: 100,
+    operatingDays: 100,
+    utilisation: 1,
+    routePattern: "predictable",
+    returnsToDepot: true,
+    depotDwellHours: 8,
+    externalChargingAccess: true,
+    replacementYear: null,
+    currentHolding: { kind: "owned", currentValue: 0, endResidualValue: 0 },
+  },
+];
 
 export const sim01Scenario: M1ScenarioDocument = {
   version: 2,
@@ -89,3 +93,8 @@ export const sim01Expected = {
   electricityKWh: 8_000,
   emissionsReductionKgCo2e: 4_000,
 } as const;
+
+/** SIM01's depot: the world its vehicles stand in, matching `sim01Fleet`. */
+export function sim01World(): SceneDocument {
+  return { version: SCENE_DOCUMENT_VERSION, light: 65, objects: placeMigratedFleet(sim01Fleet, sim01Project.vehiclePresets, []) };
+}

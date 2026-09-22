@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { M1ProjectDocument } from "../domain/contracts";
-import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
+import { sim01Project, sim01Scenario, sim01World } from "../domain/m1Fixture";
 import { createMockPresets } from "../domain/mockProject";
 import { createDocument } from "../state/sceneStore";
 import { createPortableProject, parsePortableProject, projectFileName } from "./portableProject";
@@ -11,8 +10,8 @@ describe("portable project files", () => {
       projectName: "Depot Study",
       projectDocument: sim01Project,
       worlds: [
-        { name: "Main Depot", document: createDocument(), scenarios: [{ name: "Plan A", document: sim01Scenario }] },
-        { name: "Second Depot", document: createDocument(), scenarios: [{ name: "Plan B", document: sim01Scenario }] },
+        { name: "Main Depot", document: sim01World(), scenarios: [{ name: "Plan A", document: sim01Scenario }] },
+        { name: "Second Depot", document: sim01World(), scenarios: [{ name: "Plan B", document: sim01Scenario }] },
       ],
       activeWorldIndex: 1,
       activeScenarioIndex: 0,
@@ -37,8 +36,9 @@ describe("portable project files", () => {
     expect(parsed.worlds).toHaveLength(1);
     // A legacy file carries no fleet, so it imports without invented vehicles,
     // and its plans for those vehicles are dropped rather than failing the import.
-    expect(parsed.project.document.version).toBe(3);
-    expect((parsed.project.document as M1ProjectDocument).fleetVehicles).toEqual([]);
+    expect(parsed.project.document.version).toBe(4);
+    // A legacy file carries no depot vehicles, so nothing is placed.
+    expect(parsed.worlds[0].document.objects.filter((object) => object.vehicle)).toEqual([]);
     expect(parsed.worlds[0].scenarios[0].document.vehiclePlans).toEqual({});
   });
 

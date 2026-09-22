@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { analysisEndYear } from "../domain/contracts";
 import { transitionEvents } from "../domain/effectiveState";
-import { useFleetStore } from "../state/fleetStore";
+import { useFleetStore, useFleetVehicles } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { useProjectStore } from "../state/projectStore";
 import { useTimelineStore } from "../state/timelineStore";
@@ -18,7 +18,7 @@ export function TimelineControl() {
   const selectedYear = useTimelineStore((state) => state.selectedYear);
   const setSelectedYear = useTimelineStore((state) => state.setSelectedYear);
   const resetYear = useTimelineStore((state) => state.resetYear);
-  const vehicles = useFleetStore((state) => state.vehicles);
+  const vehicles = useFleetVehicles();
   const analysis = useFleetStore((state) => state.analysis);
   const presets = usePresetStore((state) => state.presets);
   const scenarios = useProjectStore((state) => state.scenarios);

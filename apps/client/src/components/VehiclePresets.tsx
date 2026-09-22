@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { deleteVehiclePreset, presetDeletionImpact } from "../domain/fleetCommands";
+import { placeVehicleFromPreset } from "../state/fleetStore";
 import { describePresetReference } from "../domain/references";
 import { vehicleModelEntries } from "../scene/catalog";
 import { usePresetStore } from "../state/presetStore";
@@ -169,10 +170,16 @@ export function VehiclePresets() {
         </p>
       </FieldGroup>
 
-      <button type="button" className={wideActionClass} onClick={() => { edit.commitEdit(); useSceneStore.getState().addObject(preset.modelId, preset.id, preset.name); }}>
-        Add to Scene
+      <button type="button" className={wideActionClass} onClick={() => {
+        edit.commitEdit();
+        setNotice(placeVehicleFromPreset(preset) ? `Placed a ${preset.name} in this depot.` : "This preset has no usable 3D model.");
+      }}>
+        Place in depot
       </button>
-      <p className="text-xs text-secondary">{instanceCount} placed {instanceCount === 1 ? "object uses" : "objects use"} this preset. Presets are project data and are not covered by scene undo.</p>
+      <p className="text-xs text-secondary">
+        {instanceCount} {instanceCount === 1 ? "vehicle in this depot uses" : "vehicles in this depot use"} this preset.
+        A preset is a reusable type shared by every depot; placing one adds a real vehicle to the depot you are editing.
+      </p>
     </div> : <p className="mt-4 text-[0.76rem] leading-relaxed text-secondary">No preset selected. Choose one above to edit its attributes.</p>}
   </CollapsibleSection>;
 }

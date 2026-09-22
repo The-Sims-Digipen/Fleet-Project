@@ -1,109 +1,121 @@
+import { useMemo } from "react";
 import { create } from "zustand";
 
-import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
-import { copyFleetVehicle, createFleetVehicle, isYearInPeriod, normalizeAnalysisSettings, normalizeFleetVehicle, uniqueVehicleName } from "../domain/fleet";
+import type { AnalysisSettings, FleetVehicle, VehicleData } from "../domain/contracts";
+import { isYearInPeriod, normalizeAnalysisSettings } from "../domain/fleet";
 import { createMockAnalysis } from "../domain/mockProject";
+import { fleetFromObjects, findVehicleObject, placeVehicle } from "../domain/worldFleet";
+import type { VehiclePreset } from "../vehicles/types";
 import { usePresetStore } from "./presetStore";
+import { useSceneStore } from "./sceneStore";
 
 /**
- * The authoritative project fleet (T03).
+ * Project-owned analysis settings, plus the write path for a depot's vehicles (T03).
  *
- * Holds the project-owned half of `M1ProjectDocument`: real fleet vehicles and
- * the common analysis settings. Scenario-owned transition decisions are not
- * here — they live in each scenario document, so editing one scenario cannot
- * change another or the shared fleet.
- *
- * Deleting a vehicle also has to clear its scenario plan entries. That crosses
- * two stores, so it lives in `domain/fleetCommands.ts` rather than here.
+ * Vehicle presets and analysis settings are shared by every depot in the
+ * project. The vehicles are not: each one is an object standing in a particular
+ * depot, so they live in that world's scene document and are read with
+ * `useFleetVehicles()`. Writing through the scene store means placing, editing
+ * and deleting a vehicle are ordinary scene edits, and therefore undoable.
  */
 
 type FleetState = {
-  vehicles: FleetVehicle[];
   analysis: AnalysisSettings;
-  /** Snapshot taken when a continuous edit begins, so Escape can restore it. */
-  baseline: FleetVehicle[] | null;
-  /** Returns the new vehicle id, or null when no preset exists to reference. */
-  createVehicle: () => string | null;
-  duplicateVehicle: (id: string) => string | null;
-  updateVehicle: (id: string, patch: Partial<FleetVehicle>) => void;
-  /** Removes the vehicle only. Callers must clear scenario plans themselves. */
-  removeVehicle: (id: string) => void;
-  replaceFleet: (vehicles: FleetVehicle[]) => void;
+  /** Snapshot taken when a continuous analysis edit begins, so Escape can restore it. */
+  baseline: AnalysisSettings | null;
   updateAnalysis: (patch: Partial<AnalysisSettings>) => void;
   beginEdit: () => void;
   commitEdit: () => void;
   cancelEdit: () => void;
 };
 
-const knownPresetIds = (): ReadonlySet<string> => new Set(usePresetStore.getState().presets.map((preset) => preset.id));
-const firstPresetId = () => usePresetStore.getState().presets[0]?.id;
+export const useFleetStore = create<FleetState>((set, get) => ({
+  analysis: createMockAnalysis(),
+  baseline: null,
 
-export const useFleetStore = create<FleetState>((set, get) => {
-  return {
-    // A session starts with no fleet for the same reason a new project does:
-    // which vehicles a company runs is the user's own data, never invented.
-    vehicles: [],
-    analysis: createMockAnalysis(),
-    baseline: null,
+  updateAnalysis: (patch) => {
+    const next = normalizeAnalysisSettings({ ...get().analysis, ...patch });
+    if (!next) return;
+    // A shorter period must not strand replacement years outside it.
+    const scene = useSceneStore.getState();
+    for (const vehicle of fleetFromObjects(scene.document.objects)) {
+      if (!isYearInPeriod(next, vehicle.replacementYear)) {
+        scene.updateVehicleData(vehicle.id, { ...vehicleDataOf(vehicle), replacementYear: null });
+      }
+    }
+    set({ analysis: next });
+  },
 
-    createVehicle: () => {
-      get().commitEdit();
-      const presetId = firstPresetId();
-      // A fleet vehicle must resolve to a preset, so it cannot be created without one.
-      if (!presetId) return null;
-      const vehicle = createFleetVehicle(crypto.randomUUID(), uniqueVehicleName("New Vehicle", get().vehicles), presetId);
-      if (!normalizeFleetVehicle(vehicle, knownPresetIds())) return null;
-      set({ vehicles: [...get().vehicles, vehicle] });
-      return vehicle.id;
-    },
+  beginEdit: () => {
+    if (!get().baseline) set({ baseline: get().analysis });
+  },
+  commitEdit: () => {
+    if (get().baseline) set({ baseline: null });
+  },
+  cancelEdit: () => {
+    const baseline = get().baseline;
+    if (!baseline) return;
+    set({ baseline: null, analysis: baseline });
+  },
+}));
 
-    duplicateVehicle: (id) => {
-      get().commitEdit();
-      const source = get().vehicles.find((vehicle) => vehicle.id === id);
-      if (!source) return null;
-      const copy = { ...copyFleetVehicle(source), id: crypto.randomUUID(), name: uniqueVehicleName(`${source.name} copy`, get().vehicles) };
-      set({ vehicles: [...get().vehicles, copy] });
-      return copy.id;
-    },
+const vehicleDataOf = ({ id: _id, name: _name, currentPresetId: _presetId, ...data }: FleetVehicle): VehicleData => data;
 
-    updateVehicle: (id, patch) => {
-      const current = get().vehicles.find((vehicle) => vehicle.id === id);
-      if (!current) return;
-      // Reject the whole edit when the patched record would be invalid, so a bad
-      // draft never replaces valid inputs (docs/tech/contracts.md).
-      const next = normalizeFleetVehicle({ ...current, ...patch, id: current.id }, knownPresetIds());
-      if (!next || !isYearInPeriod(get().analysis, next.replacementYear)) return;
-      set({ vehicles: get().vehicles.map((vehicle) => (vehicle.id === id ? next : vehicle)) });
-    },
+/**
+ * The vehicles standing in the depot currently being edited.
+ *
+ * Subscribes to the object list, whose identity only changes when the document
+ * does, and derives from that. Selecting a freshly mapped array instead would
+ * hand the store a new reference on every render and never settle.
+ */
+export function useFleetVehicles(): FleetVehicle[] {
+  const objects = useSceneStore((state) => state.document.objects);
+  return useMemo(() => fleetFromObjects(objects), [objects]);
+}
 
-    removeVehicle: (id) => {
-      get().commitEdit();
-      set({ vehicles: get().vehicles.filter((vehicle) => vehicle.id !== id) });
-    },
+export const currentFleet = (): FleetVehicle[] => fleetFromObjects(useSceneStore.getState().document.objects);
 
-    replaceFleet: (vehicles) => {
-      get().commitEdit();
-      set({ vehicles: vehicles.map(copyFleetVehicle) });
-    },
+/**
+ * Instantiates a preset as a vehicle in the active depot. Returns its id, or
+ * null when the preset has no usable model.
+ */
+export function placeVehicleFromPreset(preset: VehiclePreset): string | null {
+  const scene = useSceneStore.getState();
+  const object = placeVehicle(preset, crypto.randomUUID(), scene.document.objects);
+  if (!object) return null;
+  scene.insertObject(object);
+  return object.id;
+}
 
-    updateAnalysis: (patch) => {
-      const next = normalizeAnalysisSettings({ ...get().analysis, ...patch });
-      if (!next) return;
-      // A shorter period must not strand replacement years outside it.
-      const vehicles = get().vehicles.map((vehicle) => isYearInPeriod(next, vehicle.replacementYear) ? vehicle : { ...vehicle, replacementYear: null });
-      set({ analysis: next, vehicles });
-    },
+/**
+ * Applies a patch to one vehicle, rejecting the whole edit when the result
+ * would be invalid so a bad draft never replaces good inputs.
+ */
+export function updateFleetVehicle(vehicleId: string, patch: Partial<FleetVehicle>): void {
+  const scene = useSceneStore.getState();
+  const object = findVehicleObject(scene.document.objects, vehicleId);
+  if (!object?.vehicle) return;
 
-    beginEdit: () => {
-      if (!get().baseline) set({ baseline: get().vehicles });
-    },
-    commitEdit: () => {
-      if (get().baseline) set({ baseline: null });
-    },
-    cancelEdit: () => {
-      const baseline = get().baseline;
-      if (!baseline) return;
-      set({ baseline: null, vehicles: baseline });
-    },
-  };
-});
+  if (patch.currentPresetId !== undefined) {
+    // The preset belongs to the object, so repointing it also changes the model.
+    if (!usePresetStore.getState().presets.some((preset) => preset.id === patch.currentPresetId)) return;
+    scene.updateObjectPreset(vehicleId, patch.currentPresetId);
+  }
+  const next = { ...object.vehicle, ...vehiclePatchData(patch) };
+  if (!isYearInPeriod(useFleetStore.getState().analysis, next.replacementYear)) return;
+  if (!validVehicleData(next)) return;
+  scene.updateVehicleData(vehicleId, next);
+}
+
+function vehiclePatchData(patch: Partial<FleetVehicle>): Partial<VehicleData> {
+  const { id: _id, name: _name, currentPresetId: _presetId, ...data } = patch;
+  return data;
+}
+
+function validVehicleData(data: VehicleData): boolean {
+  const amounts = [data.annualKm, data.typicalDailyKm, data.depotDwellHours, data.utilisation];
+  if (amounts.some((value) => !Number.isFinite(value) || value < 0)) return false;
+  if (data.utilisation > 1 || data.depotDwellHours > 24) return false;
+  if (!Number.isInteger(data.operatingDays) || data.operatingDays < 0 || data.operatingDays > 366) return false;
+  return data.replacementYear === null || Number.isInteger(data.replacementYear);
+}
