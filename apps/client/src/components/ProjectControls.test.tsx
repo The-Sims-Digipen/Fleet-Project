@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { createMemoryProjectRepository } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
-import { loadDefaultPresets } from "../vehicles/defaults";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
+import { useFleetStore } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "../state/projectStore";
 import { createDocument, createEditorState, useSceneStore } from "../state/sceneStore";
@@ -16,10 +17,12 @@ beforeEach(() => {
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   const document = createDocument();
-  const presets = loadDefaultPresets();
-  usePresetStore.getState().replacePresets(presets);
+  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  usePresetStore.getState().replacePresets(inputs.presets);
+  useFleetStore.getState().updateAnalysis(inputs.analysis);
+  useFleetStore.getState().replaceFleet(inputs.fleet);
   useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  useProjectStore.setState(createProjectFields("Untitled project", document, 0, presets));
+  useProjectStore.setState(createProjectFields("Untitled project", document, 0, inputs));
 });
 afterEach(cleanup);
 

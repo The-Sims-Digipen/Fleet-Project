@@ -1,4 +1,4 @@
-import type { VehiclePreset } from "../vehicles/types";
+import type { OwnershipTerms, VehiclePreset } from "../vehicles/types";
 
 /**
  * Canonical, serializable M1 domain contracts.
@@ -12,20 +12,14 @@ export const ANNUAL_MODEL_VERSION = "annual-v1" as const;
 export const M1_PROJECT_DOCUMENT_VERSION = 3 as const;
 export const M1_SCENARIO_DOCUMENT_VERSION = 2 as const;
 
-export type OwnershipTerms =
-  | { kind: "owned"; endResidualValue: number }
-  | { kind: "leased"; annualPayment: number; exitFee: number };
+export type { OwnershipTerms };
 
-/** Vehicle-preset fields required by the M1 calculation contract. */
-export type M1VehiclePreset = VehiclePreset & {
-  maintenanceCostPerYear: number;
-  /** Null means that range is not applicable to this preset. */
-  rangeKm: number | null;
-  /** Supplied charging energy multiplier denominator; valid values are > 0 and <= 1. */
-  chargingEfficiency: number;
-  /** Terms used when this preset is acquired during the analysis. */
-  acquisition: OwnershipTerms;
-};
+/**
+ * The M1 calculation contract's preset. `VehiclePreset` in `vehicles/types.ts`
+ * carries these fields directly, so there is one preset shape and one validator
+ * rather than a base record plus an M1 extension that could drift from it.
+ */
+export type M1VehiclePreset = VehiclePreset;
 
 export type CurrentVehicleHolding =
   | { kind: "owned"; currentValue: number; endResidualValue: number }

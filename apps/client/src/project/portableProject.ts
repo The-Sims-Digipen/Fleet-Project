@@ -1,5 +1,5 @@
+import { M1_PROJECT_DOCUMENT_VERSION, M1_SCENARIO_DOCUMENT_VERSION } from "../domain/contracts";
 import type { SceneDocument, SceneObject, Transform, Vector3 } from "../scene/types";
-import { normalizePreset } from "../vehicles/types";
 import type { ProjectDocument, ScenarioDocument } from "./types";
 
 export const PORTABLE_PROJECT_FORMAT = "fleet-transition-planner-project";
@@ -44,15 +44,26 @@ function sceneDocument(value: unknown): value is SceneDocument {
   return record.version === 3 && typeof record.light === "number" && Number.isFinite(record.light) && Array.isArray(record.objects) && record.objects.every(sceneObject);
 }
 
+// Legacy scenario version 1 and project version 2 documents stay importable;
+// T03 upgrades their contents to the M1 shape once they are in the workspace.
+const LEGACY_SCENARIO_VERSION = 1;
+const LEGACY_PROJECT_VERSION = 2;
+
 function scenarioDocument(value: unknown): value is ScenarioDocument {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && (value as Record<string, unknown>).version === 1;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const version = (value as Record<string, unknown>).version;
+  return version === LEGACY_SCENARIO_VERSION || version === M1_SCENARIO_DOCUMENT_VERSION;
 }
 
 function projectDocument(value: unknown): value is ProjectDocument {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  if (record.version !== 2 || !Array.isArray(record.vehiclePresets)) return false;
-  return record.vehiclePresets.every((preset) => normalizePreset(preset) !== undefined);
+  if (record.version !== LEGACY_PROJECT_VERSION && record.version !== M1_PROJECT_DOCUMENT_VERSION) return false;
+  // Individual records are validated by T03 on load, so a single unreadable
+  // preset or vehicle does not make the whole file unimportable.
+  if (!Array.isArray(record.vehiclePresets)) return false;
+  if (record.version === M1_PROJECT_DOCUMENT_VERSION && !Array.isArray(record.fleetVehicles)) return false;
+  return true;
 }
 
 const nonEmptyName = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0 && value.length <= 100;
