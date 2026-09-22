@@ -1,6 +1,6 @@
 import { Component, lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { CompareWorkspace } from "./components/CompareWorkspace";
-import { effectivePresetForYear, resolveVehiclePlan } from "./project/comparisonModel";
+import { effectiveVehicleState } from "./domain/effectiveState";
 import { createObject } from "./scene/catalog";
 import type { SceneObject } from "./scene/types";
 import { HistoryControls } from "./components/HistoryControls";
@@ -36,17 +36,22 @@ export default function App() {
   const scenarios = useProjectStore((state) => state.scenarios);
   const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
   const activeScenario = scenarios.find((scenario) => scenario.id === activeScenarioId) ?? scenarios[0];
-  const previewObjects: SceneObject[] | null = useMemo(() => fleetPreviewOpen && activeScenario ? vehicles.flatMap((vehicle, index) => {
-    const preset = effectivePresetForYear(activeScenario, vehicle, presets, selectedYear);
-    if (!preset) return [];
-    const plan = resolveVehiclePlan(activeScenario, vehicle, presets);
-    const changed = plan.transitionYear !== null && selectedYear >= plan.transitionYear && plan.targetPresetId !== vehicle.currentPreset;
-    const object = createObject(preset.modelId || "van", `fleet-preview-${vehicle.vehicleId}`, preset.id, `${vehicle.vehicleId} · ${vehicle.vehicleName}${changed ? " · Changed" : ""}`);
-    if (!object) return [];
-    object.transform.position = [(index - (vehicles.length - 1) / 2) * 4.5, 0, 0];
-    object.appearance = { tint: changed ? "#39ff14" : preset.propulsion === "electric" ? "#85d8ff" : preset.propulsion === "hybrid" ? "#f5d18a" : "#ffffff" };
-    return [object];
-  }) : null, [activeScenario, fleetPreviewOpen, presets, selectedYear, vehicles]);
+  // The 3D preview asks T03 what each vehicle is in the selected year rather
+  // than reimplementing the transition rule.
+  const previewObjects: SceneObject[] | null = useMemo(() => {
+    if (!fleetPreviewOpen || !activeScenario) return null;
+    const presetIds = new Set(presets.map((preset) => preset.id));
+    return vehicles.flatMap((vehicle, index) => {
+      const state = effectiveVehicleState(vehicle, activeScenario.document.vehiclePlans[vehicle.id], presetIds, selectedYear);
+      const preset = presets.find((item) => item.id === state.presetId);
+      if (!preset) return [];
+      const object = createObject(preset.modelId || "van", `fleet-preview-${vehicle.id}`, preset.id, `${vehicle.id} · ${vehicle.name}${state.transitioned ? " · Changed" : ""}`);
+      if (!object) return [];
+      object.transform.position = [(index - (vehicles.length - 1) / 2) * 4.5, 0, 0];
+      object.appearance = { tint: state.transitioned ? "#39ff14" : preset.propulsion === "electric" ? "#85d8ff" : preset.propulsion === "hybrid" ? "#f5d18a" : "#ffffff" };
+      return [object];
+    });
+  }, [activeScenario, fleetPreviewOpen, presets, selectedYear, vehicles]);
 
   return <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface">
     <a className="fixed top-3 left-3 z-50 -translate-y-[160%] rounded-lg bg-accent px-3.5 py-2.5 font-extrabold text-accent-ink focus:translate-y-0" href={workspaceMode === "compare" ? "#compare-workspace" : "#controls"}>Skip to workspace</a>

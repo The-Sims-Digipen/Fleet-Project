@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createMemoryProjectRepository, ProjectConflictError } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
 import { validateName } from "../project/types";
-import { loadDefaultPresets } from "../vehicles/defaults";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
+import { useFleetStore } from "./fleetStore";
 import { usePresetStore } from "./presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "./projectStore";
 import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
@@ -14,10 +15,12 @@ const activeName = () => project().scenarios.find((scenario) => scenario.id === 
 beforeEach(() => {
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   const document = createDocument();
-  const presets = loadDefaultPresets();
-  usePresetStore.getState().replacePresets(presets);
+  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  usePresetStore.getState().replacePresets(inputs.presets);
+  useFleetStore.getState().updateAnalysis(inputs.analysis);
+  useFleetStore.getState().replaceFleet(inputs.fleet);
   useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  useProjectStore.setState(createProjectFields("Untitled project", document, 0, presets));
+  useProjectStore.setState(createProjectFields("Untitled project", document, 0, inputs));
 });
 
 describe("project/world/scenario workspace", () => {

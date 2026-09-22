@@ -33,4 +33,3 @@ T01 owns **how authoritative workspace state is stored and restored**. T06 owns 
 3. Reload/reopen and verify the same authoritative state is restored.
 4. Export/import the workspace and verify a valid independent copy is created.
 5. Reject an unsupported/invalid file with an explicit reason.
-

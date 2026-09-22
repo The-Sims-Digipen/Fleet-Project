@@ -1,5 +1,4 @@
 import type { SceneDocument } from "../scene/types";
-import type { VehiclePreset } from "../vehicles/types";
 import type {
   M1ProjectDocument,
   M1ScenarioDocument,
@@ -17,7 +16,8 @@ export type LegacyScenarioDocument = {
 } & Record<string, unknown>;
 export type ScenarioDocument = LegacyScenarioDocument | M1ScenarioDocument;
 
-export type LegacyProjectDocument = { version: 2; vehiclePresets: VehiclePreset[] };
+/** Version 2 presets predate the M1 preset fields, so their records are untrusted here. */
+export type LegacyProjectDocument = { version: 2; vehiclePresets: unknown[] };
 export type ProjectDocument = LegacyProjectDocument | M1ProjectDocument;
 
 export type WorldRecord = {
@@ -32,8 +32,15 @@ export type WorldRecord = {
 export type WorkspaceWorld = Omit<WorldRecord, "createdAt" | "updatedAt"> & {
   createdAt?: string;
   updatedAt?: string;
-  scenarios: Scenario[];
+  scenarios: WorkspaceScenario[];
 };
+
+/**
+ * A scenario held in the in-memory workspace. Stored documents may still be
+ * legacy version 1, but T03 upgrades them at the persistence boundary, so every
+ * scenario a feature reads is the authoritative M1 shape.
+ */
+export type WorkspaceScenario = Omit<Scenario, "document"> & { document: M1ScenarioDocument };
 
 export type Scenario = {
   id: string;

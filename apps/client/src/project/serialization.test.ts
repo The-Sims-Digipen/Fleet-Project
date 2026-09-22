@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
+import { createMockPresets } from "../domain/mockProject";
 import { createDocument } from "../state/sceneStore";
-import { loadDefaultPresets } from "../vehicles/defaults";
 import {
   LEGACY_ANALYSIS_DEFAULTS,
   LEGACY_SCENARIO_ASSUMPTION_DEFAULTS,
@@ -24,7 +24,7 @@ describe("project document serialization", () => {
   });
 
   it("migrates supported legacy project and scenario documents", () => {
-    const project = normalizeProjectDocument({ version: 2, vehiclePresets: loadDefaultPresets() });
+    const project = normalizeProjectDocument({ version: 2, vehiclePresets: createMockPresets() });
     const scenario = normalizeScenarioDocument({
       version: 1,
       vehiclePlans: { "UNIT-01": { transitionYear: 2028, targetPresetId: "electric-van" } },
