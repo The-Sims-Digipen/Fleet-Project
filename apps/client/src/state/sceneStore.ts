@@ -13,15 +13,16 @@ export type EditorState = {
   snapEnabled: boolean;
 };
 
+/** A new depot starts empty: everything in it is placed deliberately. */
 export function createDocument(): SceneDocument {
   return {
     version: SCENE_DOCUMENT_VERSION,
     light: 65,
-    objects: [createObject("van", "sample")!],
+    objects: [],
   };
 }
 
-export function createEditorState(selectedObjectId: string | null = "sample"): EditorState {
+export function createEditorState(selectedObjectId: string | null = null): EditorState {
   return { selectedObjectId, transformMode: "translate", transformSpace: "world", snapEnabled: true };
 }
 

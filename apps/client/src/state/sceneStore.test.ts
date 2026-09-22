@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { createObject } from "../scene/catalog";
 import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
 
 const state = useSceneStore.getState;
-beforeEach(() => useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } }));
+
+// A depot starts empty, so tests that need something to edit place it themselves.
+const seededDocument = () => ({ ...createDocument(), objects: [createObject("van", "sample")!] });
+
+beforeEach(() => useSceneStore.setState({
+  document: seededDocument(),
+  editor: createEditorState("sample"),
+  history: { past: [], future: [], baseline: null },
+}));
 
 describe("scene document and history", () => {
   it("creates unique instances and supports undo/redo of creation, deletion and selection cleanup", () => {
@@ -75,7 +84,7 @@ describe("scene document and history", () => {
     state().setLight(101);
     state().setLight(65);
     expect(state().history.past).toHaveLength(0);
-    expect(state().document).toEqual(createDocument());
+    expect(state().document).toEqual(seededDocument());
   });
   it("groups live updates and cancels without losing redo", () => {
     state().setLight(30);
@@ -108,6 +117,7 @@ describe("scene document and history", () => {
     state().setLight(10);
     state().resetScene();
     expect(state().document).toEqual(createDocument());
+    expect(state().document.objects).toEqual([]);
     state().undo();
     expect(state().document.light).toBe(10);
     state().beginEdit();
@@ -136,7 +146,7 @@ describe("scene document and history", () => {
     expect(state().history.past).toHaveLength(1);
     expect(state().document.objects[0].transform.position).toEqual([2, 2, 3]);
     state().undo();
-    expect(state().document.objects[0].transform).toEqual(createDocument().objects[0].transform);
+    expect(state().document.objects[0].transform).toEqual(seededDocument().objects[0].transform);
     state().updateObjectTransform("sample", { position: [0, 0, 0], rotation: [0, 0, 0], scale: [0, 1, 1] });
     expect(state().document.objects[0].transform.scale).toEqual([1, 1, 1]);
   });

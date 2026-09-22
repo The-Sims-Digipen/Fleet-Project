@@ -53,7 +53,7 @@ describe("project/world/scenario workspace", () => {
     scene().setLight(22);
     scene().addObject("van");
     expect(project().worlds.find((world) => world.id === firstWorldId)?.document.light).toBe(22);
-    expect(project().worlds.find((world) => world.id === firstWorldId)?.document.objects).toHaveLength(2);
+    expect(project().worlds.find((world) => world.id === firstWorldId)?.document.objects).toHaveLength(1);
 
     project().newWorld();
     const secondWorldId = project().worldId;
@@ -62,7 +62,7 @@ describe("project/world/scenario workspace", () => {
 
     await project().switchWorld(firstWorldId);
     expect(scene().document.light).toBe(22);
-    expect(scene().document.objects).toHaveLength(2);
+    expect(scene().document.objects).toHaveLength(1);
 
     await project().switchWorld(secondWorldId);
     expect(scene().document.light).toBe(77);
