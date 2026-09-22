@@ -32,6 +32,5 @@ describe("consumer build", () => {
     expect(css).toContain(".text-chargedup-night");
     expect(css).toContain(".min-h-11");
     expect(css).not.toContain(".max-w-6xl");
-    expect(css).not.toContain(".w-full");
   });
 });

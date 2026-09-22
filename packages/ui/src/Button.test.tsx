@@ -16,13 +16,27 @@ describe("Button", () => {
 
   it.each<[ButtonVariant, string]>([
     ["primary", "bg-chargedup-gold"],
-    ["secondary", "bg-chargedup-night"],
+    ["secondary", "bg-ink"],
     ["ghost", "bg-transparent"],
     ["danger", "bg-status-danger"],
   ])("applies the %s variant", (variant, expectedClass) => {
     render(<Button variant={variant}>{variant}</Button>);
 
     expect(screen.getByRole("button", { name: variant })).toHaveClass(expectedClass);
+  });
+
+  it("uses the md size by default", () => {
+    render(<Button>Default size</Button>);
+
+    expect(screen.getByRole("button", { name: "Default size" })).toHaveClass("min-h-11");
+  });
+
+  it("applies the compact toolbar size", () => {
+    render(<Button size="toolbar">Add</Button>);
+
+    const button = screen.getByRole("button", { name: "Add" });
+    expect(button).toHaveClass("min-h-8", "text-xs");
+    expect(button).not.toHaveClass("min-h-11");
   });
 
   it("forwards native props and allows the type to be overridden", () => {

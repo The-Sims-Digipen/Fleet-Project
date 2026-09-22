@@ -1,0 +1,36 @@
+@import "@chargedup/ui/theme.css";
+@import "tailwindcss/preflight.css" layer(base);
+
+@source "./**/*.{ts,tsx}";
+
+@layer base {
+  :root {
+    color: var(--color-chargedup-night);
+    font-family: var(--font-body);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+  }
+
+  body {
+    background: #f5f5f7;
+  }
+
+  button {
+    font: inherit;
+  }
+
+  /* Scrollbar styling */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(2, 1, 67, 0.18) transparent;
+  }
+}

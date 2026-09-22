@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@chargedup/ui/theme.css";
 
 @theme {
   --font-sans: Inter, "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
