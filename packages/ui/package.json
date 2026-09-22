@@ -11,8 +11,7 @@
     "./theme.css": "./src/theme.css"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 5174",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run"
   },

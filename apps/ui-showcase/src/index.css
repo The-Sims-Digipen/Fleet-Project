@@ -1,7 +1,7 @@
-@import "./theme.css";
+@import "@chargedup/ui/theme.css";
 @import "tailwindcss/preflight.css" layer(base);
 
-@source "./showcase.tsx";
+@source "./**/*.{ts,tsx}";
 
 @layer base {
   :root {

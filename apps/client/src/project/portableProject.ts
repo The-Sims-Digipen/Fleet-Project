@@ -1,5 +1,11 @@
-import { M1_PROJECT_DOCUMENT_VERSION, M1_SCENARIO_DOCUMENT_VERSION } from "../domain/contracts";
-import type { SceneDocument, SceneObject, Transform, Vector3 } from "../scene/types";
+import type { M1ProjectDocument, M1ScenarioDocument } from "../domain/contracts";
+import type { SceneDocument } from "../scene/types";
+import {
+  normalizeProjectDocument,
+  normalizeScenarioDocument,
+  normalizeSceneDocument,
+  validateScenarioReferences,
+} from "./serialization";
 import type { ProjectDocument, ScenarioDocument } from "./types";
 
 export const PORTABLE_PROJECT_FORMAT = "fleet-transition-planner-project";
@@ -8,135 +14,129 @@ export const PORTABLE_PROJECT_VERSION = 2;
 type PortableWorld = {
   name: string;
   document: SceneDocument;
-  scenarios: { name: string; document: ScenarioDocument }[];
+  scenarios: { name: string; document: M1ScenarioDocument }[];
 };
 
 export type PortableProjectFile = {
   format: typeof PORTABLE_PROJECT_FORMAT;
   version: typeof PORTABLE_PROJECT_VERSION;
   exportedAt: string;
-  project: { name: string; document: ProjectDocument };
+  project: { name: string; document: M1ProjectDocument };
   worlds: PortableWorld[];
   activeWorldIndex: number;
   activeScenarioIndex: number;
 };
 
-const finiteVector = (value: unknown): value is Vector3 => Array.isArray(value) && value.length === 3 && value.every((item) => typeof item === "number" && Number.isFinite(item));
-const transform = (value: unknown): value is Transform => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return finiteVector(record.position) && finiteVector(record.rotation) && finiteVector(record.scale) && record.scale.every((item) => item > 0);
+type PortableWorldInput = {
+  name: string;
+  document: SceneDocument;
+  scenarios: { name: string; document: ScenarioDocument }[];
 };
 
-function sceneObject(value: unknown): value is SceneObject {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  if (typeof record.id !== "string" || !record.id || typeof record.name !== "string" || !record.name || typeof record.definitionId !== "string" || !record.definitionId) return false;
-  if (record.presetId !== undefined && typeof record.presetId !== "string") return false;
-  if (!transform(record.transform)) return false;
-  if (typeof record.appearance !== "object" || record.appearance === null || Array.isArray(record.appearance)) return false;
-  return true;
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+function nonEmptyName(value: unknown, path: string): string {
+  if (typeof value !== "string" || !value.trim() || value.trim().length > 100) {
+    throw new Error(`${path} must be nonempty text of 100 characters or fewer.`);
+  }
+  return value.trim();
 }
 
-function sceneDocument(value: unknown): value is SceneDocument {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return record.version === 3 && typeof record.light === "number" && Number.isFinite(record.light) && Array.isArray(record.objects) && record.objects.every(sceneObject);
+function index(value: unknown, length: number, path: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value >= length) {
+    throw new Error(`${path} is invalid.`);
+  }
+  return value;
 }
 
-// Legacy scenario version 1 and project version 2 documents stay importable;
-// T03 upgrades their contents to the M1 shape once they are in the workspace.
-const LEGACY_SCENARIO_VERSION = 1;
-const LEGACY_PROJECT_VERSION = 2;
-
-function scenarioDocument(value: unknown): value is ScenarioDocument {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const version = (value as Record<string, unknown>).version;
-  return version === LEGACY_SCENARIO_VERSION || version === M1_SCENARIO_DOCUMENT_VERSION;
+function exportedAt(value: unknown, legacy = false): string {
+  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) return value;
+  if (legacy) return new Date().toISOString();
+  throw new Error("The export timestamp in this file is invalid.");
 }
 
-function projectDocument(value: unknown): value is ProjectDocument {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  if (record.version !== LEGACY_PROJECT_VERSION && record.version !== M1_PROJECT_DOCUMENT_VERSION) return false;
-  // Individual records are validated by T03 on load, so a single unreadable
-  // preset or vehicle does not make the whole file unimportable.
-  if (!Array.isArray(record.vehiclePresets)) return false;
-  if (record.version === M1_PROJECT_DOCUMENT_VERSION && !Array.isArray(record.fleetVehicles)) return false;
-  return true;
-}
-
-const nonEmptyName = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0 && value.length <= 100;
-
-function portableWorld(value: unknown): value is PortableWorld {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  if (!nonEmptyName(record.name) || !sceneDocument(record.document) || !Array.isArray(record.scenarios) || !record.scenarios.length) return false;
-  return record.scenarios.every((scenario) => {
-    if (typeof scenario !== "object" || scenario === null || Array.isArray(scenario)) return false;
+function portableWorld(value: unknown, project: M1ProjectDocument, path: string): PortableWorld {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(`${path} must be an object.`);
+  const source = value as Record<string, unknown>;
+  if (!Array.isArray(source.scenarios) || !source.scenarios.length) throw new Error(`${path} must contain at least one scenario.`);
+  const scenarios = source.scenarios.map((scenario, scenarioIndex) => {
+    const scenarioPath = `${path}.scenarios[${scenarioIndex}]`;
+    if (typeof scenario !== "object" || scenario === null || Array.isArray(scenario)) throw new Error(`${scenarioPath} must be an object.`);
     const item = scenario as Record<string, unknown>;
-    return nonEmptyName(item.name) && scenarioDocument(item.document);
+    const document = normalizeScenarioDocument(item.document, `${scenarioPath}.document`, project);
+    validateScenarioReferences(project, document, `${scenarioPath}.document`);
+    return { name: nonEmptyName(item.name, `${scenarioPath}.name`), document };
   });
+  return {
+    name: nonEmptyName(source.name, `${path}.name`),
+    document: normalizeSceneDocument(source.document, `${path}.document`),
+    scenarios,
+  };
 }
 
 export function parsePortableProject(value: unknown): PortableProjectFile {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("This file is not a Fleet Transition Planner project.");
-  const record = value as Record<string, unknown>;
-  if (record.format !== PORTABLE_PROJECT_FORMAT || (record.version !== 1 && record.version !== PORTABLE_PROJECT_VERSION)) throw new Error("This project file uses an unsupported format or version.");
-
-  const project = record.project;
-  if (typeof project !== "object" || project === null || Array.isArray(project)) throw new Error("The project file is incomplete.");
-  const projectRecord = project as Record<string, unknown>;
-  if (!nonEmptyName(projectRecord.name) || !projectDocument(projectRecord.document)) throw new Error("The project data in this file is invalid.");
+  const source = value as Record<string, unknown>;
+  if (source.format !== PORTABLE_PROJECT_FORMAT || (source.version !== 1 && source.version !== PORTABLE_PROJECT_VERSION)) {
+    throw new Error("This project file uses an unsupported format or version.");
+  }
+  if (typeof source.project !== "object" || source.project === null || Array.isArray(source.project)) throw new Error("The project file is incomplete.");
+  const projectSource = source.project as Record<string, unknown>;
+  const rawProjectDocument = projectSource.document;
+  const projectDocument = normalizeProjectDocument(rawProjectDocument, "project.document");
+  const project = { name: nonEmptyName(projectSource.name, "project.name"), document: projectDocument };
 
   // Backward-compatible import of the previous single-world export format.
-  if (record.version === 1) {
-    const world = record.world;
-    const scenarios = record.scenarios;
-    if (typeof world !== "object" || world === null || Array.isArray(world) || !Array.isArray(scenarios)) throw new Error("The project file is incomplete.");
-    const worldRecord = world as Record<string, unknown>;
-    const convertedWorld = { name: worldRecord.name, document: worldRecord.document, scenarios };
-    if (!portableWorld(convertedWorld)) throw new Error("The world or scenario data in this file is invalid.");
-    const activeScenarioIndex = record.activeScenarioIndex;
-    if (typeof activeScenarioIndex !== "number" || !Number.isInteger(activeScenarioIndex) || activeScenarioIndex < 0 || activeScenarioIndex >= scenarios.length) throw new Error("The active scenario in this file is invalid.");
+  if (source.version === 1) {
+    if (!Array.isArray(source.scenarios)) throw new Error("The project file is incomplete.");
+    if (typeof source.world !== "object" || source.world === null || Array.isArray(source.world)) throw new Error("The project file is incomplete.");
+    const worldSource = source.world as Record<string, unknown>;
+    const world = portableWorld({ ...worldSource, scenarios: source.scenarios }, projectDocument, "world");
     return {
       format: PORTABLE_PROJECT_FORMAT,
       version: PORTABLE_PROJECT_VERSION,
-      exportedAt: typeof record.exportedAt === "string" ? record.exportedAt : new Date().toISOString(),
-      project: clone(projectRecord) as PortableProjectFile["project"],
-      worlds: [clone(convertedWorld) as PortableWorld],
+      exportedAt: exportedAt(source.exportedAt, true),
+      project,
+      worlds: [world],
       activeWorldIndex: 0,
-      activeScenarioIndex,
+      activeScenarioIndex: index(source.activeScenarioIndex, world.scenarios.length, "The active scenario in this file"),
     };
   }
 
-  const worlds = record.worlds;
-  if (!Array.isArray(worlds) || !worlds.length || !worlds.every(portableWorld)) throw new Error("The world data in this file is invalid.");
-  const activeWorldIndex = record.activeWorldIndex;
-  const activeScenarioIndex = record.activeScenarioIndex;
-  if (typeof activeWorldIndex !== "number" || !Number.isInteger(activeWorldIndex) || activeWorldIndex < 0 || activeWorldIndex >= worlds.length) throw new Error("The active world in this file is invalid.");
-  const activeWorld = worlds[activeWorldIndex] as PortableWorld;
-  if (typeof activeScenarioIndex !== "number" || !Number.isInteger(activeScenarioIndex) || activeScenarioIndex < 0 || activeScenarioIndex >= activeWorld.scenarios.length) throw new Error("The active scenario in this file is invalid.");
-  return clone(value) as PortableProjectFile;
+  if (!Array.isArray(source.worlds) || !source.worlds.length) throw new Error("The world data in this file is invalid.");
+  const worlds = source.worlds.map((world, worldIndex) => portableWorld(world, projectDocument, `worlds[${worldIndex}]`));
+  const activeWorldIndex = index(source.activeWorldIndex, worlds.length, "The active world in this file");
+  const activeScenarioIndex = index(source.activeScenarioIndex, worlds[activeWorldIndex].scenarios.length, "The active scenario in this file");
+  return {
+    format: PORTABLE_PROJECT_FORMAT,
+    version: PORTABLE_PROJECT_VERSION,
+    exportedAt: exportedAt(source.exportedAt),
+    project,
+    worlds,
+    activeWorldIndex,
+    activeScenarioIndex,
+  };
 }
-
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 export function createPortableProject(input: {
   projectName: string;
   projectDocument: ProjectDocument;
-  worlds: PortableWorld[];
+  worlds: PortableWorldInput[];
   activeWorldIndex: number;
   activeScenarioIndex: number;
 }): PortableProjectFile {
+  const projectDocument = normalizeProjectDocument(input.projectDocument);
+  const worlds = input.worlds.map((world, worldIndex) => portableWorld(world, projectDocument, `worlds[${worldIndex}]`));
+  const activeWorldIndex = index(input.activeWorldIndex, worlds.length, "The active world");
+  const activeScenarioIndex = index(input.activeScenarioIndex, worlds[activeWorldIndex].scenarios.length, "The active scenario");
   return {
     format: PORTABLE_PROJECT_FORMAT,
     version: PORTABLE_PROJECT_VERSION,
     exportedAt: new Date().toISOString(),
-    project: { name: input.projectName, document: clone(input.projectDocument) },
-    worlds: clone(input.worlds),
-    activeWorldIndex: input.activeWorldIndex,
-    activeScenarioIndex: input.activeScenarioIndex,
+    project: { name: nonEmptyName(input.projectName, "project.name"), document: clone(projectDocument) },
+    worlds: clone(worlds),
+    activeWorldIndex,
+    activeScenarioIndex,
   };
 }
 
@@ -146,11 +146,12 @@ export function projectFileName(name: string) {
 }
 
 export function downloadPortableProject(file: PortableProjectFile) {
-  const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
+  const canonical = parsePortableProject(file);
+  const blob = new Blob([JSON.stringify(canonical, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = projectFileName(file.project.name);
+  anchor.download = projectFileName(canonical.project.name);
   anchor.click();
   URL.revokeObjectURL(url);
 }

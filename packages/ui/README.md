@@ -15,7 +15,7 @@ import "@chargedup/ui/theme.css";
 
 `Button` forwards its DOM ref and native button props. It defaults to `variant="primary"` and `type="button"`; set `type="submit"` explicitly inside forms when required.
 
-Run `pnpm dev:ui` from the repository root to review the package on port 5174.
+Run `pnpm dev:ui` from the repository root to launch the Vite React showcase app on port 5174. The showcase lives in `apps/ui-showcase`; this package contains reusable library source only.
 
 ## Token extension rules
 
