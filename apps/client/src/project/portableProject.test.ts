@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
 import { createDocument } from "../state/sceneStore";
 import { loadDefaultPresets } from "../vehicles/defaults";
 import { createPortableProject, parsePortableProject, projectFileName } from "./portableProject";
@@ -7,10 +8,10 @@ describe("portable project files", () => {
   it("round-trips a valid multi-world project snapshot", () => {
     const file = createPortableProject({
       projectName: "Depot Study",
-      projectDocument: { version: 2, vehiclePresets: loadDefaultPresets() },
+      projectDocument: sim01Project,
       worlds: [
-        { name: "Main Depot", document: createDocument(), scenarios: [{ name: "Plan A", document: { version: 1 } }] },
-        { name: "Second Depot", document: createDocument(), scenarios: [{ name: "Plan B", document: { version: 1 } }] },
+        { name: "Main Depot", document: createDocument(), scenarios: [{ name: "Plan A", document: sim01Scenario }] },
+        { name: "Second Depot", document: createDocument(), scenarios: [{ name: "Plan B", document: sim01Scenario }] },
       ],
       activeWorldIndex: 1,
       activeScenarioIndex: 0,
