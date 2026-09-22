@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
+import { createMockPresets } from "../domain/mockProject";
 import { createDocument } from "../state/sceneStore";
-import { loadDefaultPresets } from "../vehicles/defaults";
 import { createPortableProject, parsePortableProject, projectFileName } from "./portableProject";
 
 describe("portable project files", () => {
   it("round-trips a valid multi-world project snapshot", () => {
     const file = createPortableProject({
       projectName: "Depot Study",
-      projectDocument: { version: 2, vehiclePresets: loadDefaultPresets() },
+      projectDocument: sim01Project,
       worlds: [
-        { name: "Main Depot", document: createDocument(), scenarios: [{ name: "Plan A", document: { version: 1 } }] },
-        { name: "Second Depot", document: createDocument(), scenarios: [{ name: "Plan B", document: { version: 1 } }] },
+        { name: "Main Depot", document: createDocument(), scenarios: [{ name: "Plan A", document: sim01Scenario }] },
+        { name: "Second Depot", document: createDocument(), scenarios: [{ name: "Plan B", document: sim01Scenario }] },
       ],
       activeWorldIndex: 1,
       activeScenarioIndex: 0,
@@ -25,7 +26,7 @@ describe("portable project files", () => {
       format: "fleet-transition-planner-project",
       version: 1,
       exportedAt: new Date().toISOString(),
-      project: { name: "Old", document: { version: 2, vehiclePresets: loadDefaultPresets() } },
+      project: { name: "Old", document: { version: 2, vehiclePresets: createMockPresets() } },
       world: { name: "World", document: createDocument() },
       scenarios: [{ name: "Plan A", document: { version: 1 } }],
       activeScenarioIndex: 0,

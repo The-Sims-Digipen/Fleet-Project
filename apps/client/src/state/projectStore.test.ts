@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createMemoryProjectRepository, ProjectConflictError } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
 import { validateName } from "../project/types";
-import { loadDefaultPresets } from "../vehicles/defaults";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
+import { useFleetStore } from "./fleetStore";
 import { usePresetStore } from "./presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "./projectStore";
 import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
@@ -14,10 +15,12 @@ const activeName = () => project().scenarios.find((scenario) => scenario.id === 
 beforeEach(() => {
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   const document = createDocument();
-  const presets = loadDefaultPresets();
-  usePresetStore.getState().replacePresets(presets);
+  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  usePresetStore.getState().replacePresets(inputs.presets);
+  useFleetStore.getState().updateAnalysis(inputs.analysis);
+  useFleetStore.getState().replaceFleet(inputs.fleet);
   useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  useProjectStore.setState(createProjectFields("Untitled project", document, 0, presets));
+  useProjectStore.setState(createProjectFields("Untitled project", document, 0, inputs));
 });
 
 describe("project/world/scenario workspace", () => {
@@ -69,6 +72,7 @@ describe("project/world/scenario workspace", () => {
     project().updateScenarioVehiclePlan(scenarioId, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
     await project().saveProject();
     const projectId = project().projectId!;
+    expect(JSON.parse(project().baseline).worlds[0].scenarios[0].document.version).toBe(2);
 
     project().newProject("Other");
     await project().openProject(projectId);
@@ -202,11 +206,18 @@ describe("project/world/scenario workspace", () => {
   it("exports and imports all in-memory worlds", async () => {
     project().newWorld();
     project().renameWorld("Second world");
+    await project().saveProject();
+    const originalProjectId = project().projectId;
+    const originalWorldIds = project().worlds.map((world) => world.id);
+    const originalScenarioIds = project().worlds.flatMap((world) => world.scenarios.map((scenario) => scenario.id));
     const exported = project().exportProject();
     expect(exported.worlds).toHaveLength(2);
 
     await project().importProject(exported);
     expect(project().projectId).not.toBeNull();
+    expect(project().projectId).not.toBe(originalProjectId);
+    expect(project().worlds.every((world) => !originalWorldIds.includes(world.id))).toBe(true);
+    expect(project().worlds.flatMap((world) => world.scenarios).every((scenario) => !originalScenarioIds.includes(scenario.id))).toBe(true);
     expect(project().worlds).toHaveLength(2);
     expect(project().worldName).toBe("Second world");
   });
