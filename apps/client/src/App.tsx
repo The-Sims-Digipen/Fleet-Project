@@ -9,7 +9,7 @@ import { ResizableWorkspace } from "./components/ResizableWorkspace";
 import { Sidebar } from "./components/Sidebar";
 import { TransformToolbar } from "./components/TransformToolbar";
 import { topBarControl, topBarControlActive, topBarStatus } from "./components/topBarStyles";
-import { useFleetStore } from "./state/fleetStore";
+import { useFleetVehicles } from "./state/fleetStore";
 import { usePresetStore } from "./state/presetStore";
 import { useProjectStore } from "./state/projectStore";
 import { useTimelineStore } from "./state/timelineStore";
@@ -30,7 +30,7 @@ export default function App() {
   const [cameraReset, setCameraReset] = useState(0);
   const [fleetPreviewOpen, setFleetPreviewOpen] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("plan");
-  const vehicles = useFleetStore((state) => state.vehicles);
+  const vehicles = useFleetVehicles();
   const selectedYear = useTimelineStore((state) => state.selectedYear);
   const presets = usePresetStore((state) => state.presets);
   const scenarios = useProjectStore((state) => state.scenarios);

@@ -9,8 +9,10 @@ import {
   type M1VehiclePreset,
   type ScenarioAssumptions,
   type ScenarioVehiclePlan,
+  type VehicleData,
 } from "../domain/contracts";
-import type { Appearance, SceneDocument, SceneObject, Transform, Vector3 } from "../scene/types";
+import { fleetFromDocument, placeMigratedFleet } from "../domain/worldFleet";
+import { SCENE_DOCUMENT_VERSION, type Appearance, type SceneDocument, type SceneObject, type Transform, type Vector3 } from "../scene/types";
 import { normalizePreset } from "../vehicles/types";
 import type {
   WorkspaceRecord,
@@ -36,17 +38,6 @@ export const LEGACY_SCENARIO_ASSUMPTION_DEFAULTS: ScenarioAssumptions = {
   depotElectricityPricePerKWh: 0,
   externalElectricityPricePerKWh: 0,
 };
-
-// Version 2 projects used this fixed application fleet rather than storing it.
-// Reconstructing that historical source is the only lossless path to version 3.
-const LEGACY_FLEET = [
-  { id: "UNIT-01", name: "City Delivery Van", annualKm: 28_000, transitionYear: 2027, currentPresetId: "diesel-van" },
-  { id: "UNIT-02", name: "Regional Hauler", annualKm: 54_000, transitionYear: 2029, currentPresetId: "diesel-box-truck" },
-  { id: "UNIT-03", name: "Urban Courier", annualKm: 19_000, transitionYear: 2026, currentPresetId: "electric-van" },
-  { id: "UNIT-04", name: "Service Support", annualKm: 32_000, transitionYear: 2028, currentPresetId: "hybrid-van" },
-  { id: "UNIT-05", name: "Depot Shuttle", annualKm: 24_000, transitionYear: 2030, currentPresetId: "diesel-van" },
-  { id: "UNIT-06", name: "Long-haul Supply", annualKm: 61_000, transitionYear: 2031, currentPresetId: "diesel-box-truck" },
-] as const;
 
 export class ProjectValidationError extends Error {
   constructor(message: string) {
@@ -217,52 +208,51 @@ function fleetVehicle(value: unknown, analysis: AnalysisSettings, path: string):
   };
 }
 
-/** Validate a current document or migrate the supported version 2 project document. */
-export function normalizeProjectDocument(value: unknown, path = "project.document"): M1ProjectDocument {
+/**
+ * A project document plus any fleet that has to be rehomed.
+ *
+ * Version 3 stored the fleet on the project. Vehicles now belong to the depot
+ * they stand in, so a version 3 document yields its vehicles separately for the
+ * workspace layer to place into the active world.
+ */
+export type ProjectDocumentRead = { document: M1ProjectDocument; displacedFleet: FleetVehicle[] };
+
+/** Validate a current document or migrate a supported legacy project document. */
+export function readProjectDocument(value: unknown, path = "project.document"): ProjectDocumentRead {
   const source = record(value, path);
+  // The version decides which shape to expect, so it is checked before the fields.
+  const legacyFleet = source.version === 3;
+  if (source.version !== 2 && !legacyFleet && source.version !== M1_PROJECT_DOCUMENT_VERSION) {
+    fail(`${path}.version`, `unsupported project document version “${String(source.version)}”.`);
+  }
+  if (!Array.isArray(source.vehiclePresets)) fail(`${path}.vehiclePresets`, "must be an array.");
+
   if (source.version === 2) {
-    if (!Array.isArray(source.vehiclePresets)) fail(`${path}.vehiclePresets`, "must be an array.");
     const vehiclePresets = source.vehiclePresets.map((preset, index) => legacyPreset(preset, `${path}.vehiclePresets[${index}]`));
     unique(vehiclePresets.map((preset) => preset.id), `${path}.vehiclePresets`);
-    const presetIds = new Set(vehiclePresets.map((preset) => preset.id));
-    const fleetVehicles: FleetVehicle[] = LEGACY_FLEET
-      .filter((vehicle) => presetIds.has(vehicle.currentPresetId))
-      .map((vehicle) => ({
-        id: vehicle.id,
-        name: vehicle.name,
-        currentPresetId: vehicle.currentPresetId,
-        annualKm: vehicle.annualKm,
-        typicalDailyKm: vehicle.annualKm / 260,
-        operatingDays: 260,
-        utilisation: 1,
-        routePattern: "predictable",
-        returnsToDepot: true,
-        depotDwellHours: 8,
-        externalChargingAccess: true,
-        replacementYear: null,
-        currentHolding: { kind: "owned", currentValue: 0, endResidualValue: 0 },
-      }));
-    return {
-      version: M1_PROJECT_DOCUMENT_VERSION,
-      vehiclePresets,
-      fleetVehicles,
-      analysis: clone(LEGACY_ANALYSIS_DEFAULTS),
-    };
+    // A version 2 document stored no fleet, so it reopens without one. Inventing
+    // vehicles here would present data the user never entered as their own.
+    return { document: { version: M1_PROJECT_DOCUMENT_VERSION, vehiclePresets, analysis: clone(LEGACY_ANALYSIS_DEFAULTS) }, displacedFleet: [] };
   }
-  if (source.version !== M1_PROJECT_DOCUMENT_VERSION) fail(`${path}.version`, `unsupported project document version “${String(source.version)}”.`);
-  if (!Array.isArray(source.vehiclePresets)) fail(`${path}.vehiclePresets`, "must be an array.");
-  if (!Array.isArray(source.fleetVehicles)) fail(`${path}.fleetVehicles`, "must be an array.");
+
   const analysis = analysisSettings(source.analysis, `${path}.analysis`);
   const vehiclePresets = source.vehiclePresets.map((preset, index) => currentPreset(preset, `${path}.vehiclePresets[${index}]`));
-  const fleetVehicles = source.fleetVehicles.map((vehicle, index) => fleetVehicle(vehicle, analysis, `${path}.fleetVehicles[${index}]`));
   unique(vehiclePresets.map((preset) => preset.id), `${path}.vehiclePresets`);
-  unique(fleetVehicles.map((vehicle) => vehicle.id), `${path}.fleetVehicles`);
+  const document: M1ProjectDocument = { version: M1_PROJECT_DOCUMENT_VERSION, vehiclePresets, analysis };
+  if (!legacyFleet) return { document, displacedFleet: [] };
+
+  if (!Array.isArray(source.fleetVehicles)) fail(`${path}.fleetVehicles`, "must be an array.");
+  const displacedFleet = source.fleetVehicles.map((vehicle, index) => fleetVehicle(vehicle, analysis, `${path}.fleetVehicles[${index}]`));
+  unique(displacedFleet.map((vehicle) => vehicle.id), `${path}.fleetVehicles`);
   const presetIds = new Set(vehiclePresets.map((preset) => preset.id));
-  for (const vehicle of fleetVehicles) {
+  for (const vehicle of displacedFleet) {
     if (!presetIds.has(vehicle.currentPresetId)) fail(`${path}.fleetVehicles[${vehicle.id}].currentPresetId`, `does not resolve to preset “${vehicle.currentPresetId}”.`);
   }
-  return { version: M1_PROJECT_DOCUMENT_VERSION, vehiclePresets, fleetVehicles, analysis };
+  return { document, displacedFleet };
 }
+
+/** The document alone, for callers with no world to rehome a legacy fleet into. */
+export const normalizeProjectDocument = (value: unknown, path = "project.document"): M1ProjectDocument => readProjectDocument(value, path).document;
 
 function scenarioPlan(value: unknown, path: string): ScenarioVehiclePlan {
   const source = record(value, path);
@@ -306,32 +296,28 @@ function scenarioAssumptions(value: unknown, path: string): ScenarioAssumptions 
   };
 }
 
-function legacyDefaultPlans(project: M1ProjectDocument): Record<string, ScenarioVehiclePlan> {
-  const presets = new Map(project.vehiclePresets.map((preset) => [preset.id, preset]));
-  const firstElectric = project.vehiclePresets.find((preset) => preset.propulsion === "electric");
-  const plans: Record<string, ScenarioVehiclePlan> = {};
-  for (const vehicle of project.fleetVehicles) {
-    const legacy = LEGACY_FLEET.find((item) => item.id === vehicle.id);
-    if (!legacy) continue;
-    const current = presets.get(vehicle.currentPresetId);
-    const target = project.vehiclePresets.find((preset) => preset.category === current?.category && preset.propulsion === "electric")
-      ?? firstElectric
-      ?? current;
-    if (target) plans[vehicle.id] = { transitionYear: legacy.transitionYear, targetPresetId: target.id };
-  }
-  return plans;
+/**
+ * Drops plan entries naming a vehicle the project no longer has.
+ *
+ * Only legacy documents are pruned. A version 2 project stored no fleet, so its
+ * scenarios can carry plans for vehicles that no longer exist; silently dropping
+ * those keeps the project openable. An authoritative version 2 scenario is held
+ * to the stricter rule in `validateScenarioReferences`, where a dangling
+ * reference is corruption rather than history.
+ */
+function prunedPlans(plans: Record<string, ScenarioVehiclePlan>, fleetVehicles: readonly FleetVehicle[]): Record<string, ScenarioVehiclePlan> {
+  const vehicleIds = new Set(fleetVehicles.map((vehicle) => vehicle.id));
+  return Object.fromEntries(Object.entries(plans).filter(([vehicleId]) => vehicleIds.has(vehicleId)));
 }
 
 /** Validate a current document or migrate the supported version 1 scenario document. */
-export function normalizeScenarioDocument(value: unknown, path = "scenario.document", project?: M1ProjectDocument): M1ScenarioDocument {
+export function normalizeScenarioDocument(value: unknown, path = "scenario.document", fleetVehicles?: readonly FleetVehicle[]): M1ScenarioDocument {
   const source = record(value, path);
   if (source.version === 1) {
+    const stored = vehiclePlans(source.vehiclePlans, `${path}.vehiclePlans`);
     return {
       version: M1_SCENARIO_DOCUMENT_VERSION,
-      vehiclePlans: {
-        ...(project ? legacyDefaultPlans(project) : {}),
-        ...vehiclePlans(source.vehiclePlans, `${path}.vehiclePlans`),
-      },
+      vehiclePlans: fleetVehicles ? prunedPlans(stored, fleetVehicles) : stored,
       assumptions: clone(LEGACY_SCENARIO_ASSUMPTION_DEFAULTS),
     };
   }
@@ -343,12 +329,12 @@ export function normalizeScenarioDocument(value: unknown, path = "scenario.docum
   };
 }
 
-export function validateScenarioReferences(project: M1ProjectDocument, scenario: M1ScenarioDocument, path = "scenario.document"): void {
+export function validateScenarioReferences(project: M1ProjectDocument, fleetVehicles: readonly FleetVehicle[], scenario: M1ScenarioDocument, path = "scenario.document"): void {
   const presetIds = new Set(project.vehiclePresets.map((preset) => preset.id));
-  const vehicleIds = new Set(project.fleetVehicles.map((vehicle) => vehicle.id));
+  const vehicleIds = new Set(fleetVehicles.map((vehicle) => vehicle.id));
   const endYear = analysisEndYear(project.analysis);
   for (const [vehicleId, plan] of Object.entries(scenario.vehiclePlans)) {
-    if (!vehicleIds.has(vehicleId)) fail(`${path}.vehiclePlans.${vehicleId}`, `does not resolve to a project fleet vehicle.`);
+    if (!vehicleIds.has(vehicleId)) fail(`${path}.vehiclePlans.${vehicleId}`, `does not resolve to a vehicle in this depot.`);
     if (plan.targetPresetId && !presetIds.has(plan.targetPresetId)) fail(`${path}.vehiclePlans.${vehicleId}.targetPresetId`, `does not resolve to preset “${plan.targetPresetId}”.`);
     if (plan.transitionYear !== undefined && plan.transitionYear !== null
       && (plan.transitionYear < project.analysis.startYear || plan.transitionYear > endYear)) {
@@ -388,6 +374,37 @@ function appearance(value: unknown, path: string): Appearance {
   return normalized;
 }
 
+/** Planning data on a placed vehicle. Mirrors the live-edit rules in domain/fleet.ts. */
+function vehicleData(value: unknown, path: string): VehicleData {
+  const source = record(value, path);
+  const utilisation = nonnegative(source.utilisation, `${path}.utilisation`);
+  if (utilisation > 1) fail(`${path}.utilisation`, "must be between 0 and 1.");
+  const operatingDays = integer(source.operatingDays, `${path}.operatingDays`);
+  if (operatingDays < 0 || operatingDays > 366) fail(`${path}.operatingDays`, "must be between 0 and 366.");
+  const depotDwellHours = nonnegative(source.depotDwellHours, `${path}.depotDwellHours`);
+  if (depotDwellHours > 24) fail(`${path}.depotDwellHours`, "must be between 0 and 24.");
+  if (source.routePattern !== "predictable" && source.routePattern !== "variable") fail(`${path}.routePattern`, "must be “predictable” or “variable”.");
+  const replacementYear = source.replacementYear === null ? null : integer(source.replacementYear, `${path}.replacementYear`);
+  const holding = record(source.currentHolding, `${path}.currentHolding`);
+  const currentHolding = holding.kind === "owned"
+    ? { kind: "owned" as const, currentValue: nonnegative(holding.currentValue, `${path}.currentHolding.currentValue`), endResidualValue: nonnegative(holding.endResidualValue, `${path}.currentHolding.endResidualValue`) }
+    : holding.kind === "leased"
+      ? { kind: "leased" as const, annualPayment: nonnegative(holding.annualPayment, `${path}.currentHolding.annualPayment`), exitFee: nonnegative(holding.exitFee, `${path}.currentHolding.exitFee`) }
+      : fail(`${path}.currentHolding.kind`, "must be “owned” or “leased”.");
+  return {
+    annualKm: nonnegative(source.annualKm, `${path}.annualKm`),
+    typicalDailyKm: nonnegative(source.typicalDailyKm, `${path}.typicalDailyKm`),
+    operatingDays,
+    utilisation,
+    routePattern: source.routePattern,
+    returnsToDepot: boolean(source.returnsToDepot, `${path}.returnsToDepot`),
+    externalChargingAccess: boolean(source.externalChargingAccess, `${path}.externalChargingAccess`),
+    depotDwellHours,
+    replacementYear,
+    currentHolding,
+  };
+}
+
 function sceneObject(value: unknown, path: string): SceneObject {
   const source = record(value, path);
   const normalized: SceneObject = {
@@ -398,18 +415,21 @@ function sceneObject(value: unknown, path: string): SceneObject {
     appearance: appearance(source.appearance, `${path}.appearance`),
   };
   if (source.presetId !== undefined) normalized.presetId = id(source.presetId, `${path}.presetId`);
+  // Only a preset placement can be a vehicle; planning data without one is scenery.
+  if (source.vehicle !== undefined && normalized.presetId !== undefined) normalized.vehicle = vehicleData(source.vehicle, `${path}.vehicle`);
   return normalized;
 }
 
 export function normalizeSceneDocument(value: unknown, path = "world.document"): SceneDocument {
   const source = record(value, path);
-  if (source.version !== 3) fail(`${path}.version`, `unsupported world document version “${String(source.version)}”.`);
+  // Version 3 predates per-object vehicle data and simply carries none.
+  if (source.version !== 3 && source.version !== SCENE_DOCUMENT_VERSION) fail(`${path}.version`, `unsupported world document version “${String(source.version)}”.`);
   if (!Array.isArray(source.objects)) fail(`${path}.objects`, "must be an array.");
   const objects = source.objects.map((object, index) => sceneObject(object, `${path}.objects[${index}]`));
   unique(objects.map((object) => object.id), `${path}.objects`);
   const light = finite(source.light, `${path}.light`);
   if (light < 0 || light > 100) fail(`${path}.light`, "must be between 0 and 100.");
-  return { version: 3, light, objects };
+  return { version: SCENE_DOCUMENT_VERSION, light, objects };
 }
 
 function validateWorkspaceShape(input: WorkspaceSaveInput): void {
@@ -440,18 +460,23 @@ export function normalizeWorkspaceSaveInput(input: WorkspaceSaveInput): Workspac
   if (worlds.some((world) => world.expectedRevision < 0)) fail("worlds.expectedRevision", "must be nonnegative.");
   const worldIds = new Set(worlds.map((world) => world.id));
   if (!worldIds.has(input.project.activeWorldId)) fail("project.activeWorldId", "must resolve to a world in this project.");
+  // A scenario is bound to one world, so its plans are checked against that
+  // depot's own vehicles rather than against every vehicle in the project.
+  const fleetByWorld = new Map(worlds.map((world) => [world.id, fleetFromDocument(world.document)]));
   const scenarios = input.scenarios.map((scenario, index) => {
     const path = `scenarios[${index}]`;
+    const worldId = id(scenario.worldId, `${path}.worldId`);
+    if (!worldIds.has(worldId)) fail(`${path}.worldId`, "must resolve to a world in this project.");
+    const fleet = fleetByWorld.get(worldId) ?? [];
     const normalized = {
       id: id(scenario.id, `${path}.id`),
-      worldId: id(scenario.worldId, `${path}.worldId`),
+      worldId,
       name: text(scenario.name, `${path}.name`),
       expectedRevision: integer(scenario.expectedRevision, `${path}.expectedRevision`),
-      document: normalizeScenarioDocument(scenario.document, `${path}.document`, projectDocument),
+      document: normalizeScenarioDocument(scenario.document, `${path}.document`, fleet),
     };
     if (normalized.expectedRevision < 0) fail(`${path}.expectedRevision`, "must be nonnegative.");
-    if (!worldIds.has(normalized.worldId)) fail(`${path}.worldId`, "must resolve to a world in this project.");
-    validateScenarioReferences(projectDocument, normalized.document, `${path}.document`);
+    validateScenarioReferences(projectDocument, fleet, normalized.document, `${path}.document`);
     return normalized;
   });
   for (const world of worlds) {
@@ -476,14 +501,28 @@ export function normalizeWorkspaceSaveInput(input: WorkspaceSaveInput): Workspac
 export function normalizeWorkspaceRecord(workspace: WorkspaceRecord): WorkspaceRecord {
   const worldIds = new Set(workspace.worlds.map((world) => world.id));
   if (!worldIds.has(workspace.project.worldId)) fail("project.worldId", "must resolve to a stored project world.");
-  const projectDocument = normalizeProjectDocument(workspace.project.document);
+  const { document: projectDocument, displacedFleet } = readProjectDocument(workspace.project.document);
+
+  const worlds = workspace.worlds.map((world, index) => {
+    const document = normalizeSceneDocument(world.document, `worlds[${index}].document`);
+    // A project saved while the fleet was project-wide puts its vehicles into
+    // the depot that was active, laid out in a row. Ids are preserved so the
+    // scenario plans that name them keep resolving.
+    const placed = world.id === workspace.project.worldId && displacedFleet.length
+      ? placeMigratedFleet(displacedFleet, projectDocument.vehiclePresets, document.objects)
+      : [];
+    return { ...clone(world), document: placed.length ? { ...document, objects: [...document.objects, ...placed] } : document };
+  });
+  const fleetByWorld = new Map(worlds.map((world) => [world.id, fleetFromDocument(world.document)]));
+
   return {
     project: { ...clone(workspace.project), document: projectDocument },
-    worlds: workspace.worlds.map((world, index) => ({ ...clone(world), document: normalizeSceneDocument(world.document, `worlds[${index}].document`) })),
+    worlds,
     scenarios: workspace.scenarios.map((scenario, index) => {
       if (!worldIds.has(scenario.worldId)) fail(`scenarios[${index}].worldId`, "must resolve to a stored project world.");
-      const document = normalizeScenarioDocument(scenario.document, `scenarios[${index}].document`, projectDocument);
-      validateScenarioReferences(projectDocument, document, `scenarios[${index}].document`);
+      const fleet = fleetByWorld.get(scenario.worldId) ?? [];
+      const document = normalizeScenarioDocument(scenario.document, `scenarios[${index}].document`, fleet);
+      validateScenarioReferences(projectDocument, fleet, document, `scenarios[${index}].document`);
       return { ...clone(scenario), document };
     }),
   };

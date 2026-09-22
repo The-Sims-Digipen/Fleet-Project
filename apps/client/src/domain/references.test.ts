@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { M1ProjectDocument } from "./contracts";
-import { sim01Project } from "./m1Fixture";
+import { sim01Fleet, sim01Project } from "./m1Fixture";
 import { describePresetReference, findPresetReferences, findReferenceIssues, findVehiclePlanReferences, withoutVehiclePlan, type ScenarioPlans } from "./references";
 
 const scenarios: ScenarioPlans[] = [
@@ -10,19 +10,19 @@ const scenarios: ScenarioPlans[] = [
 
 describe("preset references", () => {
   it("finds both fleet and scenario uses of a preset", () => {
-    expect(findPresetReferences("sim01-diesel", sim01Project.fleetVehicles, scenarios)).toEqual([
+    expect(findPresetReferences("sim01-diesel", sim01Fleet, scenarios)).toEqual([
       { kind: "fleet-current", vehicleId: "SIM01-VEHICLE", vehicleName: "SIM01 vehicle" },
     ]);
-    expect(findPresetReferences("sim01-electric", sim01Project.fleetVehicles, scenarios)).toEqual([
+    expect(findPresetReferences("sim01-electric", sim01Fleet, scenarios)).toEqual([
       { kind: "scenario-target", scenarioId: "plan-a", scenarioName: "Plan A", vehicleId: "SIM01-VEHICLE" },
     ]);
     // An unused preset is free to delete.
-    expect(findPresetReferences("unused", sim01Project.fleetVehicles, scenarios)).toEqual([]);
+    expect(findPresetReferences("unused", sim01Fleet, scenarios)).toEqual([]);
   });
 
   it("describes each reference so a blocked deletion can say what to fix", () => {
-    const [fleetUse] = findPresetReferences("sim01-diesel", sim01Project.fleetVehicles, scenarios);
-    const [scenarioUse] = findPresetReferences("sim01-electric", sim01Project.fleetVehicles, scenarios);
+    const [fleetUse] = findPresetReferences("sim01-diesel", sim01Fleet, scenarios);
+    const [scenarioUse] = findPresetReferences("sim01-electric", sim01Fleet, scenarios);
     expect(describePresetReference(fleetUse)).toContain("current preset");
     expect(describePresetReference(scenarioUse)).toContain("Plan A");
   });
@@ -46,16 +46,16 @@ describe("vehicle plan references", () => {
 
 describe("workspace reference invariants", () => {
   it("accepts a project whose references all resolve", () => {
-    expect(findReferenceIssues(sim01Project, scenarios)).toEqual([]);
+    expect(findReferenceIssues(sim01Project, sim01Fleet, scenarios)).toEqual([]);
   });
 
   it("reports duplicate ids, dangling references and out-of-period years", () => {
     const duplicated: M1ProjectDocument = {
       ...sim01Project,
       vehiclePresets: [...sim01Project.vehiclePresets, sim01Project.vehiclePresets[0]],
-      fleetVehicles: [...sim01Project.fleetVehicles, { ...sim01Project.fleetVehicles[0], replacementYear: 2099 }],
     };
-    const issues = findReferenceIssues(duplicated, [
+    const duplicatedFleet = [...sim01Fleet, { ...sim01Fleet[0], replacementYear: 2099 }];
+    const issues = findReferenceIssues(duplicated, duplicatedFleet, [
       { id: "plan-c", name: "Plan C", vehiclePlans: { ghost: { transitionYear: 2027 } } },
       { id: "plan-d", name: "Plan D", vehiclePlans: { "SIM01-VEHICLE": { transitionYear: 2099, targetPresetId: "gone" } } },
     ]);
@@ -69,6 +69,6 @@ describe("workspace reference invariants", () => {
 
   it("reports a fleet vehicle whose current preset was removed", () => {
     const orphaned: M1ProjectDocument = { ...sim01Project, vehiclePresets: sim01Project.vehiclePresets.filter((preset) => preset.id !== "sim01-diesel") };
-    expect(findReferenceIssues(orphaned, [])).toEqual([`SIM01-VEHICLE references missing preset "sim01-diesel".`]);
+    expect(findReferenceIssues(orphaned, sim01Fleet, [])).toEqual([`SIM01-VEHICLE references missing preset "sim01-diesel".`]);
   });
 });

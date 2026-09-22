@@ -1,7 +1,8 @@
 import { create } from "zustand";
 
 import { createObject, getDefinition } from "../scene/catalog";
-import { copyTransform, type Appearance, type SceneDocument, type SceneObject, type Transform, type TransformProperty, type Vector3 } from "../scene/types";
+import type { VehicleData } from "../domain/contracts";
+import { copyTransform, SCENE_DOCUMENT_VERSION, type Appearance, type SceneDocument, type SceneObject, type Transform, type TransformProperty, type Vector3 } from "../scene/types";
 
 export type TransformMode = "translate" | "rotate" | "scale";
 export type TransformSpace = "world" | "local";
@@ -12,15 +13,16 @@ export type EditorState = {
   snapEnabled: boolean;
 };
 
+/** A new depot starts empty: everything in it is placed deliberately. */
 export function createDocument(): SceneDocument {
   return {
-    version: 3,
+    version: SCENE_DOCUMENT_VERSION,
     light: 65,
-    objects: [createObject("van", "sample")!],
+    objects: [],
   };
 }
 
-export function createEditorState(selectedObjectId: string | null = "sample"): EditorState {
+export function createEditorState(selectedObjectId: string | null = null): EditorState {
   return { selectedObjectId, transformMode: "translate", transformSpace: "world", snapEnabled: true };
 }
 
@@ -38,6 +40,12 @@ type SceneState = {
   updateAppearance: (id: string, patch: Appearance) => void;
   restoreAppearance: (id: string) => void;
   addObject: (definitionId: string, presetId?: string, name?: string) => void;
+  /** Adds an object the domain layer has already built, as one undoable edit. */
+  insertObject: (object: SceneObject) => void;
+  /** Replaces a placed vehicle's planning data. Scenery objects are ignored. */
+  updateVehicleData: (id: string, data: VehicleData) => void;
+  /** Repoints a placed vehicle at another preset, which also changes its model. */
+  updateObjectPreset: (id: string, presetId: string) => void;
   deleteObject: (id: string) => void;
   setLight: (value: number) => void;
   resetObject: (id: string) => void;
@@ -127,6 +135,23 @@ export const useSceneStore = create<SceneState>((set, get) => {
       get().commitEdit();
       change({ ...get().document, objects: [...get().document.objects, object] });
       patchEditor({ selectedObjectId: object.id });
+    },
+    insertObject: (object) => {
+      if (get().document.objects.some((existing) => existing.id === object.id)) return;
+      get().commitEdit();
+      change({ ...get().document, objects: [...get().document.objects, object] });
+      patchEditor({ selectedObjectId: object.id });
+    },
+    updateVehicleData: (id, data) => {
+      const object = get().document.objects.find((item) => item.id === id);
+      if (!object?.vehicle) return;
+      changeObject(id, { vehicle: data });
+    },
+    updateObjectPreset: (id, presetId) => {
+      const object = get().document.objects.find((item) => item.id === id);
+      if (!object || !presetId) return;
+      get().commitEdit();
+      changeObject(id, { presetId });
     },
     deleteObject: (id) => {
       get().commitEdit();

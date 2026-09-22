@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { objectDefinitions } from "../scene/catalog";
 import type { SceneObject } from "../scene/types";
 import { useResolvedName } from "../state/presetStore";
+import { deleteFleetVehicle, vehicleDeletionImpact } from "../domain/fleetCommands";
+import { isVehicleObject } from "../domain/worldFleet";
 import { useSceneStore } from "../state/sceneStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 
@@ -66,13 +68,25 @@ export function WorldObjects() {
   const selectObject = useSceneStore((state) => state.selectObject);
   const deleteObject = useSceneStore((state) => state.deleteObject);
   const [adding, setAdding] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const hasSelection = objects.some((object) => object.id === selectedId);
+
+  // Deleting a vehicle takes its scenario plans with it, so that path asks first
+  // wherever it starts. Plain scenery deletes straight away as it always has.
+  const selected = objects.find((object) => object.id === selectedId);
+  const confirmingVehicle = objects.find((object) => object.id === confirming);
+  const affectedPlans = confirming ? vehicleDeletionImpact(confirming) : [];
+  const requestDelete = () => {
+    if (!selectedId || !selected) return;
+    if (isVehicleObject(selected)) setConfirming(selectedId);
+    else deleteObject(selectedId);
+  };
 
   return <CollapsibleSection title="World Objects" defaultOpen onBeforeCollapse={() => useSceneStore.getState().commitEdit()}>
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
         <button type="button" className={actionClass} onClick={() => { useSceneStore.getState().commitEdit(); setAdding(true); }}>Add Object</button>
-        <button type="button" className={actionClass} disabled={!hasSelection} onClick={() => { if (selectedId) deleteObject(selectedId); }}>Delete Object</button>
+        <button type="button" className={actionClass} disabled={!hasSelection} onClick={requestDelete}>Delete Object</button>
         <span className="ml-auto text-xs text-secondary">{objects.length}</span>
       </div>
       <div className="h-44 overflow-y-auto overscroll-contain p-1">
@@ -86,6 +100,15 @@ export function WorldObjects() {
         <button type="button" className="min-h-6 hover:text-primary disabled:opacity-40" disabled={!hasSelection} onClick={() => selectObject(null)}>Clear selection</button>
       </div>
     </div>
+    {confirmingVehicle && <div role="alert" className="mt-3 rounded border border-line-strong bg-[#241a12] p-3 text-xs text-secondary">
+      <p className="mb-2.5">Delete <b className="text-primary">{confirmingVehicle.name}</b>? It is a vehicle in this depot, so it leaves the fleet too.{affectedPlans.length
+        ? ` ${affectedPlans.length} scenario ${affectedPlans.length === 1 ? "plan loses its" : "plans lose their"} transition entry: ${affectedPlans.map((reference) => reference.scenarioName).join(", ")}.`
+        : " No scenario plans reference it."}</p>
+      <span className="flex gap-2">
+        <button type="button" className={actionClass} onClick={() => { deleteFleetVehicle(confirmingVehicle.id); setConfirming(null); }}>Delete vehicle</button>
+        <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Cancel</button>
+      </span>
+    </div>}
     {adding && <AddObjectDialog onDismiss={() => setAdding(false)} />}
   </CollapsibleSection>;
 }

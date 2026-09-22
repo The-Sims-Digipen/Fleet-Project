@@ -7,7 +7,8 @@ Technical design for persistent fleet projects. A project contains shared projec
 | Entity | Principal data | Relationship / purpose |
 |---|---|---|
 | Project | ID, name, revision, timestamps, project document | One saved workspace referencing one World |
-| Vehicle preset | Stable ID, name/category, propulsion/energy source, efficiency/range/charging capability, economics | Project-level reusable preset |
+| Vehicle preset | Stable ID, name/category, propulsion/energy source, efficiency/range/charging capability, economics | Project-level reusable type, shared by every World |
+| Fleet vehicle | A World object carrying a preset reference plus planning data | Belongs to the depot it stands in; placing a preset creates one |
 | World | ID, name, revision, objects, transforms, scene settings | Reusable physical 3D depot |
 | Scenario | ID, world ID, name, revision, planning inputs | Independent plan bound to one World; never embeds the World |
 | ProjectScenario | Project ID, Scenario ID, World ID, order | Links compatible scenarios to a project |
@@ -15,9 +16,11 @@ Technical design for persistent fleet projects. A project contains shared projec
 
 Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication copies planning data only; the project continues to reference the same World.
 
-T03 Fleet & Scenario Data Engine owns the canonical fleet/scenario contracts. Per-vehicle transition decisions live in `ScenarioDocument.vehiclePlans`, keyed by stable shared fleet vehicle ID. Each entry may contain `transitionYear` and `targetPresetId`. These are scenario-owned inputs: duplicating a scenario deep-copies them, editing one scenario must not mutate another, and derived results are never persisted. The structure remains intentionally compatible with the fuller scenario contract described in the simulation design.
+T03 Fleet & Scenario Data Engine owns the canonical fleet/scenario contracts. Per-vehicle transition decisions live in `ScenarioDocument.vehiclePlans`, keyed by the stable ID of a vehicle in the World that scenario is bound to. Each entry may contain `transitionYear` and `targetPresetId`. These are scenario-owned inputs: duplicating a scenario deep-copies them, editing one scenario must not mutate another, and derived results are never persisted. The structure remains intentionally compatible with the fuller scenario contract described in the simulation design.
 
-The importable M1 shapes live in `apps/client/src/domain/contracts.ts`; the team integration and ownership rules are in the [M1 integration contract](m1-integration-contract.md). Project document version 3 adds the real fleet and common analysis settings to the existing preset library. Scenario document version 2 adds explicit scenario assumptions while retaining vehicle plans. Version 2/1 project/scenario documents are legacy inputs during migration, not shapes for new feature work.
+The importable M1 shapes live in `apps/client/src/domain/contracts.ts`; the team integration and ownership rules are in the [M1 integration contract](m1-integration-contract.md). Project document version 4 holds the inputs every depot shares: the preset library and the analysis settings. World document version 4 adds `SceneObject.vehicle`, so a depot's fleet travels with its geometry. Scenario document version 2 adds explicit scenario assumptions while retaining vehicle plans. Project versions 2 and 3, scenario version 1 and world version 3 are legacy inputs during migration, not shapes for new feature work.
+
+Because a vehicle is a World object, placing, editing and deleting one are ordinary scene edits and are therefore covered by scene undo. Vehicle presets remain project data and stay outside scene undo.
 
 Common fuel price and emissions factors are project-owned so every scenario uses the same explicit baseline. Electricity tariffs, charging strategy/share and transition choices are scenario-owned because those inputs may differ between plans. Simulation and analytics results remain derived and are not saved.
 

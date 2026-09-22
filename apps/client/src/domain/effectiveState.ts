@@ -4,7 +4,6 @@ import {
   type EffectiveVehicleState,
   type FleetVehicle,
   type M1ProjectDocument,
-  type M1ScenarioDocument,
   type ScenarioVehiclePlan,
   type SimulationInput,
   type VehicleTransitionEvent,
@@ -79,20 +78,20 @@ export function transitionEvents(vehicles: readonly FleetVehicle[], plans: PlanR
   return events.sort((a, b) => a.year - b.year || a.vehicleId.localeCompare(b.vehicleId));
 }
 
-/** Document-level wrappers for callers that already hold a whole project/scenario pair. */
+/** Document-level wrappers for callers holding a whole simulation input. */
 export function effectiveFleetStateFor(input: SimulationInput, year: number): EffectiveVehicleState[] {
-  return effectiveFleetState(input.project.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), year);
+  return effectiveFleetState(input.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), year);
 }
 
 export function transitionEventsFor(input: SimulationInput): VehicleTransitionEvent[] {
-  return transitionEvents(input.project.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), input.project.analysis);
+  return transitionEvents(input.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), input.project.analysis);
 }
 
-export function effectivePresetFor(project: M1ProjectDocument, scenario: M1ScenarioDocument, vehicleId: string, year: number) {
-  const vehicle = project.fleetVehicles.find((item) => item.id === vehicleId);
+export function effectivePresetFor(input: SimulationInput, vehicleId: string, year: number) {
+  const vehicle = input.fleetVehicles.find((item) => item.id === vehicleId);
   if (!vehicle) return undefined;
-  const state = effectiveVehicleState(vehicle, scenario.vehiclePlans[vehicleId], presetIdsOf(project), year);
-  return project.vehiclePresets.find((preset) => preset.id === state.presetId);
+  const state = effectiveVehicleState(vehicle, input.scenario.vehiclePlans[vehicleId], presetIdsOf(input.project), year);
+  return input.project.vehiclePresets.find((preset) => preset.id === state.presetId);
 }
 
 export { presetIdsOf };

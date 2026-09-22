@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { analysisEndYear, type M1ScenarioDocument, type ScenarioVehiclePlan } from "./contracts";
 import { effectiveFleetStateFor, effectivePresetFor, effectiveVehicleState, planChangesPreset, resolveVehiclePlan, transitionEventsFor } from "./effectiveState";
 import { createScenarioDocument } from "./scenario";
-import { sim01Project, sim01Scenario } from "./m1Fixture";
+import { sim01Fleet, sim01Project, sim01Scenario } from "./m1Fixture";
 
 const presetIds = new Set(sim01Project.vehiclePresets.map((preset) => preset.id));
-const vehicle = sim01Project.fleetVehicles[0];
+const vehicle = sim01Fleet[0];
 const scenarioWith = (document: Partial<M1ScenarioDocument>): M1ScenarioDocument => ({ ...sim01Scenario, ...document });
 
 describe("scenario plan resolution", () => {
@@ -52,17 +52,17 @@ describe("effective vehicle state", () => {
   });
 
   it("resolves the whole fleet and the preset record for a requested year", () => {
-    expect(effectiveFleetStateFor({ project: sim01Project, scenario: sim01Scenario }, 2026)).toEqual([
+    expect(effectiveFleetStateFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario: sim01Scenario }, 2026)).toEqual([
       { vehicleId: "SIM01-VEHICLE", presetId: "sim01-electric", transitioned: true, transitionYear: 2026 },
     ]);
-    expect(effectivePresetFor(sim01Project, sim01Scenario, "SIM01-VEHICLE", 2026)?.id).toBe("sim01-electric");
-    expect(effectivePresetFor(sim01Project, sim01Scenario, "missing-vehicle", 2026)).toBeUndefined();
+    expect(effectivePresetFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario: sim01Scenario }, "SIM01-VEHICLE", 2026)?.id).toBe("sim01-electric");
+    expect(effectivePresetFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario: sim01Scenario }, "missing-vehicle", 2026)).toBeUndefined();
   });
 });
 
 describe("transition event projection", () => {
   it("projects one event per real change, ordered and with both endpoints", () => {
-    expect(transitionEventsFor({ project: sim01Project, scenario: sim01Scenario })).toEqual([
+    expect(transitionEventsFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario: sim01Scenario })).toEqual([
       { kind: "vehicle-transition", year: 2026, vehicleId: "SIM01-VEHICLE", fromPresetId: "sim01-diesel", toPresetId: "sim01-electric" },
     ]);
   });
@@ -76,7 +76,7 @@ describe("transition event projection", () => {
       { "SIM01-VEHICLE": { transitionYear: 2027, targetPresetId: "deleted-preset" } },
     ];
     for (const plans of cases) {
-      expect(transitionEventsFor({ project: sim01Project, scenario: scenarioWith({ vehiclePlans: plans }) })).toEqual([]);
+      expect(transitionEventsFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario: scenarioWith({ vehiclePlans: plans }) })).toEqual([]);
     }
   });
 
@@ -84,7 +84,7 @@ describe("transition event projection", () => {
     const end = analysisEndYear(sim01Project.analysis);
     for (const year of [sim01Project.analysis.startYear - 1, end + 1]) {
       const scenario = scenarioWith({ vehiclePlans: { "SIM01-VEHICLE": { transitionYear: year, targetPresetId: "sim01-electric" } } });
-      expect(transitionEventsFor({ project: sim01Project, scenario })).toEqual([]);
+      expect(transitionEventsFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario })).toEqual([]);
     }
   });
 });
@@ -94,12 +94,12 @@ describe("scenario isolation", () => {
     const early = createScenarioDocument({ "SIM01-VEHICLE": { transitionYear: 2026, targetPresetId: "sim01-electric" } });
     const late = createScenarioDocument({ "SIM01-VEHICLE": { transitionYear: 2029, targetPresetId: "sim01-electric" } });
 
-    expect(effectiveFleetStateFor({ project: sim01Project, scenario: early }, 2027)[0].presetId).toBe("sim01-electric");
-    expect(effectiveFleetStateFor({ project: sim01Project, scenario: late }, 2027)[0].presetId).toBe("sim01-diesel");
+    expect(effectiveFleetStateFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario: early }, 2027)[0].presetId).toBe("sim01-electric");
+    expect(effectiveFleetStateFor({ project: sim01Project, fleetVehicles: sim01Fleet, scenario: late }, 2027)[0].presetId).toBe("sim01-diesel");
 
     // Editing one plan leaves the other and the shared fleet untouched.
     early.vehiclePlans["SIM01-VEHICLE"].transitionYear = 2028;
     expect(late.vehiclePlans["SIM01-VEHICLE"].transitionYear).toBe(2029);
-    expect(sim01Project.fleetVehicles[0].currentPresetId).toBe("sim01-diesel");
+    expect(sim01Fleet[0].currentPresetId).toBe("sim01-diesel");
   });
 });

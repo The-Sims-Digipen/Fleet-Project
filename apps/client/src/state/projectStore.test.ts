@@ -3,22 +3,25 @@ import { createMemoryProjectRepository, ProjectConflictError } from "../project/
 import { createSampleProjects } from "../project/sampleProjects";
 import { validateName } from "../project/types";
 import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
-import { useFleetStore } from "./fleetStore";
+import { currentFleet, placeVehicleFromPreset, useFleetStore } from "./fleetStore";
+import { placeMigratedFleet } from "../domain/worldFleet";
 import { usePresetStore } from "./presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "./projectStore";
 import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
 
 const project = useProjectStore.getState;
 const scene = useSceneStore.getState;
+/** Places one vehicle in the active depot and returns its id. */
+const seedDepotVehicle = () => placeVehicleFromPreset(usePresetStore.getState().presets[0])!;
+
 const activeName = () => project().scenarios.find((scenario) => scenario.id === project().activeScenarioId)!.name;
 
 beforeEach(() => {
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   const document = createDocument();
-  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  const inputs = { presets: createMockPresets(), analysis: createMockAnalysis() };
   usePresetStore.getState().replacePresets(inputs.presets);
   useFleetStore.getState().updateAnalysis(inputs.analysis);
-  useFleetStore.getState().replaceFleet(inputs.fleet);
   useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
   useProjectStore.setState(createProjectFields("Untitled project", document, 0, inputs));
 });
@@ -32,12 +35,25 @@ describe("project/world/scenario workspace", () => {
     expect(project().scenarios[0]).toMatchObject({ name: "Plan A", worldId: project().worldId, revision: 0 });
   });
 
+  it("starts a new project with the preset catalogue and an empty depot", () => {
+    useSceneStore.setState({ document: { ...createDocument(), objects: placeMigratedFleet(createMockFleet(), createMockPresets(), []) } });
+    project().newProject("Fresh start");
+
+    // Presets are a reusable catalogue shared by every depot, so they are seeded.
+    // The vehicles are not: a new depot stands empty until you place one.
+    expect(currentFleet()).toEqual([]);
+    expect(usePresetStore.getState().presets.length).toBeGreaterThan(0);
+    // Placing a preset is how a vehicle enters the depot.
+    expect(placeVehicleFromPreset(usePresetStore.getState().presets[0])).toBeTruthy();
+    expect(currentFleet()).toHaveLength(1);
+  });
+
   it("keeps world scene edits in memory while switching worlds", async () => {
     const firstWorldId = project().worldId;
     scene().setLight(22);
     scene().addObject("van");
     expect(project().worlds.find((world) => world.id === firstWorldId)?.document.light).toBe(22);
-    expect(project().worlds.find((world) => world.id === firstWorldId)?.document.objects).toHaveLength(2);
+    expect(project().worlds.find((world) => world.id === firstWorldId)?.document.objects).toHaveLength(1);
 
     project().newWorld();
     const secondWorldId = project().worldId;
@@ -46,7 +62,7 @@ describe("project/world/scenario workspace", () => {
 
     await project().switchWorld(firstWorldId);
     expect(scene().document.light).toBe(22);
-    expect(scene().document.objects).toHaveLength(2);
+    expect(scene().document.objects).toHaveLength(1);
 
     await project().switchWorld(secondWorldId);
     expect(scene().document.light).toBe(77);
@@ -55,21 +71,23 @@ describe("project/world/scenario workspace", () => {
 
   it("keeps scenario vehicle plans independent when duplicating and editing a plan", () => {
     const sourceId = project().activeScenarioId;
-    project().updateScenarioVehiclePlan(sourceId, "UNIT-01", { transitionYear: 2028, targetPresetId: "electric-van" });
+    const vehicleId = seedDepotVehicle();
+    project().updateScenarioVehiclePlan(sourceId, vehicleId, { transitionYear: 2028, targetPresetId: "electric-van" });
     project().duplicateScenario(sourceId);
     const copyId = project().activeScenarioId;
 
-    project().updateScenarioVehiclePlan(copyId, "UNIT-01", { transitionYear: 2026 });
+    project().updateScenarioVehiclePlan(copyId, vehicleId, { transitionYear: 2026 });
 
     const source = project().scenarios.find((scenario) => scenario.id === sourceId)!;
     const copy = project().scenarios.find((scenario) => scenario.id === copyId)!;
-    expect(source.document.vehiclePlans?.["UNIT-01"]).toEqual({ transitionYear: 2028, targetPresetId: "electric-van" });
-    expect(copy.document.vehiclePlans?.["UNIT-01"]).toEqual({ transitionYear: 2026, targetPresetId: "electric-van" });
+    expect(source.document.vehiclePlans?.[vehicleId]).toEqual({ transitionYear: 2028, targetPresetId: "electric-van" });
+    expect(copy.document.vehiclePlans?.[vehicleId]).toEqual({ transitionYear: 2026, targetPresetId: "electric-van" });
   });
 
   it("persists scenario vehicle plans through Save Project", async () => {
     const scenarioId = project().activeScenarioId;
-    project().updateScenarioVehiclePlan(scenarioId, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
+    const vehicleId = seedDepotVehicle();
+    project().updateScenarioVehiclePlan(scenarioId, vehicleId, { transitionYear: 2030, targetPresetId: "electric-box-truck" });
     await project().saveProject();
     const projectId = project().projectId!;
     expect(JSON.parse(project().baseline).worlds[0].scenarios[0].document.version).toBe(2);
@@ -77,7 +95,7 @@ describe("project/world/scenario workspace", () => {
     project().newProject("Other");
     await project().openProject(projectId);
 
-    expect(project().scenarios.find((scenario) => scenario.id === scenarioId)?.document.vehiclePlans?.["UNIT-02"])
+    expect(project().scenarios.find((scenario) => scenario.id === scenarioId)?.document.vehiclePlans?.[vehicleId])
       .toEqual({ transitionYear: 2030, targetPresetId: "electric-box-truck" });
   });
 
@@ -199,7 +217,7 @@ describe("project/world/scenario workspace", () => {
     const sample = createSampleProjects()[0];
     await project().openProject(sample.project.id);
     expect(project().worldId).toBe(sample.worlds[0].id);
-    expect(scene().document.objects).toHaveLength(4);
+    expect(scene().document.objects).toHaveLength(6);
     expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A · gradual", "Plan B · fast"]);
   });
 

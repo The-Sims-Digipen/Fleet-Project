@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
-import { createDocument } from "../state/sceneStore";
+import { sim01Project, sim01Scenario, sim01World } from "../domain/m1Fixture";
 import { createMemoryProjectRepository, ProjectConflictError } from "./repository";
 import type { WorkspaceSaveInput } from "./types";
 
 function workspaceInput(): WorkspaceSaveInput {
   return {
     project: { id: "project", name: "Depot study", activeWorldId: "world", document: sim01Project },
-    worlds: [{ id: "world", name: "Main depot", expectedRevision: 0, document: createDocument() }],
+    worlds: [{ id: "world", name: "Main depot", expectedRevision: 0, document: sim01World() }],
     scenarios: [{ id: "scenario", worldId: "world", name: "Plan A", expectedRevision: 0, document: sim01Scenario }],
   };
 }

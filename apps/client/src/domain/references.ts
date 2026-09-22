@@ -66,10 +66,11 @@ export function withoutVehiclePlan(plans: Readonly<Record<string, ScenarioVehicl
 }
 
 /**
- * Every invariant violation in a project/scenario set, as readable messages.
+ * Every invariant violation in one depot and its scenarios, as readable
+ * messages. The fleet is the depot's own; presets come from the project.
  * An empty array means the workspace satisfies the contract's reference rules.
  */
-export function findReferenceIssues(project: M1ProjectDocument, scenarios: readonly ScenarioPlans[]): string[] {
+export function findReferenceIssues(project: M1ProjectDocument, fleetVehicles: readonly FleetVehicle[], scenarios: readonly ScenarioPlans[]): string[] {
   const issues: string[] = [];
   const presetIds = new Set<string>();
   for (const preset of project.vehiclePresets) {
@@ -78,7 +79,7 @@ export function findReferenceIssues(project: M1ProjectDocument, scenarios: reado
   }
 
   const vehicleIds = new Set<string>();
-  for (const vehicle of project.fleetVehicles) {
+  for (const vehicle of fleetVehicles) {
     if (vehicleIds.has(vehicle.id)) issues.push(`Vehicle id "${vehicle.id}" is used more than once.`);
     vehicleIds.add(vehicle.id);
     if (!presetIds.has(vehicle.currentPresetId)) issues.push(`${vehicle.id} references missing preset "${vehicle.currentPresetId}".`);
