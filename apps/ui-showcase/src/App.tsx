@@ -1,8 +1,4 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-
-import { Button, type ButtonVariant } from "./index";
-import "./showcase.css";
+import { Button, type ButtonVariant } from "@chargedup/ui";
 
 const palette = [
   ["Night Blue", "#020143", "bg-chargedup-night text-chargedup-white"],
@@ -49,7 +45,7 @@ function ButtonGrid({ dark = false }: { dark?: boolean }) {
   );
 }
 
-function App() {
+export function App() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
       <header className="mb-12 max-w-3xl">
@@ -104,9 +100,3 @@ function App() {
     </main>
   );
 }
-
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
