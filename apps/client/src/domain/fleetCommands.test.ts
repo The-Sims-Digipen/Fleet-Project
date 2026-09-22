@@ -196,6 +196,44 @@ describe("M1 evidence: two scenarios over one fleet", () => {
   });
 });
 
+describe("save and reopen", () => {
+  it("restores fleet edits, new vehicles and scenario plans with stable references", async () => {
+    const scenarioId = activeScenario().id;
+    fleet().updateVehicle("UNIT-01", { annualKm: 33_000, name: "Renamed Van" });
+    const addedId = fleet().createVehicle()!;
+    fleet().updateVehicle(addedId, { annualKm: 12_000, currentPresetId: "electric-van" });
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2029, targetPresetId: "electric-van" });
+
+    await project().saveProject();
+    const projectId = project().projectId!;
+    // Clear the stores so anything restored has to have come from storage.
+    fleet().replaceFleet([]);
+    await project().openProject(projectId);
+
+    expect(fleet().vehicles.find((vehicle) => vehicle.id === "UNIT-01")).toMatchObject({ annualKm: 33_000, name: "Renamed Van" });
+    expect(fleet().vehicles.find((vehicle) => vehicle.id === addedId)).toMatchObject({ annualKm: 12_000, currentPresetId: "electric-van" });
+    expect(fleet().analysis).toEqual(createMockAnalysis());
+
+    // Every restored reference still resolves inside the reopened project.
+    const presetIds = new Set(presets().presets.map((preset) => preset.id));
+    for (const vehicle of fleet().vehicles) expect(presetIds.has(vehicle.currentPresetId)).toBe(true);
+    const restoredPlan = project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans["UNIT-01"];
+    expect(restoredPlan).toEqual({ transitionYear: 2029, targetPresetId: "electric-van" });
+  });
+
+  it("drops a deleted vehicle and its plans permanently, not just in memory", async () => {
+    const scenarioId = activeScenario().id;
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
+    deleteFleetVehicle("UNIT-02");
+
+    await project().saveProject();
+    await project().openProject(project().projectId!);
+
+    expect(fleet().vehicles.some((vehicle) => vehicle.id === "UNIT-02")).toBe(false);
+    expect(project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans["UNIT-02"]).toBeUndefined();
+  });
+});
+
 describe("authoritative simulation input", () => {
   it("assembles the project and active scenario T05 consumes", () => {
     const input = currentSimulationInput()!;
