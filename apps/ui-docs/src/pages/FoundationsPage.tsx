@@ -56,7 +56,7 @@ export function FoundationsPage() {
       {/* Palette */}
       <section id="palette">
         <PageHeading
-          title="Color Palette"
+          title="Colour Palette"
           description="Brand and functional colour tokens. All values are available as Tailwind utility classes via the chargedup-* and status-* namespaces."
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
