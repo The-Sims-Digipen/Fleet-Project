@@ -13,6 +13,12 @@ import type {
   WorldRecord,
   WorldSummary,
 } from "./types";
+import {
+  normalizeScenarioDocument,
+  normalizeWorkspaceRecord,
+  normalizeWorkspaceSaveInput,
+  normalizeWorldRecord,
+} from "./serialization";
 
 const DATABASE_NAME = "fleet-transition-planner";
 const DATABASE_VERSION = 2;
@@ -25,7 +31,7 @@ const STORE_LINKS = "projectScenarios";
 const INDEX_WORLD_ID = "worldId";
 const INDEX_PROJECT_ID = "projectId";
 
- type ProjectWorldLink = {
+type ProjectWorldLink = {
   projectId: string;
   worldId: string;
   position: number;
@@ -69,20 +75,22 @@ async function openDatabase(): Promise<IDBDatabase> {
       const database = request.result;
       if (!database.objectStoreNames.contains(STORE_WORLDS)) database.createObjectStore(STORE_WORLDS, { keyPath: "id" });
       if (!database.objectStoreNames.contains(STORE_PROJECTS)) database.createObjectStore(STORE_PROJECTS, { keyPath: "id" });
-      if (!database.objectStoreNames.contains(STORE_SCENARIOS)) {
-        const scenarios = database.createObjectStore(STORE_SCENARIOS, { keyPath: "id" });
-        scenarios.createIndex(INDEX_WORLD_ID, "worldId", { unique: false });
-      }
-      if (!database.objectStoreNames.contains(STORE_PROJECT_WORLDS)) {
-        const projectWorlds = database.createObjectStore(STORE_PROJECT_WORLDS, { keyPath: ["projectId", "worldId"] });
-        projectWorlds.createIndex(INDEX_PROJECT_ID, "projectId", { unique: false });
-        projectWorlds.createIndex(INDEX_WORLD_ID, "worldId", { unique: false });
-      }
-      if (!database.objectStoreNames.contains(STORE_LINKS)) {
-        const links = database.createObjectStore(STORE_LINKS, { keyPath: ["projectId", "scenarioId"] });
-        links.createIndex(INDEX_PROJECT_ID, "projectId", { unique: false });
-        links.createIndex(INDEX_WORLD_ID, "worldId", { unique: false });
-      }
+      const upgrade = request.transaction;
+      if (!upgrade) throw new DatabaseUnavailableError("Browser storage upgrade transaction is unavailable.");
+      const scenarios = database.objectStoreNames.contains(STORE_SCENARIOS)
+        ? upgrade.objectStore(STORE_SCENARIOS)
+        : database.createObjectStore(STORE_SCENARIOS, { keyPath: "id" });
+      if (!scenarios.indexNames.contains(INDEX_WORLD_ID)) scenarios.createIndex(INDEX_WORLD_ID, "worldId", { unique: false });
+      const projectWorlds = database.objectStoreNames.contains(STORE_PROJECT_WORLDS)
+        ? upgrade.objectStore(STORE_PROJECT_WORLDS)
+        : database.createObjectStore(STORE_PROJECT_WORLDS, { keyPath: ["projectId", "worldId"] });
+      if (!projectWorlds.indexNames.contains(INDEX_PROJECT_ID)) projectWorlds.createIndex(INDEX_PROJECT_ID, "projectId", { unique: false });
+      if (!projectWorlds.indexNames.contains(INDEX_WORLD_ID)) projectWorlds.createIndex(INDEX_WORLD_ID, "worldId", { unique: false });
+      const links = database.objectStoreNames.contains(STORE_LINKS)
+        ? upgrade.objectStore(STORE_LINKS)
+        : database.createObjectStore(STORE_LINKS, { keyPath: ["projectId", "scenarioId"] });
+      if (!links.indexNames.contains(INDEX_PROJECT_ID)) links.createIndex(INDEX_PROJECT_ID, "projectId", { unique: false });
+      if (!links.indexNames.contains(INDEX_WORLD_ID)) links.createIndex(INDEX_WORLD_ID, "worldId", { unique: false });
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -161,7 +169,7 @@ async function readWorkspace(database: IDBDatabase, id: string): Promise<Workspa
 
   if (worlds.some((world) => !world)) throw new ProjectNotFoundError("One of this project's 3D worlds no longer exists in browser storage.");
   if (scenarios.some((scenario) => !scenario)) throw new ProjectNotFoundError("A scenario linked to this project no longer exists in browser storage.");
-  return { project: clone(project), worlds: clone(worlds as WorldRecord[]), scenarios: clone(scenarios as Scenario[]) };
+  return normalizeWorkspaceRecord({ project: clone(project), worlds: clone(worlds as WorldRecord[]), scenarios: clone(scenarios as Scenario[]) });
 }
 
 async function persistWorkspace(
@@ -271,29 +279,31 @@ export function createIndexedDbProjectRepository(): ProjectRepository {
     getWorkspace: (id) => withDatabase((database) => readWorkspace(database, id)),
 
     createWorkspace: (input) => withDatabase(async (database) => {
+      const normalized = normalizeWorkspaceSaveInput(input);
       const transaction = database.transaction([STORE_PROJECTS, STORE_WORLDS, STORE_SCENARIOS, STORE_PROJECT_WORLDS, STORE_LINKS], "readwrite");
-      const existingProject = await requestResult(transaction.objectStore(STORE_PROJECTS).get(input.project.id) as IDBRequest<ProjectRecord | undefined>);
+      const existingProject = await requestResult(transaction.objectStore(STORE_PROJECTS).get(normalized.project.id) as IDBRequest<ProjectRecord | undefined>);
       if (existingProject) {
         transaction.abort();
         throw new ProjectConflictError("A project with this ID is already saved in this browser.");
       }
-      const result = await persistWorkspace(transaction, input);
+      const result = await persistWorkspace(transaction, normalized);
       await transactionDone(transaction);
       return clone(result);
     }),
 
     updateWorkspace: (input) => withDatabase(async (database) => {
+      const normalized = normalizeWorkspaceSaveInput(input);
       const transaction = database.transaction([STORE_PROJECTS, STORE_WORLDS, STORE_SCENARIOS, STORE_PROJECT_WORLDS, STORE_LINKS], "readwrite");
-      const currentProject = await requestResult(transaction.objectStore(STORE_PROJECTS).get(input.project.id) as IDBRequest<ProjectRecord | undefined>);
+      const currentProject = await requestResult(transaction.objectStore(STORE_PROJECTS).get(normalized.project.id) as IDBRequest<ProjectRecord | undefined>);
       if (!currentProject) {
         transaction.abort();
         throw new ProjectNotFoundError("This project is no longer saved in this browser.");
       }
-      if (currentProject.revision !== input.project.expectedRevision) {
+      if (currentProject.revision !== normalized.project.expectedRevision) {
         transaction.abort();
         throw new ProjectConflictError("This project changed in another tab. Reopen it before saving again.");
       }
-      const result = await persistWorkspace(transaction, input, currentProject);
+      const result = await persistWorkspace(transaction, normalized, currentProject);
       await transactionDone(transaction);
       return clone(result);
     }),
@@ -310,14 +320,16 @@ export function createIndexedDbProjectRepository(): ProjectRepository {
       const world = await requestResult(transaction.objectStore(STORE_WORLDS).get(id) as IDBRequest<WorldRecord | undefined>);
       await transactionDone(transaction);
       if (!world) throw new ProjectNotFoundError("This world is not saved in this browser.");
-      return clone(world);
+      return normalizeWorldRecord(world);
     }),
 
     listScenarios: (worldId) => withDatabase(async (database) => {
       const transaction = database.transaction(STORE_SCENARIOS, "readonly");
       const scenarios = await requestResult(transaction.objectStore(STORE_SCENARIOS).index(INDEX_WORLD_ID).getAll(IDBKeyRange.only(worldId)) as IDBRequest<Scenario[]>);
       await transactionDone(transaction);
-      return clone(scenarios).sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+      return clone(scenarios)
+        .map((scenario, index) => ({ ...scenario, document: normalizeScenarioDocument(scenario.document, `scenarios[${index}].document`) }))
+        .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
     }),
   };
 }
