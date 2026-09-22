@@ -282,7 +282,6 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         worlds: capturedWorlds.map((world) => ({ id: world.id, name: world.name, expectedRevision: world.revision, document: clone(world.document) })),
         scenarios: allScenarios.map((scenario) => ({ id: scenario.id, worldId: scenario.worldId, name: scenario.name, expectedRevision: scenario.revision, document: clone(scenario.document) })),
       };
-      const capturedBaseline = serializeSnapshot(state.name, state.worldId, capturedWorlds, capturedPresets);
       const session = state.session;
       const preferredScenarioId = state.activeScenarioId;
       set({ worlds: capturedWorlds, saveStatus: { state: "saving" } });
@@ -311,7 +310,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           name: record.project.name,
           worlds: savedWorlds,
           ...activeFields(activeWorld, preferredScenarioId),
-          baseline: capturedBaseline,
+          baseline: serializeSnapshot(record.project.name, activeWorld.id, savedWorlds, capturedPresets),
           saveStatus: { state: "idle" },
         });
       } catch (error) {
