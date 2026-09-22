@@ -35,7 +35,7 @@ export function ListPanel({ className, children, ...props }: ListPanelProps) {
   return (
     <div
       className={[
-        "overflow-hidden rounded-[10px] border border-chargedup-night/15 bg-chargedup-white",
+        "overflow-hidden rounded-[10px] border border-ink/15 bg-surface-raised",
         className,
       ]
         .filter(Boolean)
@@ -65,7 +65,7 @@ export function ListPanelToolbar({
   return (
     <div
       className={[
-        "flex flex-wrap items-center gap-1.5 border-b border-chargedup-night/10 px-3 py-2",
+        "flex flex-wrap items-center gap-1.5 border-b border-ink/10 px-3 py-2",
         className,
       ]
         .filter(Boolean)
@@ -73,13 +73,13 @@ export function ListPanelToolbar({
       {...props}
     >
       {title != null && (
-        <span className="mr-auto font-body text-xs font-semibold uppercase tracking-[0.12em] text-chargedup-night/65">
+        <span className="mr-auto font-body text-xs font-semibold uppercase tracking-[0.12em] text-ink/65">
           {title}
         </span>
       )}
       {children}
       {trailing != null && (
-        <span className="ml-auto font-body text-xs text-chargedup-night/55">{trailing}</span>
+        <span className="ml-auto font-body text-xs text-ink/55">{trailing}</span>
       )}
     </div>
   );
@@ -114,7 +114,7 @@ export function ListPanelBody({
       {...props}
     >
       {empty ? (
-        <p className="px-2 py-4 font-body text-xs text-chargedup-night/55">{emptyMessage}</p>
+        <p className="px-2 py-4 font-body text-xs text-ink/55">{emptyMessage}</p>
       ) : (
         children
       )}
@@ -175,9 +175,9 @@ export const ListPanelItem = forwardRef<HTMLButtonElement, ListPanelItemProps>(
           onClick={onSelect}
           className={[
             "flex min-h-9 w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-left font-body text-sm transition-colors duration-150",
-            "text-chargedup-night/70 hover:bg-chargedup-night/5 hover:text-chargedup-night",
-            "aria-pressed:bg-chargedup-blue/12 aria-pressed:text-chargedup-night",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chargedup-blue focus-visible:ring-inset",
+            "text-ink/70 hover:bg-ink/5 hover:text-ink",
+            "aria-pressed:bg-accent/12 aria-pressed:text-ink",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
             "disabled:cursor-not-allowed disabled:opacity-50",
             "motion-reduce:transition-none",
             className,
@@ -189,14 +189,14 @@ export const ListPanelItem = forwardRef<HTMLButtonElement, ListPanelItemProps>(
           {leading != null && (
             <span
               aria-hidden="true"
-              className={`flex shrink-0 items-center ${selected ? "text-chargedup-blue" : "text-chargedup-night/45"}`}
+              className={`flex shrink-0 items-center ${selected ? "text-accent" : "text-ink/45"}`}
             >
               {leading}
             </span>
           )}
           <span className="min-w-0 flex-1 truncate">{children}</span>
           {trailing != null && (
-            <span aria-hidden="true" className="shrink-0 text-chargedup-night/50">
+            <span aria-hidden="true" className="shrink-0 text-ink/50">
               {trailing}
             </span>
           )}
@@ -221,7 +221,7 @@ export function ListPanelFooter({
   return (
     <div
       className={[
-        "flex items-center justify-between gap-1.5 border-t border-chargedup-night/10 px-3 py-2",
+        "flex items-center justify-between gap-1.5 border-t border-ink/10 px-3 py-2",
         className,
       ]
         .filter(Boolean)
@@ -229,7 +229,7 @@ export function ListPanelFooter({
       {...props}
     >
       {status != null ? (
-        <span className="font-body text-xs text-chargedup-night/55">{status}</span>
+        <span className="font-body text-xs text-ink/55">{status}</span>
       ) : (
         <span />
       )}

@@ -12,14 +12,16 @@ export type CardProps = ComponentPropsWithoutRef<"div"> & {
 
 const variantBase: Record<CardVariant, string> = {
   default:
-    "bg-chargedup-white border border-chargedup-night/10 shadow-[0_1px_3px_0_rgba(2,1,67,0.08),0_1px_2px_-1px_rgba(2,1,67,0.06)]",
-  flat: "bg-chargedup-white border border-chargedup-night/10",
+    "bg-surface-raised border border-ink/10 shadow-sm",
+  flat: "bg-surface-raised border border-ink/10",
+  // `dark` is a deliberately inverted card (dark surface regardless of theme),
+  // so it keeps the fixed brand Night Blue rather than the theme-aware surface.
   dark: "bg-chargedup-night border border-chargedup-white/10 text-chargedup-white",
 };
 
 export function Card({ variant = "default", header, footer, children, className, ...props }: CardProps) {
   const isDark = variant === "dark";
-  const dividerClass = isDark ? "border-chargedup-white/10" : "border-chargedup-night/10";
+  const dividerClass = isDark ? "border-chargedup-white/10" : "border-ink/10";
 
   return (
     <div

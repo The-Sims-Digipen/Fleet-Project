@@ -1,7 +1,18 @@
-import { Card, Badge, Button } from "@chargedup/ui";
-import { PageHeading, ImportBanner } from "../components/Headings";
+import {
+  Card,
+  Badge,
+  Button,
+  Input,
+  ListPanel,
+  ListPanelToolbar,
+  ListPanelBody,
+  ListPanelItems,
+  ListPanelItem,
+  ListPanelFooter,
+} from "@chargedup/ui";
+import { PageHeading, ImportBanner, SectionHeading } from "../components/Headings";
 import { ComponentSection } from "../components/ComponentSection";
-import { AppPreview } from "../components/Preview";
+import { AppPreview, ThemedPreview } from "../components/Preview";
 import type { PropsRow } from "../components/PropsTable";
 
 const props: PropsRow[] = [
@@ -82,6 +93,63 @@ export function CardPage() {
 >
   12 vehicles · 4 transitioning in 2026.
 </Card>`}
+      />
+
+      <SectionHeading>Dark mode (preview)</SectionHeading>
+
+      <ComponentSection
+        title="Theme-aware components"
+        description="A proof-of-concept of the semantic-token theming. Toggle the surface below: Card, Button, Input, and ListPanel use the library's surface/ink/accent tokens, so a single `.dark` class on an ancestor flips them. Components not yet migrated still use the fixed light palette."
+        preview={
+          <ThemedPreview className="flex-col gap-4">
+            <div className="grid w-full gap-4">
+              <Card
+                header={<p className="font-heading text-sm font-bold text-ink">Fleet Summary</p>}
+                footer={
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost">Cancel</Button>
+                    <Button variant="secondary">Save</Button>
+                    <Button variant="primary">Confirm</Button>
+                  </div>
+                }
+              >
+                <div className="grid gap-4">
+                  <p className="font-body text-sm text-ink/70">
+                    12 vehicles · 4 transitioning in 2026 · 8 remaining on diesel.
+                  </p>
+                  <Input label="Plan name" defaultValue="2026 Transition" />
+                </div>
+              </Card>
+
+              <ListPanel>
+                <ListPanelToolbar title="Worlds" trailing={<span>3</span>}>
+                  <Button size="toolbar" variant="ghost">New</Button>
+                </ListPanelToolbar>
+                <ListPanelBody>
+                  <ListPanelItems label="Worlds">
+                    <ListPanelItem selected leading={<span>◇</span>} trailing={<Badge variant="info">active</Badge>}>
+                      Depot Alpha
+                    </ListPanelItem>
+                    <ListPanelItem leading={<span>◇</span>}>Depot Bravo</ListPanelItem>
+                    <ListPanelItem leading={<span>◇</span>}>Depot Charlie</ListPanelItem>
+                  </ListPanelItems>
+                </ListPanelBody>
+                <ListPanelFooter status="3 worlds">
+                  <Button size="toolbar" variant="ghost">Import</Button>
+                </ListPanelFooter>
+              </ListPanel>
+            </div>
+          </ThemedPreview>
+        }
+        code={`// Wrap any subtree in an element carrying the \`dark\` class:
+<div className="dark">
+  <Card>…</Card>
+  <Input label="Plan name" />
+  <ListPanel>…</ListPanel>
+</div>
+
+// The components reference semantic tokens (bg-surface, text-ink/70,
+// border-ink/10, text-accent) that .dark overrides in theme.css.`}
       />
     </div>
   );

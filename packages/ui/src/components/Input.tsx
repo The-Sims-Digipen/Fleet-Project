@@ -21,24 +21,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <div className="grid gap-1.5">
       <label
         htmlFor={id}
-        className="font-body text-xs font-semibold uppercase tracking-[0.12em] text-chargedup-night/70"
+        className="font-body text-xs font-semibold uppercase tracking-[0.12em] text-ink/70"
       >
         {label}
       </label>
 
       <div
         className={[
-          "flex min-h-11 items-center gap-2 rounded-[6px] border bg-chargedup-white px-3 py-2 transition-[border-color,box-shadow] duration-150",
+          "flex min-h-11 items-center gap-2 rounded-[6px] border bg-surface px-3 py-2 transition-[border-color,box-shadow] duration-150",
           hasError
             ? "border-status-danger ring-1 ring-status-danger/30"
-            : "border-chargedup-night/20 focus-within:border-chargedup-blue focus-within:ring-2 focus-within:ring-chargedup-blue/20",
+            : "border-ink/20 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20",
           disabled && "cursor-not-allowed opacity-50",
         ]
           .filter(Boolean)
           .join(" ")}
       >
         {leadingAdornment && (
-          <span className="shrink-0 text-chargedup-night/45" aria-hidden="true">
+          <span className="shrink-0 text-ink/45" aria-hidden="true">
             {leadingAdornment}
           </span>
         )}
@@ -49,7 +49,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           aria-invalid={hasError || undefined}
           aria-describedby={helperText || error ? descId : undefined}
           className={[
-            "min-w-0 flex-1 bg-transparent font-body text-sm text-chargedup-night placeholder:text-chargedup-night/35 focus:outline-none disabled:cursor-not-allowed",
+            "min-w-0 flex-1 bg-transparent font-body text-sm text-ink placeholder:text-ink/35 focus:outline-none disabled:cursor-not-allowed",
             className,
           ]
             .filter(Boolean)
@@ -57,7 +57,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {...props}
         />
         {trailingAdornment && (
-          <span className="shrink-0 text-chargedup-night/45" aria-hidden="true">
+          <span className="shrink-0 text-ink/45" aria-hidden="true">
             {trailingAdornment}
           </span>
         )}
@@ -66,7 +66,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {(error || helperText) && (
         <p
           id={descId}
-          className={`font-body text-xs ${error ? "text-status-danger" : "text-chargedup-night/55"}`}
+          className={`font-body text-xs ${error ? "text-status-danger" : "text-ink/55"}`}
           role={error ? "alert" : undefined}
         >
           {error ?? helperText}

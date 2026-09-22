@@ -15,6 +15,24 @@
   --color-chargedup-grey: #dedede;
   --color-chargedup-blue: #004aad;
 
+  /* ── Semantic surface tokens (theme-aware) ──
+     These resolve to light values here and are overridden under `.dark` below.
+     Components should reference these instead of the raw brand colours so a
+     single class flips the whole library:
+       - surface / surface-raised / surface-sunken → backgrounds
+       - ink → the foreground base for text AND borders. Because it flips
+         night↔white, every `ink/NN` opacity modifier (muted text, hairline
+         borders) flips correctly in one move.
+       - accent / accent-strong → interactive/selected colour
+       - on-accent → foreground on top of an accent fill */
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f5f5f7;
+  --color-ink: #020143;
+  --color-accent: #004aad;
+  --color-accent-strong: #003a87;
+  --color-on-accent: #ffffff;
+
   /* ── Semantic / functional tokens ── */
   --color-status-danger: #b42318;
   --color-status-success: #15803d;
@@ -48,6 +66,20 @@
   --duration-fast: 100ms;
   --duration-base: 150ms;
   --duration-slow: 250ms;
+}
+
+/* Dark theme: override the semantic surface tokens under `.dark`. Any element
+   inside a `.dark` ancestor (or the element itself carrying `.dark`) resolves
+   the semantic tokens to their dark values. Brand tokens (gold, grey) and the
+   status colours are intentionally left alone. */
+.dark {
+  --color-surface: #0c1526;
+  --color-surface-raised: #14203a;
+  --color-surface-sunken: #070d18;
+  --color-ink: #eaf0fb;
+  --color-accent: #4f9dff;
+  --color-accent-strong: #7cb8ff;
+  --color-on-accent: #04122b;
 }
 
 @layer components {

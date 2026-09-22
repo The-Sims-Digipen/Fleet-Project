@@ -16,7 +16,7 @@ describe("Button", () => {
 
   it.each<[ButtonVariant, string]>([
     ["primary", "bg-chargedup-gold"],
-    ["secondary", "bg-chargedup-night"],
+    ["secondary", "bg-ink"],
     ["ghost", "bg-transparent"],
     ["danger", "bg-status-danger"],
   ])("applies the %s variant", (variant, expectedClass) => {
