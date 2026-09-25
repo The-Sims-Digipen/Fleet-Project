@@ -191,9 +191,11 @@ async function persistWorkspace(
   const savedWorldById = new Map(savedWorlds.map((world) => [world.id, world]));
   const savedScenarios = input.scenarios.map((scenario, index) => savedScenario(existingScenarios[index], savedWorldById.get(scenario.worldId)!, scenario));
   const timestamp = nowIso();
+  const activeScenarioId = savedScenarios.some((scenario) => scenario.id === input.project.activeScenarioId) ? input.project.activeScenarioId : undefined;
   const project: ProjectRecord = currentProject ? {
     ...currentProject,
     worldId: input.project.activeWorldId,
+    activeScenarioId,
     name: input.project.name,
     revision: currentProject.revision + 1,
     updatedAt: timestamp,
@@ -201,6 +203,7 @@ async function persistWorkspace(
   } : {
     id: input.project.id,
     worldId: input.project.activeWorldId,
+    activeScenarioId,
     name: input.project.name,
     revision: 1,
     createdAt: timestamp,

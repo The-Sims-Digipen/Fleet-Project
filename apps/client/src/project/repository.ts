@@ -125,9 +125,11 @@ export function createMemoryProjectRepository(seed: WorkspaceRecord[] = []): Pro
     if (!savedWorlds.has(input.project.activeWorldId)) throw new ProjectConflictError("The active world is not part of this project.");
     const savedScenarios = input.scenarios.map((scenario) => saveScenario(scenario, savedWorlds));
     const timestamp = nowIso();
+    const activeScenarioId = savedScenarios.some((scenario) => scenario.id === input.project.activeScenarioId) ? input.project.activeScenarioId : undefined;
     const project: ProjectRecord = existingProject ? {
       ...existingProject.project,
       worldId: input.project.activeWorldId,
+      activeScenarioId,
       name: input.project.name,
       revision: existingProject.project.revision + 1,
       updatedAt: timestamp,
@@ -135,6 +137,7 @@ export function createMemoryProjectRepository(seed: WorkspaceRecord[] = []): Pro
     } : {
       id: input.project.id,
       worldId: input.project.activeWorldId,
+      activeScenarioId,
       name: input.project.name,
       revision: 1,
       createdAt: timestamp,

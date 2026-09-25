@@ -1,6 +1,6 @@
 import type { SceneDocument, SceneObject, Transform, Vector3 } from "../scene/types";
 import { normalizePreset } from "../vehicles/types";
-import type { ProjectDocument, ScenarioDocument } from "./types";
+import type { ProjectDocument, ScenarioDocument, ScenarioVehiclePlan } from "./types";
 
 export const PORTABLE_PROJECT_FORMAT = "fleet-transition-planner-project";
 export const PORTABLE_PROJECT_VERSION = 2;
@@ -44,8 +44,22 @@ function sceneDocument(value: unknown): value is SceneDocument {
   return record.version === 3 && typeof record.light === "number" && Number.isFinite(record.light) && Array.isArray(record.objects) && record.objects.every(sceneObject);
 }
 
+function vehiclePlan(value: unknown): value is ScenarioVehiclePlan {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (record.transitionYear !== undefined && record.transitionYear !== null && !Number.isInteger(record.transitionYear)) return false;
+  if (record.targetPresetId !== undefined && typeof record.targetPresetId !== "string") return false;
+  return true;
+}
+
 function scenarioDocument(value: unknown): value is ScenarioDocument {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && (value as Record<string, unknown>).version === 1;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (record.version !== 1) return false;
+  const plans = record.vehiclePlans;
+  if (plans === undefined) return true;
+  if (typeof plans !== "object" || plans === null || Array.isArray(plans)) return false;
+  return Object.values(plans).every(vehiclePlan);
 }
 
 function projectDocument(value: unknown): value is ProjectDocument {
@@ -100,7 +114,7 @@ export function parsePortableProject(value: unknown): PortableProjectFile {
   }
 
   const worlds = record.worlds;
-  if (!Array.isArray(worlds) || !worlds.length || !worlds.every(portableWorld)) throw new Error("The world data in this file is invalid.");
+  if (!Array.isArray(worlds) || !worlds.length || !worlds.every(portableWorld)) throw new Error("The world or scenario data in this file is invalid.");
   const activeWorldIndex = record.activeWorldIndex;
   const activeScenarioIndex = record.activeScenarioIndex;
   if (typeof activeWorldIndex !== "number" || !Number.isInteger(activeWorldIndex) || activeWorldIndex < 0 || activeWorldIndex >= worlds.length) throw new Error("The active world in this file is invalid.");

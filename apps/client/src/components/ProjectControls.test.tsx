@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
@@ -97,6 +97,20 @@ describe("project and scenario controls", () => {
     expect(useProjectStore.getState().worldName).toBe("New world");
     expect(useProjectStore.getState().scenarios).toHaveLength(1);
     expect(screen.getByLabelText("Active world name")).toHaveValue("New world");
+  });
+
+  it("explains an unreadable import file instead of surfacing the parser error", async () => {
+    render(<App />);
+    const input = screen.getByLabelText("Choose project file");
+    const file = new File(["these are my notes, not a project"], "notes.fleetproject", { type: "application/json" });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+
+    fireEvent.change(input);
+
+    // Scoped by text: the app renders other alerts, such as the missing-preset warning.
+    const alert = await screen.findByText(/This file is not a readable project file/);
+    expect(alert).toHaveAttribute("role", "alert");
+    expect(alert.textContent).not.toMatch(/JSON\.parse|position \d+|Unexpected token/i);
   });
 
   it("opens a persisted sample workspace", async () => {

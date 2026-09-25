@@ -45,6 +45,11 @@ export type ProjectRecord = {
   id: string;
   /** The world that was active when the project was last saved. */
   worldId: string;
+  /**
+   * The scenario that was active when the project was last saved. Optional so records written
+   * before this field existed still load; reopening falls back to the world's first scenario.
+   */
+  activeScenarioId?: string;
   name: string;
   revision: number;
   createdAt: string;
@@ -57,7 +62,7 @@ export type ProjectSummary = Pick<ProjectRecord, "id" | "worldId" | "name" | "re
 export type WorldSummary = Pick<WorldRecord, "id" | "name" | "revision" | "updatedAt">;
 
 export type WorkspaceSaveInput = {
-  project: { id: string; name: string; expectedRevision?: number; activeWorldId: string; document: ProjectDocument };
+  project: { id: string; name: string; expectedRevision?: number; activeWorldId: string; activeScenarioId?: string; document: ProjectDocument };
   worlds: { id: string; name: string; expectedRevision: number; document: SceneDocument }[];
   scenarios: { id: string; worldId: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
 };

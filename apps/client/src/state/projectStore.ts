@@ -73,10 +73,11 @@ function createWorkspaceWorld(name: string, document: SceneDocument, id = crypto
   return { id, name, revision: 0, document: clone(document), scenarios: [scenario] };
 }
 
-function serializeSnapshot(name: string, activeWorldId: string, worlds: WorkspaceWorld[], presets: VehiclePreset[]) {
+function serializeSnapshot(name: string, activeWorldId: string, activeScenarioId: string, worlds: WorkspaceWorld[], presets: VehiclePreset[]) {
   return JSON.stringify({
     name,
     activeWorldId,
+    activeScenarioId,
     worlds: worlds.map((world) => ({
       id: world.id,
       name: world.name,
@@ -105,13 +106,14 @@ function activeFields(world: WorkspaceWorld, preferredScenarioId?: string) {
 
 export function createProjectFields(name = "Untitled project", world: SceneDocument = createDocument(), session = 0, presets: VehiclePreset[] = loadDefaultPresets()): ProjectFields {
   const workspaceWorld = createWorkspaceWorld(`${name} world`, world);
+  const active = activeFields(workspaceWorld);
   return {
     projectId: null,
     revision: 0,
     name,
     worlds: [workspaceWorld],
-    ...activeFields(workspaceWorld),
-    baseline: serializeSnapshot(name, workspaceWorld.id, [workspaceWorld], presets),
+    ...active,
+    baseline: serializeSnapshot(name, workspaceWorld.id, active.activeScenarioId, [workspaceWorld], presets),
     saveStatus: { state: "idle" },
     session,
   };
@@ -156,13 +158,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     if (!worlds.length) throw new Error("This project has no worlds.");
     const activeWorld = worlds.find((world) => world.id === record.project.worldId) ?? worlds[0];
     const vehiclePresets = record.project.document.vehiclePresets;
+    const active = activeFields(activeWorld, record.project.activeScenarioId);
     set({
       projectId: record.project.id,
       revision: record.project.revision,
       name: record.project.name,
       worlds,
-      ...activeFields(activeWorld),
-      baseline: serializeSnapshot(record.project.name, activeWorld.id, worlds, vehiclePresets),
+      ...active,
+      baseline: serializeSnapshot(record.project.name, activeWorld.id, active.activeScenarioId, worlds, vehiclePresets),
       saveStatus: { state: "idle" },
       session: get().session + 1,
     });
@@ -188,13 +191,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const world = await repository.getWorld(worldId);
       const nextPresets = loadDefaultPresets();
       const workspaceWorld: WorkspaceWorld = { ...clone(world), scenarios: [newScenario(world.id, "Plan A")] };
+      const active = activeFields(workspaceWorld);
       set({
         projectId: null,
         revision: 0,
         name: name.trim(),
         worlds: [workspaceWorld],
-        ...activeFields(workspaceWorld),
-        baseline: serializeSnapshot(name.trim(), world.id, [workspaceWorld], nextPresets),
+        ...active,
+        baseline: serializeSnapshot(name.trim(), world.id, active.activeScenarioId, [workspaceWorld], nextPresets),
         saveStatus: { state: "idle" },
         session: get().session + 1,
       });
@@ -278,11 +282,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const projectId = state.projectId ?? crypto.randomUUID();
       const allScenarios = capturedWorlds.flatMap((world) => world.scenarios.map((scenario) => ({ ...scenario, worldId: world.id })));
       const base: WorkspaceSaveInput = {
-        project: { id: projectId, name: state.name, activeWorldId: state.worldId, document: { version: 2, vehiclePresets: capturedPresets } },
+        project: { id: projectId, name: state.name, activeWorldId: state.worldId, activeScenarioId: state.activeScenarioId, document: { version: 2, vehiclePresets: capturedPresets } },
         worlds: capturedWorlds.map((world) => ({ id: world.id, name: world.name, expectedRevision: world.revision, document: clone(world.document) })),
         scenarios: allScenarios.map((scenario) => ({ id: scenario.id, worldId: scenario.worldId, name: scenario.name, expectedRevision: scenario.revision, document: clone(scenario.document) })),
       };
-      const capturedBaseline = serializeSnapshot(state.name, state.worldId, capturedWorlds, capturedPresets);
+      const capturedBaseline = serializeSnapshot(state.name, state.worldId, state.activeScenarioId, capturedWorlds, capturedPresets);
       const session = state.session;
       const preferredScenarioId = state.activeScenarioId;
       set({ worlds: capturedWorlds, saveStatus: { state: "saving" } });
@@ -416,7 +420,13 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const activeWorld = worlds[file.activeWorldIndex] ?? worlds[0];
       if (!activeWorld) throw new Error("The imported project has no worlds.");
       const record = await repository.createWorkspace({
-        project: { id: projectId, name: file.project.name, activeWorldId: activeWorld.id, document: clone(file.project.document) },
+        project: {
+          id: projectId,
+          name: file.project.name,
+          activeWorldId: activeWorld.id,
+          activeScenarioId: (activeWorld.scenarios[file.activeScenarioIndex] ?? activeWorld.scenarios[0])?.id,
+          document: clone(file.project.document),
+        },
         worlds: worlds.map(({ scenarios: _scenarios, ...world }) => world),
         scenarios: worlds.flatMap((world) => world.scenarios),
       });
@@ -442,9 +452,10 @@ export function useProjectDirty() {
   const name = useProjectStore((state) => state.name);
   const worlds = useProjectStore((state) => state.worlds);
   const worldId = useProjectStore((state) => state.worldId);
+  const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
   const baseline = useProjectStore((state) => state.baseline);
-  return useMemo(() => serializeSnapshot(name, worldId, withActiveScene(worlds, worldId, world), vehiclePresets) !== baseline,
-    [name, worlds, worldId, world, vehiclePresets, baseline]);
+  return useMemo(() => serializeSnapshot(name, worldId, activeScenarioId, withActiveScene(worlds, worldId, world), vehiclePresets) !== baseline,
+    [name, worlds, worldId, activeScenarioId, world, vehiclePresets, baseline]);
 }
 
 // Scene edits are workspace edits first. Keep the active World's in-memory document synchronized,
