@@ -50,11 +50,14 @@ export function validateEnergyAssumptions(
 
     let issues: AssumptionIssue[] = [];
 
-    if (!isNonNegativeFinite(assumptions.chargingEfficiency) &&
-        assumptions.chargingEfficiency < 0 || assumptions.chargingEfficiency > 1) {
+    if (
+        !Number.isFinite(assumptions.chargingEfficiency) ||
+        assumptions.chargingEfficiency <= 0 ||
+        assumptions.chargingEfficiency > 1
+    ) {
         issues.push({
             field: "chargingEfficiency",
-            message: "Charging efficiency value must be a value between 0 and 1"
+            message: "Charging efficiency must be greater than 0 and at most 1",
         });
     }
 

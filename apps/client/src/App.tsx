@@ -13,6 +13,7 @@ import { useFleetStore } from "./state/fleetStore";
 import { usePresetStore } from "./state/presetStore";
 import { useProjectStore } from "./state/projectStore";
 import { useTimelineStore } from "./state/timelineStore";
+import { SimulationPreview } from "./components/SimulationPreview";
 
 const LazyWorldScene = lazy(() => import("./components/WorldScene").then((module) => ({ default: module.WorldScene })));
 

@@ -3,6 +3,7 @@ import { useSceneStore } from "../state/sceneStore";
 import { usePresetStore } from "../state/presetStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, SelectControl, type EditLifecycle } from "./controls";
+import { SimulationPreview } from "./SimulationPreview";
 
 type Assumptions = {
   years: number;
@@ -81,38 +82,223 @@ export function SimulationSettings() {
     cancelEdit: () => { if (baseline.current) setAssumptions(baseline.current); baseline.current = null; },
   };
 
-  return <CollapsibleSection title="Simulation" defaultOpen description="Enter route and price assumptions, then compare diesel and electric preset performance year by year.">
-    <div className="grid gap-5">
-      <InputGroup title="Simulation setup" description="Choose any vehicle in the scene, then enter its annual route distance manually.">
-        <SelectControl label="Vehicle" value={selectedVehicle?.id ?? ""} options={vehicles.map((vehicle, index) => ({ value: vehicle.id, label: `Vehicle ${index + 1}: ${presets.find((preset) => preset.id === vehicle.presetId)?.name ?? vehicle.name}` }))} onChange={(id) => { setResult(null); setSelectedVehicleId(id); }} />
-        {!selectedVehicle && <p role="alert" className="text-xs leading-relaxed text-secondary">Add a van to the scene to run a simulation.</p>}
-        {selectedVehicle && !selectedPreset && <p role="alert" className="text-xs leading-relaxed text-amber-200">This scene vehicle has no linked preset, so its consumption is unavailable. Add the vehicle from Vehicle Presets to calculate costs.</p>}
-        <NumberControl label="Simulation length (years)" value={assumptions.years} min={1} step={1} edit={edit} onChange={(years) => { if (Number.isInteger(years)) update({ years }); }} />
-        <NumberControl label="Selected vehicle route distance (km/year)" value={annualRouteDistance} min={0} step={100} edit={edit} onChange={updateRouteDistance} />
-      </InputGroup>
-      <InputGroup title="Diesel assumptions" description="Set fuel prices. Vehicle consumption comes from the matching diesel preset.">
-        <NumberControl label="Diesel price ($/L)" value={assumptions.dieselPrice} min={0} step={0.01} edit={edit} onChange={(dieselPrice) => update({ dieselPrice })} />
-        <NumberControl label="Annual diesel price change (%)" value={assumptions.dieselPriceChange} min={-100} step={0.1} edit={edit} onChange={(dieselPriceChange) => update({ dieselPriceChange })} />
-        <p className="text-xs text-secondary">Preset: <span className="font-semibold text-primary">{dieselPreset ? `${dieselPreset.name} · ${dieselPreset.litresPer100Km} L/100 km` : "No matching diesel preset"}</span></p>
-      </InputGroup>
-      <InputGroup title="Electric assumptions" description="Set electricity prices. Vehicle consumption comes from the matching electric preset.">
-        <NumberControl label="Electricity price ($/kWh)" value={assumptions.electricityPrice} min={0} step={0.01} edit={edit} onChange={(electricityPrice) => update({ electricityPrice })} />
-        <NumberControl label="Annual electricity price change (%)" value={assumptions.electricityPriceChange} min={-100} step={0.1} edit={edit} onChange={(electricityPriceChange) => update({ electricityPriceChange })} />
-        <p className="text-xs text-secondary">Preset: <span className="font-semibold text-primary">{electricPreset ? `${electricPreset.name} · ${electricPreset.kWhPer100Km} kWh/100 km` : "No matching electric preset"}</span></p>
-      </InputGroup>
-      <InputGroup title="Site constraint" description="This will be used by the future charging-feasibility calculation.">
-        <NumberControl label="Site power limit (kW)" value={assumptions.sitePowerLimit} min={0} step={1} edit={edit} onChange={(sitePowerLimit) => update({ sitePowerLimit })} />
-      </InputGroup>
-      <div className="grid grid-cols-2 gap-3">
-        <button type="button" disabled={!canSimulate} className="min-h-12 rounded-lg bg-accent px-4 text-sm font-bold text-accent-ink hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => {
-          if (selectedVehicle && selectedPreset && dieselPreset && electricPreset) setResult(createResult(assumptions, annualRouteDistance, vehicleName, dieselPreset.name, electricPreset.name, dieselPreset.litresPer100Km, electricPreset.kWhPer100Km));
-        }}>Finalize simulation</button>
-        <button type="button" className="min-h-12 rounded-lg border border-line-strong px-4 text-sm font-bold text-secondary hover:border-[#668078] hover:text-primary" onClick={() => { baseline.current = null; setAssumptions(initialAssumptions); setSelectedVehicleId(""); setRouteDistances({}); setResult(null); }}>Reset sample</button>
+  return (
+    <CollapsibleSection
+      title="Simulation"
+      defaultOpen
+      description="Enter route and price assumptions, then compare diesel and electric preset performance year by year."
+    >
+      <div className="grid gap-5">
+        <SimulationPreview />
+
+        <InputGroup
+          title="Simulation setup"
+          description="Choose any vehicle in the scene, then enter its annual route distance manually."
+        >
+          <SelectControl
+            label="Vehicle"
+            value={selectedVehicle?.id ?? ""}
+            options={vehicles.map((vehicle, index) => ({
+              value: vehicle.id,
+              label: `Vehicle ${index + 1}: ${presets.find(
+                (preset) =>
+                  preset.id === vehicle.presetId,
+              )?.name ?? vehicle.name
+                }`,
+            }))}
+            onChange={(id) => {
+              setResult(null);
+              setSelectedVehicleId(id);
+            }}
+          />
+
+          {!selectedVehicle && (
+            <p
+              role="alert"
+              className="text-xs leading-relaxed text-secondary"
+            >
+              Add a van to the scene to run a simulation.
+            </p>
+          )}
+
+          {selectedVehicle && !selectedPreset && (
+            <p
+              role="alert"
+              className="text-xs leading-relaxed text-amber-200"
+            >
+              This scene vehicle has no linked preset, so its
+              consumption is unavailable. Add the vehicle from
+              Vehicle Presets to calculate costs.
+            </p>
+          )}
+
+          <NumberControl
+            label="Simulation length (years)"
+            value={assumptions.years}
+            min={1}
+            step={1}
+            edit={edit}
+            onChange={(years) => {
+              if (Number.isInteger(years)) {
+                update({ years });
+              }
+            }}
+          />
+
+          <NumberControl
+            label="Selected vehicle route distance (km/year)"
+            value={annualRouteDistance}
+            min={0}
+            step={100}
+            edit={edit}
+            onChange={updateRouteDistance}
+          />
+        </InputGroup>
+
+        <InputGroup
+          title="Diesel assumptions"
+          description="Set fuel prices. Vehicle consumption comes from the matching diesel preset."
+        >
+          <NumberControl
+            label="Diesel price ($/L)"
+            value={assumptions.dieselPrice}
+            min={0}
+            step={0.01}
+            edit={edit}
+            onChange={(dieselPrice) =>
+              update({ dieselPrice })
+            }
+          />
+
+          <NumberControl
+            label="Annual diesel price change (%)"
+            value={assumptions.dieselPriceChange}
+            min={-100}
+            step={0.1}
+            edit={edit}
+            onChange={(dieselPriceChange) =>
+              update({ dieselPriceChange })
+            }
+          />
+
+          <p className="text-xs text-secondary">
+            Preset:{" "}
+            <span className="font-semibold text-primary">
+              {dieselPreset
+                ? `${dieselPreset.name} · ${dieselPreset.litresPer100Km} L/100 km`
+                : "No matching diesel preset"}
+            </span>
+          </p>
+        </InputGroup>
+
+        <InputGroup
+          title="Electric assumptions"
+          description="Set electricity prices. Vehicle consumption comes from the matching electric preset."
+        >
+          <NumberControl
+            label="Electricity price ($/kWh)"
+            value={assumptions.electricityPrice}
+            min={0}
+            step={0.01}
+            edit={edit}
+            onChange={(electricityPrice) =>
+              update({ electricityPrice })
+            }
+          />
+
+          <NumberControl
+            label="Annual electricity price change (%)"
+            value={assumptions.electricityPriceChange}
+            min={-100}
+            step={0.1}
+            edit={edit}
+            onChange={(electricityPriceChange) =>
+              update({ electricityPriceChange })
+            }
+          />
+
+          <p className="text-xs text-secondary">
+            Preset:{" "}
+            <span className="font-semibold text-primary">
+              {electricPreset
+                ? `${electricPreset.name} · ${electricPreset.kWhPer100Km} kWh/100 km`
+                : "No matching electric preset"}
+            </span>
+          </p>
+        </InputGroup>
+
+        <InputGroup
+          title="Site constraint"
+          description="This will be used by the future charging-feasibility calculation."
+        >
+          <NumberControl
+            label="Site power limit (kW)"
+            value={assumptions.sitePowerLimit}
+            min={0}
+            step={1}
+            edit={edit}
+            onChange={(sitePowerLimit) =>
+              update({ sitePowerLimit })
+            }
+          />
+        </InputGroup>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            disabled={!canSimulate}
+            className="min-h-12 rounded-lg bg-accent px-4 text-sm font-bold text-accent-ink hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => {
+              if (
+                selectedVehicle &&
+                selectedPreset &&
+                dieselPreset &&
+                electricPreset
+              ) {
+                setResult(
+                  createResult(
+                    assumptions,
+                    annualRouteDistance,
+                    vehicleName,
+                    dieselPreset.name,
+                    electricPreset.name,
+                    dieselPreset.litresPer100Km,
+                    electricPreset.kWhPer100Km,
+                  ),
+                );
+              }
+            }}
+          >
+            Finalize simulation
+          </button>
+
+          <button
+            type="button"
+            className="min-h-12 rounded-lg border border-line-strong px-4 text-sm font-bold text-secondary hover:border-[#668078] hover:text-primary"
+            onClick={() => {
+              baseline.current = null;
+              setAssumptions(initialAssumptions);
+              setSelectedVehicleId("");
+              setRouteDistances({});
+              setResult(null);
+            }}
+          >
+            Reset sample
+          </button>
+        </div>
+
+        <p className="text-xs leading-relaxed text-secondary">
+          Indicative estimate only. Results use your manually
+          entered route and price assumptions plus consumption
+          from vehicle presets.
+        </p>
+
+        {result && (
+          <SimulationResults result={result} />
+        )}
       </div>
-      <p className="text-xs leading-relaxed text-secondary">Indicative estimate only. Results use your manually entered route and price assumptions plus consumption from vehicle presets.</p>
-      {result && <SimulationResults result={result} />}
-    </div>
-  </CollapsibleSection>;
+    </CollapsibleSection>
+  );
 }
 
 function SimulationResults({ result }: { result: Result }) {
