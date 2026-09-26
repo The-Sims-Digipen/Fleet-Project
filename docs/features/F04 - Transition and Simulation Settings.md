@@ -3,6 +3,10 @@
 **M1 priority:** MUST  
 **Primary owner:** Elijah Chua Jye Kang
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F04 commits common `AnalysisSettings` to the project and `ScenarioAssumptions`/`ScenarioVehiclePlan` changes to the active scenario through their owning actions; component-local state is for invalid or uncommitted drafts only.
+
 ## User capability
 
 Users can choose a replacement/target vehicle preset, transition year and the economic assumptions used by the active scenario calculation.

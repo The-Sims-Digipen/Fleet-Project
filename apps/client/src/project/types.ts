@@ -1,19 +1,24 @@
 import type { SceneDocument } from "../scene/types";
-import type { VehiclePreset } from "../vehicles/types";
+import type {
+  M1ProjectDocument,
+  M1ScenarioDocument,
+  ScenarioVehiclePlan as DomainScenarioVehiclePlan,
+} from "../domain/contracts";
 
 export const NAME_MAX_LENGTH = 100;
 
-export type ScenarioVehiclePlan = {
-  transitionYear?: number | null;
-  targetPresetId?: string;
-};
+export type ScenarioVehiclePlan = DomainScenarioVehiclePlan;
 
-export type ScenarioDocument = {
+export type LegacyScenarioDocument = {
   version: 1;
   /** Scenario-specific transition decisions keyed by shared fleet vehicle id. */
   vehiclePlans?: Record<string, ScenarioVehiclePlan>;
 } & Record<string, unknown>;
-export type ProjectDocument = { version: 2; vehiclePresets: VehiclePreset[] };
+export type ScenarioDocument = LegacyScenarioDocument | M1ScenarioDocument;
+
+/** Version 2 presets predate the M1 preset fields, so their records are untrusted here. */
+export type LegacyProjectDocument = { version: 2; vehiclePresets: unknown[] };
+export type ProjectDocument = LegacyProjectDocument | M1ProjectDocument;
 
 export type WorldRecord = {
   id: string;
@@ -27,8 +32,15 @@ export type WorldRecord = {
 export type WorkspaceWorld = Omit<WorldRecord, "createdAt" | "updatedAt"> & {
   createdAt?: string;
   updatedAt?: string;
-  scenarios: Scenario[];
+  scenarios: WorkspaceScenario[];
 };
+
+/**
+ * A scenario held in the in-memory workspace. Stored documents may still be
+ * legacy version 1, but T03 upgrades them at the persistence boundary, so every
+ * scenario a feature reads is the authoritative M1 shape.
+ */
+export type WorkspaceScenario = Omit<Scenario, "document"> & { document: M1ScenarioDocument };
 
 export type Scenario = {
   id: string;

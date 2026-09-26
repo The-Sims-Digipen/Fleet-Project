@@ -1,9 +1,11 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 
+import { deleteVehiclePreset, presetDeletionImpact } from "../domain/fleetCommands";
+import { describePresetReference } from "../domain/references";
 import { vehicleModelEntries } from "../scene/catalog";
 import { usePresetStore } from "../state/presetStore";
 import { useSceneStore } from "../state/sceneStore";
-import { propulsions, type PresetNumericField, type Propulsion } from "../vehicles/types";
+import { ownershipKinds, propulsions, type PresetNumericField, type Propulsion, type VehiclePreset } from "../vehicles/types";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, SelectControl, TextControl } from "./controls";
 
@@ -15,13 +17,13 @@ const edit = {
 
 const propulsionOptions = propulsions.map((value) => ({ value, label: `${value[0].toUpperCase()}${value.slice(1)}` }));
 const modelOptions = vehicleModelEntries.map(([value, definition]) => ({ value, label: definition.name }));
+const ownershipOptions = ownershipKinds.map((value) => ({ value, label: value === "owned" ? "Owned" : "Leased" }));
 
-const numericFields: { field: PresetNumericField; label: string; step?: number }[] = [
+const energyFields: { field: PresetNumericField; label: string; step?: number }[] = [
   { field: "litresPer100Km", label: "Fuel use (L/100 km)" },
   { field: "kWhPer100Km", label: "Electric use (kWh/100 km)" },
   { field: "batteryCapacityKWh", label: "Battery (kWh)" },
   { field: "chargingPowerKW", label: "Charging power (kW)" },
-  { field: "purchaseCost", label: "Purchase price", step: 100 },
 ];
 
 const actionClass = "min-h-8 rounded border border-line-strong px-2.5 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
@@ -34,6 +36,27 @@ function FieldGroup({ title, children }: { title: string; children: React.ReactN
   </fieldset>;
 }
 
+/** Acquisition terms carry different fields per kind, so the form follows the kind. */
+function AcquisitionFields({ preset, onChange }: { preset: VehiclePreset; onChange: (acquisition: VehiclePreset["acquisition"]) => void }) {
+  const { acquisition } = preset;
+  return <>
+    <SelectControl label="Acquisition" value={acquisition.kind} options={ownershipOptions}
+      onChange={(kind) => {
+        edit.commitEdit();
+        onChange(kind === "owned" ? { kind: "owned", endResidualValue: 0 } : { kind: "leased", annualPayment: 0, exitFee: 0 });
+      }} />
+    {acquisition.kind === "owned"
+      ? <NumberControl label="Residual value at end of analysis" value={acquisition.endResidualValue} min={0} step={100} edit={edit}
+        onChange={(endResidualValue) => onChange({ kind: "owned", endResidualValue })} />
+      : <div className="grid grid-cols-2 gap-4">
+        <NumberControl label="Lease payment (per year)" value={acquisition.annualPayment} min={0} step={100} edit={edit}
+          onChange={(annualPayment) => onChange({ ...acquisition, annualPayment })} />
+        <NumberControl label="Lease exit fee" value={acquisition.exitFee} min={0} step={100} edit={edit}
+          onChange={(exitFee) => onChange({ ...acquisition, exitFee })} />
+      </div>}
+  </>;
+}
+
 export function VehiclePresets() {
   const presets = usePresetStore((state) => state.presets);
   const selectedId = usePresetStore((state) => state.selectedPresetId);
@@ -41,60 +64,33 @@ export function VehiclePresets() {
   const preset = presets.find((item) => item.id === selectedId);
   const instanceCount = useSceneStore((state) => state.document.objects.reduce((total, object) => total + (object.presetId === selectedId ? 1 : 0), 0));
 
-  const fileInput = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // Delete and Save both overwrite something the user cannot easily get back —
-  // a preset, or a tracked file in the repo — so each asks first.
-  const [confirming, setConfirming] = useState<"delete" | "save" | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  // T03 refuses to delete a preset the fleet or a scenario still points at.
+  const blockedBy = confirming ? presetDeletionImpact(confirming) : [];
+
+  const requestDelete = () => {
+    if (!selectedId || !preset) return;
+    setNotice(null);
+    const references = presetDeletionImpact(selectedId);
+    if (references.length || instanceCount) setConfirming(selectedId);
+    else removeSelected();
+  };
 
   const removeSelected = () => {
     if (!selectedId) return;
-    usePresetStore.getState().deletePreset(selectedId);
-    setConfirming(null);
-    setNotice(instanceCount ? `Preset deleted. ${instanceCount} placed ${instanceCount === 1 ? "object keeps" : "objects keep"} its geometry.` : null);
+    // Routed through T03 so the reference guard applies however deletion starts.
+    const result = deleteVehiclePreset(selectedId);
+    setConfirming(result.ok ? null : selectedId);
+    if (result.ok) setNotice(instanceCount ? `Preset deleted. ${instanceCount} placed ${instanceCount === 1 ? "object keeps" : "objects keep"} its geometry.` : null);
   };
-
-  function exportLibrary() {
-    edit.commitEdit();
-    const blob = new Blob([usePresetStore.getState().exportPresets()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "vehicle-presets.json";
-    link.click();
-    URL.revokeObjectURL(url);
-    setNotice(`Exported ${presets.length} presets.`);
-  }
-
-  async function importLibrary(file: File) {
-    const result = usePresetStore.getState().importPresets(await file.text());
-    setNotice(result.ok ? `Imported ${result.count} presets.` : result.error);
-  }
-
-  /** Dev only: asks the Vite dev server to rewrite src/vehicles/defaults.json. */
-  async function saveToSource() {
-    edit.commitEdit();
-    setNotice("Saving to defaults.json…");
-    try {
-      const response = await fetch("/__save-presets", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: usePresetStore.getState().exportPresets(),
-      });
-      const result: { ok: boolean; count?: number; error?: string } = await response.json();
-      setNotice(result.ok ? `Saved ${result.count} presets to vehicles/defaults.json. These are now the values every reload starts from.` : `Save failed: ${result.error ?? response.statusText}`);
-    } catch {
-      setNotice("Save failed: the dev server is not reachable. This only works with pnpm dev running.");
-    }
-  }
 
   return <CollapsibleSection title="Vehicle Presets" defaultOpen description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
         <button type="button" aria-label="New vehicle preset" className={actionClass} onClick={() => { setConfirming(null); usePresetStore.getState().createPreset(); }}>New</button>
-        {import.meta.env.DEV && <button type="button" aria-label="Save vehicle presets" className={actionClass} disabled={!presets.length} onClick={() => setConfirming("save")} title="Rewrite src/vehicles/defaults.json via the dev server, making these the values every reload starts from">Save</button>}
         <button type="button" aria-label="Duplicate vehicle preset" className={actionClass} disabled={!preset} onClick={() => { if (selectedId) usePresetStore.getState().duplicatePreset(selectedId); }}>Duplicate</button>
-        <button type="button" aria-label="Delete vehicle preset" className={actionClass} disabled={!preset} onClick={() => { if (instanceCount) setConfirming("delete"); else removeSelected(); }}>Delete</button>
+        <button type="button" aria-label="Delete vehicle preset" className={actionClass} disabled={!preset} onClick={requestDelete}>Delete</button>
         <span className="ml-auto text-xs text-secondary">{presets.length}</span>
       </div>
 
@@ -109,41 +105,26 @@ export function VehiclePresets() {
               <span className="shrink-0 font-mono text-[10px] opacity-60">{item.category}</span>
             </button>
           </li>)}
-        </ul> : <p className="px-2 py-4 text-xs text-secondary">No presets. Click New or import a library.</p>}
-      </div>
-
-      <div className="flex items-center justify-between gap-1.5 border-t border-line-strong px-2 py-1">
-        <span className="text-[11px] text-secondary">{presets.length} {presets.length === 1 ? "preset" : "presets"}</span>
-        <span className="flex gap-1.5">
-          <button type="button" className={actionClass} onClick={() => { edit.commitEdit(); fileInput.current?.click(); }}>Import</button>
-          <button type="button" className={actionClass} disabled={!presets.length} onClick={exportLibrary}>Export</button>
-        </span>
+        </ul> : <p className="px-2 py-4 text-xs text-secondary">No presets. Click New to create one.</p>}
       </div>
     </div>
 
-    <input ref={fileInput} type="file" accept="application/json,.json" className="sr-only" tabIndex={-1} aria-hidden="true"
-      onChange={(event) => {
-        const file = event.target.files?.[0];
-        event.target.value = "";
-        if (file) void importLibrary(file);
-      }} />
-
-    {confirming && <div role="alert" className="mt-3 rounded border border-line-strong bg-[#241a12] p-3 text-xs text-secondary">
-      {confirming === "delete" && preset
-        ? <>
-          <p className="mb-2.5">Delete <b className="text-primary">{preset.name}</b>? {instanceCount} placed {instanceCount === 1 ? "object" : "objects"} will keep rendering with the same geometry but lose the preset link.</p>
-          <span className="flex gap-2">
-            <button type="button" className={actionClass} onClick={removeSelected}>Delete preset</button>
-            <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Cancel</button>
-          </span>
-        </>
-        : <>
-          <p className="mb-2.5">Overwrite <b className="text-primary">src/vehicles/defaults.json</b> with these {presets.length} presets? This rewrites a file tracked by git, so it will show up in your next commit.</p>
-          <span className="flex gap-2">
-            <button type="button" className={actionClass} onClick={() => { setConfirming(null); void saveToSource(); }}>Overwrite defaults.json</button>
-            <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Cancel</button>
-          </span>
-        </>}
+    {confirming && preset && <div role="alert" className="mt-3 rounded border border-line-strong bg-[#241a12] p-3 text-xs text-secondary">
+      {blockedBy.length ? <>
+        <p className="mb-2">
+          <b className="text-primary">{preset.name}</b> is still in use and cannot be deleted. Reassign or clear these first:
+        </p>
+        <ul className="mb-2.5 list-disc pl-4">
+          {blockedBy.map((reference) => <li key={describePresetReference(reference)}>{describePresetReference(reference)}</li>)}
+        </ul>
+        <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Close</button>
+      </> : <>
+        <p className="mb-2.5">Delete <b className="text-primary">{preset.name}</b>? {instanceCount} placed {instanceCount === 1 ? "object" : "objects"} will keep rendering with the same geometry but lose the preset link.</p>
+        <span className="flex gap-2">
+          <button type="button" className={actionClass} onClick={removeSelected}>Delete preset</button>
+          <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Cancel</button>
+        </span>
+      </>}
     </div>}
 
     {notice && <p role="status" className="mt-3 text-xs text-secondary">{notice}</p>}
@@ -160,13 +141,24 @@ export function VehiclePresets() {
 
       <FieldGroup title="Energy">
         <div className="grid grid-cols-2 gap-4">
-          {numericFields.slice(0, 4).map(({ field, label, step }) =>
+          {energyFields.map(({ field, label, step }) =>
             <NumberControl key={field} label={label} value={preset[field]} min={0} step={step} edit={edit} onChange={(value) => updatePreset(preset.id, { [field]: value })} />)}
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <NumberControl label="Range (km, 0 for none)" value={preset.rangeKm ?? 0} min={0} step={10} edit={edit}
+            onChange={(rangeKm) => updatePreset(preset.id, { rangeKm: rangeKm > 0 ? rangeKm : null })} />
+          <NumberControl label="Charging efficiency (0-1)" value={preset.chargingEfficiency} min={0.01} step={0.01} edit={edit}
+            onChange={(chargingEfficiency) => updatePreset(preset.id, { chargingEfficiency })} />
+        </div>
+        <p className="text-xs text-secondary">Range 0 means range is not a planning constraint for this preset. Charging efficiency divides supplied energy, so 1 means no charging losses.</p>
       </FieldGroup>
 
       <FieldGroup title="Economics">
-        <NumberControl label="Purchase price" value={preset.purchaseCost} min={0} step={100} edit={edit} onChange={(purchaseCost) => updatePreset(preset.id, { purchaseCost })} />
+        <div className="grid grid-cols-2 gap-4">
+          <NumberControl label="Purchase price" value={preset.purchaseCost} min={0} step={100} edit={edit} onChange={(purchaseCost) => updatePreset(preset.id, { purchaseCost })} />
+          <NumberControl label="Maintenance (per year)" value={preset.maintenanceCostPerYear} min={0} step={50} edit={edit} onChange={(maintenanceCostPerYear) => updatePreset(preset.id, { maintenanceCostPerYear })} />
+        </div>
+        <AcquisitionFields preset={preset} onChange={(acquisition) => updatePreset(preset.id, { acquisition })} />
       </FieldGroup>
 
       <FieldGroup title="Appearance">

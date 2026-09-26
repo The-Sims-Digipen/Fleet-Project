@@ -2,10 +2,10 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { loadDefaultPresets } from "./vehicles/defaults";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "./domain/mockProject";
 import { usePresetStore } from "./state/presetStore";
 import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
-import { initialVehicles, useFleetStore } from "./state/fleetStore";
+import { useFleetStore } from "./state/fleetStore";
 import { useTimelineStore } from "./state/timelineStore";
 import { createProjectFields, useProjectStore } from "./state/projectStore";
 
@@ -19,9 +19,10 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null });
-  useFleetStore.setState({ vehicles: initialVehicles });
-  useProjectStore.setState(createProjectFields("Untitled project", useSceneStore.getState().document, 0, usePresetStore.getState().presets));
+  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  usePresetStore.setState({ presets: inputs.presets, selectedPresetId: null, baseline: null });
+  useFleetStore.setState({ vehicles: inputs.fleet, analysis: inputs.analysis, baseline: null });
+  useProjectStore.setState(createProjectFields("Untitled project", useSceneStore.getState().document, 0, inputs));
   useTimelineStore.getState().resetYear();
 });
 afterEach(cleanup);
@@ -53,7 +54,8 @@ describe("inspector architecture", () => {
   it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Visualize fleet in 3D" }));
+    await user.click(screen.getByRole("button", { name: "Visualize active plan in 3D" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Target preset for UNIT-01" }), "electric-van");
     await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2028");
     await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-02" }), "");
     expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");

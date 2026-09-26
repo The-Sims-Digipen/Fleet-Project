@@ -1,20 +1,23 @@
-import type { Scenario, ScenarioVehiclePlan } from "./types";
-import type { MockVehicle } from "../state/fleetStore";
-import { END_YEAR, START_YEAR } from "./analysisPeriod";
+import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
+import { analysisYears } from "../domain/contracts";
+import { effectiveVehicleState, planChangesPreset, resolveVehiclePlan, type PlanRecord, type ResolvedVehiclePlan } from "../domain/effectiveState";
 import type { VehiclePreset } from "../vehicles/types";
 
+/**
+ * Indicative scenario preview used by the Compare workspace.
+ *
+ * This is a presentation-level preview, not the M1 financial model: T05 owns
+ * `SimulationInput -> SimulationResult`. It reads the authoritative fleet and
+ * the shared transition rule from T03 so the preview and the real engine can
+ * never disagree about which preset a vehicle is on in a given year.
+ */
+
 export const comparisonPreviewAssumptions = {
-  dieselPricePerLitre: 2.15,
-  electricityPricePerKwh: 0.30,
-  dieselKgCo2ePerLitre: 2.70,
-  electricityKgCo2ePerKwh: 0.40,
+  electricityPricePerKwh: 0.3,
   siteLimitKw: 250,
 } as const;
 
-export type ResolvedVehiclePlan = {
-  transitionYear: number | null;
-  targetPresetId: string;
-};
+export type { ResolvedVehiclePlan };
 
 export type ComparisonYearPoint = {
   year: number;
@@ -45,78 +48,65 @@ export type ScenarioComparisonResult = {
   transitionsByYear: Record<number, number>;
 };
 
-const presetById = (presets: VehiclePreset[], id: string) => presets.find((preset) => preset.id === id);
+export type ComparisonScenario = { id: string; name: string; vehiclePlans: PlanRecord };
 
-export function defaultTargetPresetId(vehicle: MockVehicle, presets: VehiclePreset[]): string {
-  const current = presetById(presets, vehicle.currentPreset);
-  if (!current) return vehicle.currentPreset;
-  if (current.propulsion === "electric") return current.id;
-  return presets.find((preset) => preset.category === current.category && preset.propulsion === "electric")?.id
-    ?? presets.find((preset) => preset.propulsion === "electric")?.id
-    ?? current.id;
+const presetById = (presets: readonly VehiclePreset[], id: string) => presets.find((preset) => preset.id === id);
+const presetIdsOf = (presets: readonly VehiclePreset[]) => new Set(presets.map((preset) => preset.id));
+
+export function effectivePresetForYear(
+  scenario: ComparisonScenario,
+  vehicle: FleetVehicle,
+  presets: readonly VehiclePreset[],
+  year: number,
+): VehiclePreset | undefined {
+  const state = effectiveVehicleState(vehicle, scenario.vehiclePlans[vehicle.id], presetIdsOf(presets), year);
+  return presetById(presets, state.presetId);
 }
 
-export function resolveVehiclePlan(scenario: Scenario, vehicle: MockVehicle, presets: VehiclePreset[]): ResolvedVehiclePlan {
-  const plan = scenario.document.vehiclePlans?.[vehicle.vehicleId] as ScenarioVehiclePlan | undefined;
-  const transitionYear = plan && "transitionYear" in plan ? plan.transitionYear ?? null : vehicle.plannedTransitionYear;
-  const targetPresetId = plan?.targetPresetId && presetById(presets, plan.targetPresetId)
-    ? plan.targetPresetId
-    : defaultTargetPresetId(vehicle, presets);
-  return { transitionYear, targetPresetId };
-}
-
-export function effectivePresetForYear(scenario: Scenario, vehicle: MockVehicle, presets: VehiclePreset[], year: number): VehiclePreset | undefined {
-  const plan = resolveVehiclePlan(scenario, vehicle, presets);
-  const current = presetById(presets, vehicle.currentPreset);
-  if (plan.transitionYear !== null && year >= plan.transitionYear) return presetById(presets, plan.targetPresetId) ?? current;
-  return current;
-}
-
-function annualEnergyCost(vehicle: MockVehicle, preset: VehiclePreset | undefined): number {
+function annualEnergyCost(vehicle: FleetVehicle, preset: VehiclePreset | undefined, analysis: AnalysisSettings): number {
   if (!preset) return 0;
-  const scale = vehicle.annualDistance / 100;
-  return scale * (
-    preset.litresPer100Km * comparisonPreviewAssumptions.dieselPricePerLitre
-    + preset.kWhPer100Km * comparisonPreviewAssumptions.electricityPricePerKwh
-  );
+  const scale = vehicle.annualKm / 100;
+  return scale * (preset.litresPer100Km * analysis.fuelPricePerLitre + preset.kWhPer100Km * comparisonPreviewAssumptions.electricityPricePerKwh)
+    + preset.maintenanceCostPerYear;
 }
 
-function annualEmissionsTonnes(vehicle: MockVehicle, preset: VehiclePreset | undefined): number {
+function annualEmissionsTonnes(vehicle: FleetVehicle, preset: VehiclePreset | undefined, analysis: AnalysisSettings): number {
   if (!preset) return 0;
-  const scale = vehicle.annualDistance / 100;
+  const scale = vehicle.annualKm / 100;
   return scale * (
-    preset.litresPer100Km * comparisonPreviewAssumptions.dieselKgCo2ePerLitre
-    + preset.kWhPer100Km * comparisonPreviewAssumptions.electricityKgCo2ePerKwh
+    preset.litresPer100Km * analysis.fuelEmissionsKgCo2ePerLitre
+    + preset.kWhPer100Km * analysis.electricityEmissionsKgCo2ePerKWh
   ) / 1000;
 }
 
 export function calculateScenarioComparison(
-  scenario: Scenario,
-  vehicles: MockVehicle[],
-  presets: VehiclePreset[],
+  scenario: ComparisonScenario,
+  vehicles: readonly FleetVehicle[],
+  presets: readonly VehiclePreset[],
+  analysis: AnalysisSettings,
   selectedYear: number,
 ): ScenarioComparisonResult {
+  const presetIds = presetIdsOf(presets);
   let cumulativeCost = 0;
   let totalCapex = 0;
   let totalEmissions = 0;
   const yearly: ComparisonYearPoint[] = [];
   const transitionsByYear: Record<number, number> = {};
 
-  for (let year = START_YEAR; year <= END_YEAR; year++) {
+  for (const year of analysisYears(analysis)) {
     let annualOpex = 0;
     let annualEmissions = 0;
     let annualCapex = 0;
     let transitionedCount = 0;
 
     for (const vehicle of vehicles) {
-      const plan = resolveVehiclePlan(scenario, vehicle, presets);
+      const plan = resolveVehiclePlan(scenario.vehiclePlans[vehicle.id], presetIds);
       const effective = effectivePresetForYear(scenario, vehicle, presets, year);
-      annualOpex += annualEnergyCost(vehicle, effective);
-      annualEmissions += annualEmissionsTonnes(vehicle, effective);
-      if (plan.transitionYear === year) {
-        const current = presetById(presets, vehicle.currentPreset);
-        const target = presetById(presets, plan.targetPresetId);
-        if (target && target.id !== current?.id) {
+      annualOpex += annualEnergyCost(vehicle, effective, analysis);
+      annualEmissions += annualEmissionsTonnes(vehicle, effective, analysis);
+      if (plan.transitionYear === year && planChangesPreset(vehicle, plan)) {
+        const target = presetById(presets, plan.targetPresetId as string);
+        if (target) {
           annualCapex += target.purchaseCost;
           transitionedCount++;
         }
@@ -141,8 +131,8 @@ export function calculateScenarioComparison(
   for (const vehicle of vehicles) {
     const effective = effectivePresetForYear(scenario, vehicle, presets, selectedYear);
     if (!effective) continue;
-    selectedYearOpex += annualEnergyCost(vehicle, effective);
-    selectedYearEmissions += annualEmissionsTonnes(vehicle, effective);
+    selectedYearOpex += annualEnergyCost(vehicle, effective, analysis);
+    selectedYearEmissions += annualEmissionsTonnes(vehicle, effective, analysis);
     if (effective.propulsion === "electric") electricCount++;
     else if (effective.propulsion === "hybrid") hybridCount++;
     else combustionCount++;

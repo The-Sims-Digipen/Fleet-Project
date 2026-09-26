@@ -3,6 +3,10 @@
 **M1 priority:** MUST  
 **Primary owner:** Jarrel Tay Wee Han
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 binds to the single T04 selected year, project `AnalysisSettings` and real T03 events; it must not own another clock or duplicate effective-preset logic.
+
 ## User capability
 
 Users can select a year and play/pause/reset the analysis timeline while time-dependent fleet and 3D views use the same selected-year state.

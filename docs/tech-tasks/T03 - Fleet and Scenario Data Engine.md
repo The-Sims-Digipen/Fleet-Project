@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F01, F02, F03, F04, F05, F07
 
+## Shared integration contract
+
+Follow and maintain the canonical types in the [M1 integration contract](../tech/m1-integration-contract.md) and `apps/client/src/domain/contracts.ts`. T03 owns `M1VehiclePreset`, `FleetVehicle`, `ScenarioVehiclePlan`, reference-integrity operations, effective-year resolution and transition-event projection inputs.
+
 ## Goal
 
 Provide the canonical domain/state engine for real fleet vehicles, preset references and scenario-specific transition plans, replacing mock fleet state and giving every consumer the same authoritative scenario data.

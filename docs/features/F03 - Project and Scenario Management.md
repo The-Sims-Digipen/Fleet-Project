@@ -3,6 +3,10 @@
 **M1 priority:** MUST  
 **Primary owner:** Brandon Koh Kai Yang
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses T06 workspace actions and T01 repository operations for versioned `M1ProjectDocument`/`M1ScenarioDocument` data; UI code must not access IndexedDB or implement migrations directly.
+
 ## User capability
 
 Users can create, open, save and reopen projects; manage reusable Worlds; create, rename, duplicate, remove and switch Scenarios; and retain project/scenario data after reloading the application.

@@ -17,6 +17,8 @@
 
 The UI-stub phase is complete enough to move into the M1 integration phase. The priority is now to replace mock/hard-coded state in the core M1 path with shared domain state, deterministic calculations and persistent project data.
 
+The versioned domain handoff, shared-file ownership and merge sequence are fixed in the [M1 integration contract](tech/m1-integration-contract.md). Implementation branches start from a verified commit containing that contract rather than from the earlier UI-stub branches.
+
 ## Product feature targets
 
 - [F01 — Vehicle Presets](features/F01%20-%20Vehicle%20Presets.md) — MUST — Tan Wei Jun

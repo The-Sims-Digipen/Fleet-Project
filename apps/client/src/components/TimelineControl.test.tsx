@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TimelineControl } from "./TimelineControl";
 import { END_YEAR, START_YEAR, useTimelineStore } from "../state/timelineStore";
-import { initialVehicles, useFleetStore } from "../state/fleetStore";
-import { loadDefaultPresets } from "../vehicles/defaults";
+import { useFleetStore } from "../state/fleetStore";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
 import { usePresetStore } from "../state/presetStore";
 import { createDocument } from "../state/sceneStore";
 import { createProjectFields, useProjectStore } from "../state/projectStore";
@@ -11,10 +11,11 @@ import { createProjectFields, useProjectStore } from "../state/projectStore";
 beforeEach(() => {
   vi.useFakeTimers();
   useTimelineStore.getState().resetYear();
-  useFleetStore.setState({ vehicles: initialVehicles });
-  const presets = loadDefaultPresets();
-  usePresetStore.getState().replacePresets(presets);
-  useProjectStore.setState(createProjectFields("Timeline test", createDocument(), 0, presets));
+  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  usePresetStore.getState().replacePresets(inputs.presets);
+  useFleetStore.getState().updateAnalysis(inputs.analysis);
+  useFleetStore.getState().replaceFleet(inputs.fleet);
+  useProjectStore.setState(createProjectFields("Timeline test", createDocument(), 0, inputs));
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
@@ -26,12 +27,14 @@ test("slider and event markers select the shared year", () => {
   expect(useTimelineStore.getState().selectedYear).toBe(2029);
 });
 
-test("vehicle markers follow scheduled years and disappear for No change", () => {
+test("vehicle markers appear only for a scenario plan that changes a preset", () => {
   render(<TimelineControl />);
   const scenarioId = useProjectStore.getState().activeScenarioId;
+  // A year alone is not a transition; the plan also needs a different target.
   act(() => useProjectStore.getState().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2035 }));
+  expect(screen.queryByRole("button", { name: "2035: 1 vehicle changes" })).not.toBeInTheDocument();
+  act(() => useProjectStore.getState().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { targetPresetId: "electric-van" }));
   expect(screen.getByRole("button", { name: "2035: 1 vehicle changes" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "2027: 1 vehicle changes" })).not.toBeInTheDocument();
   act(() => useProjectStore.getState().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: null }));
   expect(screen.queryByRole("button", { name: "2035: 1 vehicle changes" })).not.toBeInTheDocument();
 });

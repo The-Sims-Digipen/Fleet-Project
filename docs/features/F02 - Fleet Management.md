@@ -3,6 +3,10 @@
 **M1 priority:** MUST  
 **Primary owner:** Jarrel Tay Wee Han
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F02 reads and edits canonical `FleetVehicle` records through T03 operations; transition year and target preset remain scenario-owned and must not be written into the shared fleet record.
+
 ## User capability
 
 Users can view the fleet and add or edit vehicle information such as vehicle identity, assigned/current preset, annual distance and other M1 planning attributes.

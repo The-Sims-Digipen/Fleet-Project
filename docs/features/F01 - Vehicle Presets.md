@@ -3,6 +3,10 @@
 **M1 priority:** MUST  
 **Primary owner:** Tan Wei Jun
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F01 edits canonical `M1VehiclePreset` records through T03 operations, preserves stable IDs, and uses T03 reference-impact rules before deletion.
+
 ## User capability
 
 Users can view, create and edit reusable vehicle presets and select a target vehicle preset for replacement planning.

@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F03, F04
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T06 owns the in-memory lifecycle of versioned project/scenario documents, active selections, dirty state and complete workspace snapshots; T01 remains the only storage boundary and T03 remains the domain-operation owner.
+
 ## Goal
 
 Manage the in-memory lifecycle and invariants of Projects, Worlds and Scenarios, including active selections, switching, duplication/removal, dirty state and the workspace snapshots passed to persistence.

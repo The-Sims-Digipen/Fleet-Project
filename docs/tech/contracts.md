@@ -17,6 +17,10 @@ Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario
 
 T03 Fleet & Scenario Data Engine owns the canonical fleet/scenario contracts. Per-vehicle transition decisions live in `ScenarioDocument.vehiclePlans`, keyed by stable shared fleet vehicle ID. Each entry may contain `transitionYear` and `targetPresetId`. These are scenario-owned inputs: duplicating a scenario deep-copies them, editing one scenario must not mutate another, and derived results are never persisted. The structure remains intentionally compatible with the fuller scenario contract described in the simulation design.
 
+The importable M1 shapes live in `apps/client/src/domain/contracts.ts`; the team integration and ownership rules are in the [M1 integration contract](m1-integration-contract.md). Project document version 3 adds the real fleet and common analysis settings to the existing preset library. Scenario document version 2 adds explicit scenario assumptions while retaining vehicle plans. Version 2/1 project/scenario documents are legacy inputs during migration, not shapes for new feature work.
+
+Common fuel price and emissions factors are project-owned so every scenario uses the same explicit baseline. Electricity tariffs, charging strategy/share and transition choices are scenario-owned because those inputs may differ between plans. Simulation and analytics results remain derived and are not saved.
+
 ## Validation and consistency
 
 - Names are nonempty and limited to 100 characters.

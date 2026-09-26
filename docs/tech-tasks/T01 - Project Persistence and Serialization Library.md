@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F01, F02, F03, F04
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T01 persists and validates `M1ProjectDocument` and `M1ScenarioDocument`, owns legacy-version migration, and must never persist `SimulationResult` or other derived output.
+
 ## Goal
 
 Provide a reusable persistence boundary for saving/loading complete project workspaces and importing/exporting versioned `.fleetproject` snapshots without coupling UI/domain code directly to IndexedDB.

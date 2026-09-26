@@ -49,7 +49,7 @@ Simulation, rendering and persistence remain separable so they can be tested ind
 
 ## Data ownership and interaction
 
-A project shares its vehicle presets, fleet, analysis period, energy-price assumptions and other project-level inputs across one or more reusable 3D Worlds. Scenarios are separate saved transition plans bound to a World; they do not own or duplicate the World document.
+A project shares its vehicle presets, fleet, analysis period, currency, fuel price and emissions factors across one or more reusable 3D Worlds. Scenarios are separate saved transition plans bound to a World; they own transition decisions and scenario electricity/charging assumptions but do not own or duplicate the World document.
 
 ```mermaid
 sequenceDiagram
