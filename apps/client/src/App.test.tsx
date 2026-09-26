@@ -50,6 +50,12 @@ describe("inspector architecture", () => {
     expect(screen.getByRole("heading", { name: "Cost over time" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /cumulative cost comparison/i })).toBeInTheDocument();
     expect(screen.getByText("End-of-year cash breakeven")).toBeInTheDocument();
+    expect(screen.getByText("Transition cost")).toBeInTheDocument();
+    expect(screen.getByText("Estimated savings")).toBeInTheDocument();
+    expect(screen.getByText("OPEX")).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Annual financial results" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Baseline cost" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Plan cost" })).toBeInTheDocument();
   });
   it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();
