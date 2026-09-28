@@ -40,6 +40,7 @@ function WorldObjectsLayer({ objects, isClick, markDragged }: {
   markDragged: () => void;
 }) {
   const selectedId = useSceneStore((state) => state.editor.selectedObjectId);
+  const interactionMode = useSceneStore((state) => state.editor.interactionMode);
   const roots = useRef(new Map<string, Group>());
   const [registeredTarget, setRegisteredTarget] = useState<RegisteredTarget | null>(null);
 
@@ -72,7 +73,7 @@ function WorldObjectsLayer({ objects, isClick, markDragged }: {
 
   return <>
     {objects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selectable={import.meta.env.DEV} registerRoot={import.meta.env.DEV ? registerRoot : undefined} />)}
-    {import.meta.env.DEV && <TransformGizmo objectId={selectedId} target={selectedTarget} markDragged={markDragged} />}
+    {import.meta.env.DEV && interactionMode === "gizmo" && <TransformGizmo objectId={selectedId} target={selectedTarget} markDragged={markDragged} />}
   </>;
 }
 

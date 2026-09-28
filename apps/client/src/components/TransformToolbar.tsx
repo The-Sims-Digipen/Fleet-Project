@@ -15,17 +15,19 @@ function isTypingTarget(target: EventTarget | null) {
 
 export function TransformToolbar() {
   const selected = useSceneStore((state) => state.editor.selectedObjectId !== null);
+  const interactionMode = useSceneStore((state) => state.editor.interactionMode);
   const mode = useSceneStore((state) => state.editor.transformMode);
   const space = useSceneStore((state) => state.editor.transformSpace);
   const snap = useSceneStore((state) => state.editor.snapEnabled);
   const editing = useSceneStore((state) => state.history.baseline !== null);
+  const setInteractionMode = useSceneStore((state) => state.setInteractionMode);
   const setMode = useSceneStore((state) => state.setTransformMode);
   const setSpace = useSceneStore((state) => state.setTransformSpace);
   const setSnap = useSceneStore((state) => state.setSnapEnabled);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (editing || isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (interactionMode !== "gizmo" || editing || isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
       const key = event.key.toLowerCase();
       const nextMode = key === "w" ? "translate" : key === "e" ? "rotate" : key === "r" ? "scale" : null;
       if (nextMode) {
@@ -38,18 +40,23 @@ export function TransformToolbar() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editing, setMode, setSpace, space]);
+  }, [editing, interactionMode, setMode, setSpace, space]);
+
+  const gizmoEnabled = interactionMode === "gizmo";
 
   return <div className="pointer-events-auto absolute top-[108px] left-[clamp(20px,3vw,42px)] z-20 flex max-w-[calc(100%-40px)] flex-wrap items-center gap-1.5" role="toolbar" aria-label="Transform tools">
     <div className="flex gap-1" aria-label="Transform mode">
-      {modes.map((item) => <button key={item.mode} type="button" className={buttonClass} disabled={!selected} aria-pressed={mode === item.mode} title={`${item.label} (${item.shortcut})`} onClick={() => setMode(item.mode)}>
+      {modes.map((item) => <button key={item.mode} type="button" className={buttonClass} disabled={!selected || !gizmoEnabled} aria-pressed={gizmoEnabled && mode === item.mode} title={`${item.label} (${item.shortcut})`} onClick={() => setMode(item.mode)}>
         {item.label}<span className="ml-1.5 font-mono text-[10px] opacity-60">{item.shortcut}</span>
       </button>)}
     </div>
-    <button type="button" aria-label={`Transform space: ${space === "world" ? "World" : "Local"}`} className={buttonClass} disabled={!selected} aria-pressed={space === "local"} title="Toggle transform space (Q)" onClick={() => setSpace(space === "world" ? "local" : "world")}>
+    <button type="button" aria-label={`Interaction mode: ${gizmoEnabled ? "Gizmo" : "Normal"}`} className={buttonClass} aria-pressed={gizmoEnabled} title={`Switch to ${gizmoEnabled ? "normal" : "gizmo"} mode`} onClick={() => setInteractionMode(gizmoEnabled ? "normal" : "gizmo")}>
+      {gizmoEnabled ? "Gizmo" : "Normal"}
+    </button>
+    <button type="button" aria-label={`Transform space: ${space === "world" ? "World" : "Local"}`} className={buttonClass} disabled={!selected || !gizmoEnabled} aria-pressed={space === "local"} title="Toggle transform space (Q)" onClick={() => setSpace(space === "world" ? "local" : "world")}>
       {space === "world" ? "World" : "Local"}<span className="ml-1.5 font-mono text-[10px] opacity-60">Q</span>
     </button>
-    <button type="button" className={buttonClass} disabled={!selected} aria-pressed={snap} title="Toggle snapping" onClick={() => setSnap(!snap)}>
+    <button type="button" className={buttonClass} disabled={!selected || !gizmoEnabled} aria-pressed={snap} title="Toggle snapping" onClick={() => setSnap(!snap)}>
       Snap
     </button>
   </div>;

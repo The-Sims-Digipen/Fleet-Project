@@ -108,7 +108,7 @@ describe("inspector architecture", () => {
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(state().document.objects[1].id).toBe(id);
   });
-  it("changes gizmo mode, space and snapping without adding document history", async () => {
+  it("toggles normal and gizmo interaction and changes transform settings without adding document history", async () => {
     const user = userEvent.setup();
     render(<App />);
     const toolbar = screen.getByRole("toolbar", { name: "Transform tools" });
@@ -120,10 +120,18 @@ describe("inspector architecture", () => {
     expect(state().editor.transformSpace).toBe("local");
     expect(state().editor.snapEnabled).toBe(false);
     expect(state().history.past).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Interaction mode: Gizmo" }));
+    expect(state().editor.interactionMode).toBe("normal");
+    expect(screen.getByRole("button", { name: /Move/ })).toBeDisabled();
+    fireEvent.keyDown(document.body, { key: "r" });
+    expect(state().editor.transformMode).toBe("rotate");
+    await user.click(screen.getByRole("button", { name: "Interaction mode: Normal" }));
+    expect(state().editor.interactionMode).toBe("gizmo");
     fireEvent.keyDown(document.body, { key: "r" });
     fireEvent.keyDown(document.body, { key: "q" });
     expect(state().editor.transformMode).toBe("scale");
     expect(state().editor.transformSpace).toBe("world");
+    expect(state().history.past).toHaveLength(0);
   });
 
   it("resizes the desktop sidebar with the keyboard and limits its size", () => {

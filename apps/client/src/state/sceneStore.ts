@@ -6,8 +6,10 @@ import { copyTransform, type Appearance, type SceneDocument, type SceneObject, t
 
 export type TransformMode = "translate" | "rotate" | "scale";
 export type TransformSpace = "world" | "local";
+export type EditorInteractionMode = "normal" | "gizmo";
 export type EditorState = {
   selectedObjectId: string | null;
+  interactionMode: EditorInteractionMode;
   transformMode: TransformMode;
   transformSpace: TransformSpace;
   snapEnabled: boolean;
@@ -18,7 +20,7 @@ export function createDocument(): SceneDocument {
 }
 
 export function createEditorState(selectedObjectId: string | null = DEFAULT_DEPOT_OBJECT_ID): EditorState {
-  return { selectedObjectId, transformMode: "translate", transformSpace: "world", snapEnabled: true };
+  return { selectedObjectId, interactionMode: "gizmo", transformMode: "translate", transformSpace: "world", snapEnabled: true };
 }
 
 type History = { past: SceneDocument[]; future: SceneDocument[]; baseline: SceneDocument | null };
@@ -27,6 +29,7 @@ type SceneState = {
   editor: EditorState;
   history: History;
   selectObject: (id: string | null) => void;
+  setInteractionMode: (mode: EditorInteractionMode) => void;
   setTransformMode: (mode: TransformMode) => void;
   setTransformSpace: (space: TransformSpace) => void;
   setSnapEnabled: (enabled: boolean) => void;
@@ -80,6 +83,10 @@ export const useSceneStore = create<SceneState>((set, get) => {
     selectObject: (id) => {
       get().commitEdit();
       if (id === null || get().document.objects.some((object) => object.id === id)) patchEditor({ selectedObjectId: id });
+    },
+    setInteractionMode: (mode) => {
+      get().commitEdit();
+      if (["normal", "gizmo"].includes(mode)) patchEditor({ interactionMode: mode });
     },
     setTransformMode: (mode) => {
       get().commitEdit();
