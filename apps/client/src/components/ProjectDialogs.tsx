@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { validateName, type ProjectSummary, type WorldSummary } from "../project/types";
+import { validateName, type ProjectSummary } from "../project/types";
 import { useProjectStore } from "../state/projectStore";
 
 const secondaryButton = "min-h-9 rounded border border-line-strong px-3 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
@@ -29,30 +29,16 @@ function DiscardWarning({ dirty, projectName }: { dirty: boolean; projectName: s
   return dirty ? <p role="alert" className="rounded-lg border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm text-amber-200">⚠ Unsaved changes in “{projectName}” will be discarded.</p> : null;
 }
 
-type WorldListState = { state: "loading" } | { state: "ready"; worlds: WorldSummary[] } | { state: "error"; message: string };
-
 export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismiss: () => void }) {
   const currentName = useProjectStore((state) => state.name);
   const [name, setName] = useState("Untitled project");
-  const [worldChoice, setWorldChoice] = useState("new");
-  const [worlds, setWorlds] = useState<WorldListState>({ state: "loading" });
   const [touched, setTouched] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const error = validateName(name);
   const inputId = useId();
-  const worldId = useId();
 
-  useEffect(() => {
-    let active = true;
-    useProjectStore.getState().listWorlds().then(
-      (items) => { if (active) setWorlds({ state: "ready", worlds: items }); },
-      (reason: unknown) => { if (active) setWorlds({ state: "error", message: reason instanceof Error ? reason.message : "Saved worlds could not be loaded." }); },
-    );
-    return () => { active = false; };
-  }, []);
-
-  return <Modal title="New Project" description="Starts with Plan A. Create a fresh 3D world or reuse an existing saved world." onDismiss={onDismiss}>
+  return <Modal title="New Project" description="Starts with the default depot, its ten parking lots, and Plan A." onDismiss={onDismiss}>
     <form className="grid gap-5" onSubmit={async (event) => {
       event.preventDefault();
       setTouched(true);
@@ -60,8 +46,7 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
       setCreating(true);
       setCreateError(null);
       try {
-        if (worldChoice === "new") useProjectStore.getState().newProject(name);
-        else await useProjectStore.getState().newProjectWithWorld(name, worldChoice);
+        useProjectStore.getState().newProject(name);
         onDismiss();
       } catch (reason) {
         setCreateError(reason instanceof Error ? reason.message : "The project could not be created.");
@@ -74,15 +59,6 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
           className="min-h-11 rounded-lg border border-line-strong bg-control px-[11px] text-sm text-primary aria-invalid:border-red-400"
           onChange={(event) => { setName(event.target.value); setTouched(true); }} />
         {touched && error && <p id={`${inputId}-error`} className="text-xs text-red-300">{error}</p>}
-      </div>
-      <div className="grid gap-2">
-        <label htmlFor={worldId} className="text-[0.72rem] font-semibold text-secondary">3D world</label>
-        <select id={worldId} value={worldChoice} onChange={(event) => setWorldChoice(event.target.value)} className="min-h-11 rounded-lg border border-line-strong bg-control px-[11px] text-sm text-primary">
-          <option value="new">Create a new world</option>
-          {worlds.state === "ready" && worlds.worlds.map((world) => <option key={world.id} value={world.id}>Reuse: {world.name}</option>)}
-        </select>
-        {worlds.state === "loading" && <p className="text-xs text-secondary">Loading saved worlds…</p>}
-        {worlds.state === "error" && <p className="text-xs text-amber-200">Saved worlds unavailable: {worlds.message} You can still create a new world.</p>}
       </div>
       <DiscardWarning dirty={dirty} projectName={currentName} />
       {createError && <p role="alert" className="text-sm text-red-300">{createError}</p>}
@@ -151,26 +127,10 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 export function DeleteScenarioDialog({ scenarioId, onDismiss }: { scenarioId: string; onDismiss: () => void }) {
   const scenario = useProjectStore((state) => state.scenarios.find((item) => item.id === scenarioId));
   if (!scenario) return null;
-  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this world? It disappears from the in-memory project immediately; Save Project persists the removal.`} onDismiss={onDismiss}>
+  return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? It disappears from the in-memory project immediately; Save Project persists the removal.`} onDismiss={onDismiss}>
     <div className="flex justify-end gap-2">
       <button type="button" className={secondaryButton} onClick={onDismiss}>Cancel</button>
       <button type="button" className={dangerButton} onClick={() => { useProjectStore.getState().deleteScenario(scenario.id); onDismiss(); }}>Remove Scenario</button>
-    </div>
-  </Modal>;
-}
-
-export function DeleteWorldDialog({ worldId, onDismiss }: { worldId: string; onDismiss: () => void }) {
-  const world = useProjectStore((state) => state.worlds.find((item) => item.id === worldId));
-  if (!world) return null;
-  const scenarioCount = world.scenarios.length;
-  return <Modal
-    title="Remove World"
-    description={`Remove “${world.name}” and its ${scenarioCount} ${scenarioCount === 1 ? "scenario" : "scenarios"} from this project workspace? The removal is persisted only when you Save Project.`}
-    onDismiss={onDismiss}
-  >
-    <div className="flex justify-end gap-2">
-      <button type="button" className={secondaryButton} onClick={onDismiss}>Cancel</button>
-      <button type="button" className={dangerButton} onClick={() => { useProjectStore.getState().deleteWorld(world.id); onDismiss(); }}>Remove World</button>
     </div>
   </Modal>;
 }

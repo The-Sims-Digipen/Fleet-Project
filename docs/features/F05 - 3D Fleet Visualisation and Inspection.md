@@ -17,12 +17,14 @@ The 3D view provides a spatial representation of the plan and lets users verify 
 
 ## M1 scope
 
-- Render the current 3D World.
+- Render the Project's physical environment and default depot.
 - Support the existing navigation and selection/inspection interactions required by the M1 build.
 - Render fleet vehicles from real project/scenario state rather than an independent hard-coded fleet source.
+- Place every fleet vehicle at its unique Project parking lot, using a generic visual when no preset is selected.
 - Use the shared selected year from T04.
 - Display the current preset/state before a transition and the target preset/state from the transition year onward.
 - Keep rendering read-only with respect to authoritative simulation/scenario state.
+- Keep arbitrary scene-object editing controls out of production builds.
 
 Detailed depot authoring, production asset polish and charging-layout feasibility are later milestone scope.
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_DEPOT_OBJECT_ID } from "../scene/defaultProjectScene";
 import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
 
 const state = useSceneStore.getState;
@@ -46,15 +47,15 @@ describe("scene document and history", () => {
   it("rejects unknown definitions and removes optional overrides from JSON", () => {
     state().addObject("missing");
     expect(state().history.past).toHaveLength(0);
-    state().updateAppearance("sample", { material: "metal" });
-    state().updateAppearance("sample", { material: undefined });
+    state().updateAppearance(DEFAULT_DEPOT_OBJECT_ID, { material: "metal" });
+    state().updateAppearance(DEFAULT_DEPOT_OBJECT_ID, { material: undefined });
     expect(state().document.objects[0].appearance).toEqual({});
     expect(JSON.parse(JSON.stringify(state().document))).toEqual(state().document);
   });
   it("updates one object immutably and keeps selection outside history", () => {
     state().addObject("van");
     const other = state().document.objects[1];
-    state().updateTransform("sample", "position", [2, 3, 4]);
+    state().updateTransform(DEFAULT_DEPOT_OBJECT_ID, "position", [2, 3, 4]);
     state().selectObject(other.id);
     expect(state().document.objects[1]).toBe(other);
     expect(state().document.objects[0].transform.position).toEqual([2, 3, 4]);
@@ -66,12 +67,12 @@ describe("scene document and history", () => {
     expect(JSON.parse(JSON.stringify(state().document))).toEqual(state().document);
   });
   it("rejects invalid values and ignores no-ops and unknown objects", () => {
-    state().updateTransform("sample", "scale", [0, 1, 1]);
-    state().updateTransform("sample", "scale", [-1, 1, 1]);
-    state().updateTransform("sample", "position", [NaN, 1, 1]);
-    state().updateTransform("sample", "rotation", [Infinity, 0, 0]);
+    state().updateTransform(DEFAULT_DEPOT_OBJECT_ID, "scale", [0, 1, 1]);
+    state().updateTransform(DEFAULT_DEPOT_OBJECT_ID, "scale", [-1, 1, 1]);
+    state().updateTransform(DEFAULT_DEPOT_OBJECT_ID, "position", [NaN, 1, 1]);
+    state().updateTransform(DEFAULT_DEPOT_OBJECT_ID, "rotation", [Infinity, 0, 0]);
     state().updateTransform("missing", "position", [1, 1, 1]);
-    state().updateAppearance("sample", { tint: "invalid" });
+    state().updateAppearance(DEFAULT_DEPOT_OBJECT_ID, { tint: "invalid" });
     state().setLight(101);
     state().setLight(65);
     expect(state().history.past).toHaveLength(0);
@@ -99,10 +100,10 @@ describe("scene document and history", () => {
   });
   it("commits on selection, reset and undo, with undoable object and scene resets", () => {
     state().beginEdit();
-    state().updateAppearance("sample", { wireframe: true });
+    state().updateAppearance(DEFAULT_DEPOT_OBJECT_ID, { wireframe: true });
     state().selectObject(null);
     expect(state().history.baseline).toBeNull();
-    state().resetObject("sample");
+    state().resetObject(DEFAULT_DEPOT_OBJECT_ID);
     state().undo();
     expect(state().document.objects[0].appearance.wireframe).toBe(true);
     state().setLight(10);
@@ -130,14 +131,14 @@ describe("scene document and history", () => {
 
   it("groups full gizmo transforms into one undo step and rejects invalid scale", () => {
     state().beginEdit();
-    state().updateObjectTransform("sample", { position: [1, 2, 3], rotation: [0, Math.PI / 2, 0], scale: [1.2, 1.2, 1.2] });
-    state().updateObjectTransform("sample", { position: [2, 2, 3], rotation: [0, Math.PI, 0], scale: [1.5, 1.5, 1.5] });
+    state().updateObjectTransform(DEFAULT_DEPOT_OBJECT_ID, { position: [1, 2, 3], rotation: [0, Math.PI / 2, 0], scale: [1.2, 1.2, 1.2] });
+    state().updateObjectTransform(DEFAULT_DEPOT_OBJECT_ID, { position: [2, 2, 3], rotation: [0, Math.PI, 0], scale: [1.5, 1.5, 1.5] });
     state().commitEdit();
     expect(state().history.past).toHaveLength(1);
     expect(state().document.objects[0].transform.position).toEqual([2, 2, 3]);
     state().undo();
     expect(state().document.objects[0].transform).toEqual(createDocument().objects[0].transform);
-    state().updateObjectTransform("sample", { position: [0, 0, 0], rotation: [0, 0, 0], scale: [0, 1, 1] });
+    state().updateObjectTransform(DEFAULT_DEPOT_OBJECT_ID, { position: [0, 0, 0], rotation: [0, 0, 0], scale: [0, 1, 1] });
     expect(state().document.objects[0].transform.scale).toEqual([1, 1, 1]);
   });
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { analysisYears } from "../domain/contracts";
 import { effectiveVehicleState } from "../domain/effectiveState";
 import { deleteFleetVehicle, vehicleDeletionImpact } from "../domain/fleetCommands";
+import { parkingLotById, PROJECT_FLEET_CAPACITY } from "../domain/depotLayout";
 import { useFleetStore } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { useProjectStore } from "../state/projectStore";
@@ -15,11 +16,7 @@ const actionClass = "min-h-8 rounded border border-line-strong px-2.5 text-xs fo
 const fieldClass = "min-h-9 w-full min-w-0 rounded border border-line-strong bg-panel px-2 text-xs font-medium text-primary focus:border-accent disabled:cursor-default disabled:opacity-50";
 const labelClass = "grid gap-1 text-[11px] font-semibold text-secondary";
 
-export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview }: {
-  onVisualize: () => void;
-  previewOpen: boolean;
-  onClosePreview: () => void;
-}) {
+export function FleetManagementPanel() {
   const vehicles = useFleetStore((state) => state.vehicles);
   const analysis = useFleetStore((state) => state.analysis);
   const updateVehicle = useFleetStore((state) => state.updateVehicle);
@@ -50,14 +47,11 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
         <span className="font-mono text-[11px] text-secondary">{vehicles.length} units</span>
       </div>
       <div className="grid gap-2 border-b border-line-strong p-2">
-        <button type="button" className="min-h-10 w-full rounded bg-accent px-3 text-xs font-bold text-accent-ink hover:bg-accent/85"
-          onClick={() => previewOpen ? onClosePreview() : onVisualize()}>
-          {previewOpen ? "Return to scene" : "Visualize active plan in 3D"}
-        </button>
-        <button type="button" className={actionClass} disabled={!presets.length}
+        <p className="px-1 text-[11px] text-secondary">Every vehicle is rendered in its assigned depot parking lot. Capacity: {vehicles.length}/{PROJECT_FLEET_CAPACITY}.</p>
+        <button type="button" className={actionClass} disabled={vehicles.length >= PROJECT_FLEET_CAPACITY}
           onClick={() => {
             const id = useFleetStore.getState().createVehicle();
-            setNotice(id ? "Added a vehicle. Set its distance and preset below." : "Add a vehicle preset before adding a vehicle.");
+            setNotice(id ? "Added a generic vehicle in the first available parking lot." : "All ten parking lots are occupied.");
           }}>Add vehicle</button>
       </div>
 
@@ -82,6 +76,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
               <div className="min-w-0">
                 <span className="font-mono text-[10px] font-bold tracking-wider text-accent">{vehicle.id}</span>
                 <p className="truncate text-sm font-semibold text-primary" title={vehicle.name}>{vehicle.name}</p>
+                <p className="text-[11px] text-secondary">{parkingLotById(vehicle.parkingLotId)?.label ?? vehicle.parkingLotId}</p>
               </div>
               <span className={`shrink-0 rounded px-2 py-1 font-mono text-[11px] ${state.transitioned ? "bg-[#39ff14]/15 text-[#39ff14]" : "bg-accent/10 text-accent"}`}>
                 {state.transitioned ? "Changed" : "Current"}
@@ -98,10 +93,10 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
             </div>
             <label className={labelClass} htmlFor={`fleet-preset-${vehicle.id}`}>
               Current preset <span className="font-normal text-secondary">· shared</span>
-              <select id={`fleet-preset-${vehicle.id}`} aria-label={`Current preset for ${vehicle.id}`} value={presetIds.has(vehicle.currentPresetId) ? vehicle.currentPresetId : ""}
-                onChange={(event) => updateVehicle(vehicle.id, { currentPresetId: event.target.value })}
-                disabled={!presets.length} className={fieldClass}>
-                {!presetIds.has(vehicle.currentPresetId) && <option value="">{presets.length ? "Select a preset" : "No presets available"}</option>}
+              <select id={`fleet-preset-${vehicle.id}`} aria-label={`Current preset for ${vehicle.id}`} value={vehicle.presetId && presetIds.has(vehicle.presetId) ? vehicle.presetId : ""}
+                onChange={(event) => updateVehicle(vehicle.id, { presetId: event.target.value || null })}
+                className={fieldClass}>
+                <option value="">Generic / no preset</option>
                 {presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
               </select>
             </label>

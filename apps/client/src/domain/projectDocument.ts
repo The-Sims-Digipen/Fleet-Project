@@ -1,75 +1,68 @@
 import { M1_PROJECT_DOCUMENT_VERSION, type AnalysisSettings, type FleetVehicle, type M1ProjectDocument } from "./contracts";
+import { hasValidParkingAssignments } from "./depotLayout";
 import { copyFleetVehicle, normalizeAnalysisSettings, normalizeFleetVehicle } from "./fleet";
-import { defaultAnalysisSettings } from "./mockProject";
+import { hasDefaultDepot } from "../scene/defaultProjectScene";
+import type { SceneDocument } from "../scene/types";
 import { copyPreset, normalizePreset, type VehiclePreset } from "../vehicles/types";
 
-/**
- * Serialization of the project-owned authoritative inputs (T03).
- *
- * T01 and T06 use these to move presets, fleet and analysis settings in and out
- * of storage without knowing the store layout. Derived results are never part
- * of a project document.
- */
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
-export function createProjectDocument(vehiclePresets: readonly VehiclePreset[], fleetVehicles: readonly FleetVehicle[], analysis: AnalysisSettings): M1ProjectDocument {
+/** Creates the one persisted aggregate used by project save, export and simulation. */
+export function createProjectDocument(
+  vehiclePresets: readonly VehiclePreset[],
+  fleetVehicles: readonly FleetVehicle[],
+  analysis: AnalysisSettings,
+  scene: SceneDocument,
+): M1ProjectDocument {
   return {
     version: M1_PROJECT_DOCUMENT_VERSION,
+    scene: clone(scene),
     vehiclePresets: vehiclePresets.map(copyPreset),
     fleetVehicles: fleetVehicles.map(copyFleetVehicle),
     analysis: { ...analysis },
   };
 }
 
-/**
- * Fields a version 2 preset predates. The values are deliberately neutral: a
- * legacy preset must not gain invented running costs or residual value when a
- * project written before those fields existed is reopened.
- */
-const legacyPresetDefaults = { maintenanceCostPerYear: 0, rangeKm: null, chargingEfficiency: 1, acquisition: { kind: "owned", endResidualValue: 0 } } as const;
-
-function readPreset(record: unknown): VehiclePreset | undefined {
-  if (typeof record !== "object" || record === null || Array.isArray(record)) return;
-  return normalizePreset(record) ?? normalizePreset({ ...legacyPresetDefaults, ...record });
-}
-
-/**
- * Reads any supported project document as the authoritative M1 shape.
- *
- * Version 2 documents carry presets only, so they reopen with an empty fleet
- * and the default analysis period rather than an invented fleet. Records that
- * fail validation are dropped rather than crashing the reopen.
- */
+/** Reads the current single-environment document shape. Legacy World documents are intentionally unsupported. */
 export function toM1ProjectDocument(document: unknown): M1ProjectDocument {
   if (typeof document !== "object" || document === null || Array.isArray(document)) {
-    return createProjectDocument([], [], defaultAnalysisSettings);
+    throw new Error("The project document is invalid.");
   }
   const record = document as Record<string, unknown>;
+  if (record.version !== M1_PROJECT_DOCUMENT_VERSION) {
+    throw new Error(`Unsupported project document version “${String(record.version)}”.`);
+  }
+  if (!Array.isArray(record.vehiclePresets) || !Array.isArray(record.fleetVehicles)) {
+    throw new Error("The project document is incomplete.");
+  }
 
   const vehiclePresets: VehiclePreset[] = [];
-  const seenPresets = new Set<string>();
-  if (Array.isArray(record.vehiclePresets)) {
-    for (const entry of record.vehiclePresets) {
-      const preset = readPreset(entry);
-      if (preset && !seenPresets.has(preset.id)) {
-        seenPresets.add(preset.id);
-        vehiclePresets.push(preset);
-      }
-    }
+  const presetIds = new Set<string>();
+  for (const entry of record.vehiclePresets) {
+    const preset = normalizePreset(entry);
+    if (!preset || presetIds.has(preset.id)) throw new Error("The project contains an invalid or duplicate vehicle preset.");
+    presetIds.add(preset.id);
+    vehiclePresets.push(preset);
   }
-
-  const analysis = normalizeAnalysisSettings(record.analysis) ?? { ...defaultAnalysisSettings };
 
   const fleetVehicles: FleetVehicle[] = [];
-  const seenVehicles = new Set<string>();
-  if (Array.isArray(record.fleetVehicles)) {
-    for (const entry of record.fleetVehicles) {
-      const vehicle = normalizeFleetVehicle(entry, seenPresets);
-      if (vehicle && !seenVehicles.has(vehicle.id)) {
-        seenVehicles.add(vehicle.id);
-        fleetVehicles.push(vehicle);
-      }
-    }
+  const vehicleIds = new Set<string>();
+  for (const entry of record.fleetVehicles) {
+    const vehicle = normalizeFleetVehicle(entry, presetIds);
+    if (!vehicle || vehicleIds.has(vehicle.id)) throw new Error("The project contains an invalid or duplicate fleet vehicle.");
+    vehicleIds.add(vehicle.id);
+    fleetVehicles.push(vehicle);
   }
+  if (!hasValidParkingAssignments(fleetVehicles)) throw new Error("Fleet parking assignments are invalid.");
 
-  return { version: M1_PROJECT_DOCUMENT_VERSION, vehiclePresets, fleetVehicles, analysis };
+  const analysis = normalizeAnalysisSettings(record.analysis);
+  if (!analysis) throw new Error("The project analysis settings are invalid.");
+  if (typeof record.scene !== "object" || record.scene === null || Array.isArray(record.scene)) {
+    throw new Error("The project scene is invalid.");
+  }
+  const scene = clone(record.scene) as SceneDocument;
+  if (!Array.isArray(scene.objects)) throw new Error("The project scene is invalid.");
+  if (!hasDefaultDepot(scene)) throw new Error("The project scene must contain the default depot.");
+
+  return createProjectDocument(vehiclePresets, fleetVehicles, analysis, scene);
 }

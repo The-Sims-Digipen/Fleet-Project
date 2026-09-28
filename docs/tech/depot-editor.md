@@ -1,50 +1,11 @@
-# Freeform depot editor specification
+# Depot editor specification
 
-The depot editor supports freeform site design, obstacle placement, bay/charger editing, vehicle assignment, scenario-specific planning overlays, and live 3D feedback. It is future implementation context and is not part of the currently tracked feature set. [Data relationships](contracts.md) define how the shared world and scenario bindings are saved.
+The product Project owns one physical environment. New Projects always contain the default depot and ten parking lots. For the current release, fleet vehicles are assigned automatically to the first available lot and the fleet is limited to ten vehicles.
 
-## Geometry and coordinate conventions
+`Project.fleet` is authoritative. The 3D layer derives one rendered vehicle per fleet entry using its parking-lot transform and effective preset for the active Scenario and selected year. A vehicle without a preset uses generic geometry and styling. Rendered vehicle entities are not separately persisted.
 
-Use a flat XZ plane in metres with Y-up rendering. Site/obstacle polygons contain at least three vertices, no holes, and an implicit closing edge. Store counterclockwise rings after valid creation; do not reverse or repair invalid authored rings silently. Coordinates remain full precision; input display defaults to two decimal metres. Rectangle footprints use centre, positive width/depth, and Y-axis rotation in radians. Convert degrees at the UI boundary.
+Generic scene-object creation, deletion, transform, appearance, and debug panels are development tooling. They remain available in development builds for extending and validating Three.js models, but production users do not manage arbitrary objects or a separate scene lifecycle. The default depot cannot be removed.
 
-Grid snapping defaults to 0.25 m and rotation snapping to 15 degrees, each toggleable. Numeric inputs allow unsnapped values. Do not round the persisted scene on every render. Geometry checks account for numerical tolerance at boundaries and near-collinear edges.
+Future freeform site design may add typed bays, chargers, obstacles, and geometry validation. Those objects should remain part of the single Project environment. Scenario overlays may vary by year without duplicating that environment.
 
-## Tools and interactions
-
-| Tool | Interaction | Commit/cancel and constraints |
-|---|---|---|
-| Select | Click object or object-list row; highlight its footprint and properties | Empty ground click clears selection; selection does not change history |
-| Draw site | Click vertices on ground; preview closing edge | Enter/Finish closes after at least three vertices; Escape cancels. Replacing an existing boundary lists affected placements. |
-| Edit vertices | Select vertex; drag or edit X/Z numerically; insert on edge or delete vertex | One gesture = one undo step; cannot delete below three vertices; invalid finished geometry is flagged |
-| Draw obstacle | Same polygon tools, stored as an obstacle | Reuse vertex editing; outside/overlapping shapes remain visible as issues |
-| Add bay/charger | Preview footprint then click/place or enter coordinates | Commit adds one object; charger configuration includes installation year/power/costs |
-| Move/rotate/resize | Transform handles and numeric alternatives | Width/depth stay positive; charger footprint changes do not silently change its electrical rating |
-| Duplicate | Deep-copy object/configuration with a new object ID | Start a placement preview offset by one grid step; cancel removes the preview |
-| Delete | Confirm for an object with references; otherwise a discrete undoable edit | Deleting a bay clears only its assignments in this scenario after confirmation |
-| Assign vehicle | Choose bay from selected vehicle or assign via bay panel | One vehicle per bay and one bay per vehicle; reject a second occupant until explicitly reassigned |
-| Undo/redo | Toolbar and Ctrl/Cmd+Z / redo shortcuts | Restore complete document transaction and reference changes, excluding camera/year/save status |
-
-Enter commits a valid numeric draft; Escape restores its previous value. Pointer cancellation restores the transaction baseline. Finish active edits before selection, scenario switching, or save; ask the user to resolve invalid numeric drafts instead of dropping them. A new edit after undo discards redo. Loading a project resets history; switching scenarios does not mix unrelated partial gestures.
-
-## Validation and issue policy
-
-Validate ring simplicity (including nonadjacent edge intersections, zero-length edges, repeated vertices, and zero area) before containment/triangulation. Concave site containment must consider full object edges/area, not just object centres or rectangle corners. A footprint whose edge exits a concave boundary is outside even if all corners lie inside.
-
-Boundary contact is allowed within epsilon. Positive-area overlaps between bays, chargers, or obstacle footprints are infeasible; exact edge contact is allowed and does not imply a real-world clearance guarantee. Bays/chargers/obstacles must lie within the site. Obstacles must not overlap one another. No parking aisle, turning radius, accessibility clearance, or cable reach engineering is inferred.
-
-| Code | Display / downstream behavior |
-|---|---|
-| INVALID_SITE_RING | Draw the authored outline/vertices without triangulation; suspend containment checks and mark site feasibility unavailable |
-| INVALID_OBSTACLE_RING | Draw its outline only; flag the obstacle and mark overall layout infeasible |
-| OBJECT_OUTSIDE_SITE | Highlight object and boundary crossing; preserve its input coordinates |
-| FOOTPRINT_OVERLAP | Highlight both object IDs and name the conflict |
-| UNASSIGNED_VEHICLE | Show vehicle in the unassigned list; do not place it in a fabricated bay |
-
-Geometry-invalid but structurally representable documents can be saved so users can return to repair them. Finite coordinates/minimum vertex counts still apply. Invalid layouts never become a “feasible” result, but planned numeric costs/charger inventory remain available with the warning described in [simulation](simulation.md). Do not remove an overlapping charger from CAPEX or silently recalculate it as nonexistent.
-
-## Rendering and persistence
-
-Mesh bounds/footprints agree with persisted metre dimensions. Use visible distinctions between active vehicle presets plus legends/labels, not color alone. In edit mode, future chargers are ghosts with their installation year. In Plan/Compare, only installed chargers render. Bays, the site boundary, static obstacles, and other persistent depot geometry belong to the shared world and therefore remain the same across scenarios using that world. Scenario-specific assignments and planned infrastructure may vary by scenario and year without duplicating the world geometry.
-
-The world saves persistent depot geometry and object transforms once. Each scenario is stored separately, is bound to that world by `worldId`, and saves only its plan, assignments, and other scenario-specific bindings. Duplicate scenario deep-copies those scenario inputs but does not duplicate the world. Save inputs only, not meshes or undo stacks. Comparison views may render independent scene/camera instances, but they read the same persisted world geometry plus each scenario's own overlays and must not mutate shared geometry as a side effect of rendering.
-
-Required checks include concave boundaries, bow-tie polygons, repeated/collinear vertices, edge contact, containment crossing, rotated rectangles, overlap pairs, assignment removal, and undo/redo across deletion.
+Deletion of a fleet vehicle removes the Project fleet entry and all Scenario plan entries keyed by its stable vehicle ID. Changing `presetId` preserves the vehicle ID and its Scenario references.

@@ -15,7 +15,7 @@ describe("M1 integration contracts", () => {
     const presetIds = new Set(input.project.vehiclePresets.map((preset) => preset.id));
     const vehicleIds = new Set(input.project.fleetVehicles.map((vehicle) => vehicle.id));
 
-    for (const vehicle of input.project.fleetVehicles) expect(presetIds.has(vehicle.currentPresetId)).toBe(true);
+    for (const vehicle of input.project.fleetVehicles) expect(vehicle.presetId === null || presetIds.has(vehicle.presetId)).toBe(true);
     for (const [vehicleId, plan] of Object.entries(input.scenario.vehiclePlans)) {
       expect(vehicleIds.has(vehicleId)).toBe(true);
       expect(plan.targetPresetId && presetIds.has(plan.targetPresetId)).toBe(true);
