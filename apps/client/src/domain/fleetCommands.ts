@@ -31,8 +31,7 @@ export function vehicleDeletionImpact(vehicleId: string): VehiclePlanReference[]
  * has a plan pointing at a vehicle the project no longer has.
  */
 export function deleteFleetVehicle(vehicleId: string): void {
-  useProjectStore.getState().removeVehiclePlans(vehicleId);
-  useFleetStore.getState().removeVehicle(vehicleId);
+  useProjectStore.getState().deleteVehicle(vehicleId);
 }
 
 /** Fleet and scenario references that must be cleared before this preset can go. */

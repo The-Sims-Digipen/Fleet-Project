@@ -20,6 +20,13 @@ export const DEFAULT_PARKING_LOTS: readonly ParkingLot[] = positions.map(([x, z]
   transform: { position: [x, 0, z], rotation: [0, 0, 0], scale: [1, 1, 1] },
 }));
 
+/** Ordered world-space construction inputs for version 5 Vehicles. */
+export const DEFAULT_VEHICLE_SPAWN_TRANSFORMS: readonly Transform[] = DEFAULT_PARKING_LOTS.map(({ transform }) => ({
+  position: [...transform.position],
+  rotation: [...transform.rotation],
+  scale: [...transform.scale],
+}));
+
 const parkingLotsById = new Map(DEFAULT_PARKING_LOTS.map((parkingLot) => [parkingLot.id, parkingLot]));
 
 export function isParkingLotId(value: unknown): value is ParkingLotId {

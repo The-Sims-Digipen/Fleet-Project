@@ -1,5 +1,5 @@
-import type { ProjectRecord, ProjectSummary, Scenario, WorkspaceRecord, WorkspaceSaveInput } from "./types";
-import { normalizeWorkspaceRecord, normalizeWorkspaceSaveInput } from "./serialization";
+import { normalizeProjectV5, type ProjectDocumentV5 } from "../domain/projectV5";
+import type { AggregateProjectRecord, AggregateProjectSummary } from "./types";
 
 export class ProjectNotFoundError extends Error {
   constructor(message = "This project no longer exists.") { super(message); }
@@ -11,15 +11,31 @@ export class DatabaseUnavailableError extends Error {
   constructor(message = "Browser project storage is unavailable.") { super(message); }
 }
 
+/** One aggregate crosses this seam; adapters never expose Scenario persistence separately. */
 export type ProjectRepository = {
-  listProjects: () => Promise<ProjectSummary[]>;
-  getWorkspace: (id: string) => Promise<WorkspaceRecord>;
-  createWorkspace: (input: WorkspaceSaveInput) => Promise<WorkspaceRecord>;
-  updateWorkspace: (input: WorkspaceSaveInput & { project: WorkspaceSaveInput["project"] & { expectedRevision: number } }) => Promise<WorkspaceRecord>;
+  listProjects: () => Promise<AggregateProjectSummary[]>;
+  getProject: (id: string) => Promise<AggregateProjectRecord>;
+  createProject: (document: ProjectDocumentV5) => Promise<AggregateProjectRecord>;
+  updateProject: (document: ProjectDocumentV5, expectedRevision: number) => Promise<AggregateProjectRecord>;
 };
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const nowIso = () => new Date().toISOString();
+
+function normalizeMetadata(value: unknown, path: string) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(`${path} must be an object.`);
+  const source = value as Record<string, unknown>;
+  if (typeof source.revision !== "number" || !Number.isInteger(source.revision) || source.revision < 1) throw new Error(`${path}.revision must be a positive integer.`);
+  for (const field of ["createdAt", "updatedAt"] as const) {
+    if (typeof source[field] !== "string" || Number.isNaN(Date.parse(source[field]))) throw new Error(`${path}.${field} must be an ISO timestamp.`);
+  }
+  return { revision: source.revision, createdAt: source.createdAt as string, updatedAt: source.updatedAt as string };
+}
+
+export function normalizeProjectRecord(value: unknown): AggregateProjectRecord {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("project record must be an object.");
+  const source = value as Record<string, unknown>;
+  return { document: normalizeProjectV5(source.document), ...normalizeMetadata(source, "project record") };
+}
 
 function apiError(status: number, body: unknown): Error {
   const message = typeof body === "object" && body !== null && "message" in body && typeof body.message === "string" ? body.message : "The request failed.";
@@ -37,101 +53,59 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   throw apiError(response.status, body);
 }
 
-/** Future cloud adapter. The browser prototype uses IndexedDB instead. */
+/** Future server adapter. Ticket 11 brings the server endpoints to this aggregate contract. */
 export function createApiProjectRepository(): ProjectRepository {
   return {
     listProjects: () => request("/api/v1/projects"),
-    getWorkspace: async (id) => normalizeWorkspaceRecord(await request(`/api/v1/projects/${encodeURIComponent(id)}/workspace`)),
-    createWorkspace: async (input) => normalizeWorkspaceRecord(await request("/api/v1/workspaces", { method: "POST", body: JSON.stringify(normalizeWorkspaceSaveInput(input)) })),
-    updateWorkspace: async (input) => normalizeWorkspaceRecord(await request(`/api/v1/projects/${encodeURIComponent(input.project.id)}/workspace`, { method: "PUT", body: JSON.stringify(normalizeWorkspaceSaveInput(input)) })),
+    getProject: async (id) => normalizeProjectRecord(await request(`/api/v1/projects/${encodeURIComponent(id)}`)),
+    createProject: async (document) => normalizeProjectRecord(await request("/api/v1/projects", { method: "POST", body: JSON.stringify({ document: normalizeProjectV5(document) }) })),
+    updateProject: async (document, expectedRevision) => normalizeProjectRecord(await request(`/api/v1/projects/${encodeURIComponent(document.id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ document: normalizeProjectV5(document), expectedRevision }),
+    })),
   };
 }
 
-type MemoryProject = { project: ProjectRecord; scenarioIds: string[] };
-
-/** In-memory adapter with the same atomic Project/Scenario semantics as IndexedDB. */
-export function createMemoryProjectRepository(seed: WorkspaceRecord[] = []): ProjectRepository {
-  const projects = new Map<string, MemoryProject>();
-  const scenarios = new Map<string, Scenario>();
-
-  for (const workspace of seed) {
-    const normalized = normalizeWorkspaceRecord(workspace);
-    for (const scenario of normalized.scenarios) scenarios.set(scenario.id, clone(scenario));
-    projects.set(normalized.project.id, { project: clone(normalized.project), scenarioIds: normalized.scenarios.map((scenario) => scenario.id) });
+export function createMemoryProjectRepository(seed: AggregateProjectRecord[] = []): ProjectRepository {
+  const projects = new Map<string, AggregateProjectRecord>();
+  for (const entry of seed) {
+    const record = normalizeProjectRecord(entry);
+    if (projects.has(record.document.id)) throw new ProjectConflictError(`Duplicate Project “${record.document.id}”.`);
+    projects.set(record.document.id, structuredClone(record));
   }
 
-  const workspaceFor = (id: string): WorkspaceRecord => {
-    const saved = projects.get(id);
-    if (!saved) throw new ProjectNotFoundError();
-    const projectScenarios = saved.scenarioIds.map((scenarioId) => scenarios.get(scenarioId)).filter((scenario): scenario is Scenario => Boolean(scenario));
-    if (!projectScenarios.length) throw new ProjectNotFoundError("This project's scenarios no longer exist.");
-    return normalizeWorkspaceRecord({ project: clone(saved.project), scenarios: clone(projectScenarios) });
-  };
-
-  const save = (rawInput: WorkspaceSaveInput, existing?: MemoryProject): WorkspaceRecord => {
-    const input = normalizeWorkspaceSaveInput(rawInput);
-    const timestamp = nowIso();
-    const project: ProjectRecord = existing ? {
-      ...existing.project,
-      name: input.project.name,
-      activeScenarioId: input.project.activeScenarioId,
-      revision: existing.project.revision + 1,
-      updatedAt: timestamp,
-      document: clone(input.project.document),
-    } : {
-      id: input.project.id,
-      name: input.project.name,
-      activeScenarioId: input.project.activeScenarioId,
-      revision: 1,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      document: clone(input.project.document),
-    };
-
-    const savedScenarios = input.scenarios.map((draft, position): Scenario => {
-      const current = scenarios.get(draft.id);
-      if (current && current.projectId !== project.id) throw new ProjectConflictError(`Scenario “${draft.name}” belongs to another project.`);
-      if (current && current.revision !== draft.expectedRevision) throw new ProjectConflictError(`Scenario “${draft.name}” changed elsewhere.`);
-      if (!current && draft.expectedRevision !== 0) throw new ProjectNotFoundError(`Scenario “${draft.name}” no longer exists.`);
-      const changed = !current || current.name !== draft.name || current.position !== position || JSON.stringify(current.document) !== JSON.stringify(draft.document);
-      return {
-        id: draft.id,
-        projectId: project.id,
-        name: draft.name,
-        position,
-        revision: current ? current.revision + (changed ? 1 : 0) : 1,
-        createdAt: current?.createdAt ?? timestamp,
-        updatedAt: changed ? timestamp : current?.updatedAt ?? timestamp,
-        document: clone(draft.document),
-      };
-    });
-
-    const removed = new Set(existing?.scenarioIds ?? []);
-    for (const scenario of savedScenarios) removed.delete(scenario.id);
-    for (const scenarioId of removed) scenarios.delete(scenarioId);
-    for (const scenario of savedScenarios) scenarios.set(scenario.id, clone(scenario));
-    projects.set(project.id, { project: clone(project), scenarioIds: savedScenarios.map((scenario) => scenario.id) });
-    return workspaceFor(project.id);
-  };
-
   return {
-    listProjects: async () => [...projects.values()].map(({ project, scenarioIds }) => ({
-      id: project.id,
-      name: project.name,
-      revision: project.revision,
-      updatedAt: project.updatedAt,
-      scenarioCount: scenarioIds.length,
-    })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-    getWorkspace: async (id) => workspaceFor(id),
-    createWorkspace: async (input) => {
-      if (projects.has(input.project.id)) throw new ProjectConflictError("A project with this ID already exists.");
-      return save(input);
+    listProjects: async () => [...projects.values()].map(({ document, revision, updatedAt }) => ({
+      id: document.id,
+      name: document.name,
+      revision,
+      updatedAt,
+      scenarioCount: document.scenarios.length,
+    })).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+
+    getProject: async (id) => {
+      const record = projects.get(id);
+      if (!record) throw new ProjectNotFoundError();
+      return normalizeProjectRecord(structuredClone(record));
     },
-    updateWorkspace: async (input) => {
-      const current = projects.get(input.project.id);
+
+    createProject: async (value) => {
+      const document = normalizeProjectV5(value);
+      if (projects.has(document.id)) throw new ProjectConflictError("A project with this ID already exists.");
+      const timestamp = nowIso();
+      const record = { document, revision: 1, createdAt: timestamp, updatedAt: timestamp };
+      projects.set(document.id, structuredClone(record));
+      return normalizeProjectRecord(structuredClone(record));
+    },
+
+    updateProject: async (value, expectedRevision) => {
+      const document = normalizeProjectV5(value);
+      const current = projects.get(document.id);
       if (!current) throw new ProjectNotFoundError();
-      if (current.project.revision !== input.project.expectedRevision) throw new ProjectConflictError();
-      return save(input, current);
+      if (current.revision !== expectedRevision) throw new ProjectConflictError();
+      const record = { ...current, document, revision: current.revision + 1, updatedAt: nowIso() };
+      projects.set(document.id, structuredClone(record));
+      return normalizeProjectRecord(structuredClone(record));
     },
   };
 }

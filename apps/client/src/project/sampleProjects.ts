@@ -1,21 +1,15 @@
 import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
-import { createProjectDocument } from "../domain/projectDocument";
+import { projectV5FromLegacy } from "../domain/projectV5Compatibility";
 import { createScenarioDocument } from "../domain/scenario";
 import { createDefaultProjectScene } from "../scene/defaultProjectScene";
-import type { WorkspaceRecord } from "./types";
+import type { AggregateProjectRecord, WorkspaceScenario } from "./types";
 
-export function createSampleProjects(): WorkspaceRecord[] {
+export function createSampleProjects(): AggregateProjectRecord[] {
   const timestamp = "2026-09-10T09:00:00.000Z";
   const projectId = "b9b840a3-9a17-40e9-979b-e9682843eafa";
-  const project = {
-    id: projectId, name: "Sample depot transition", revision: 1,
-    createdAt: timestamp, updatedAt: timestamp, document: createProjectDocument(createMockPresets(), createMockFleet(), createMockAnalysis(), createDefaultProjectScene()),
-  };
-  // Two plans over the same fleet, so switching scenario visibly changes the
-  // effective year state without either plan touching the other.
-  const scenarios = [
+  const scenarios: WorkspaceScenario[] = [
     {
-      id: "63e41b98-588a-4bc7-a974-4ff8fcdbeb94", projectId, name: "Plan A · gradual", position: 0, revision: 1, createdAt: timestamp, updatedAt: timestamp,
+      id: "63e41b98-588a-4bc7-a974-4ff8fcdbeb94", projectId, name: "Plan A · gradual", position: 0, revision: 1,
       document: createScenarioDocument({
         "UNIT-01": { transitionYear: 2029, targetPresetId: "electric-van" },
         "UNIT-02": { transitionYear: 2032, targetPresetId: "electric-box-truck" },
@@ -23,7 +17,7 @@ export function createSampleProjects(): WorkspaceRecord[] {
       }),
     },
     {
-      id: "f5fd6ce9-a8f9-4d91-ad38-b22880658134", projectId, name: "Plan B · fast", position: 1, revision: 1, createdAt: timestamp, updatedAt: timestamp,
+      id: "f5fd6ce9-a8f9-4d91-ad38-b22880658134", projectId, name: "Plan B · fast", position: 1, revision: 1,
       document: createScenarioDocument({
         "UNIT-01": { transitionYear: 2026, targetPresetId: "electric-van" },
         "UNIT-02": { transitionYear: 2027, targetPresetId: "electric-box-truck" },
@@ -33,5 +27,15 @@ export function createSampleProjects(): WorkspaceRecord[] {
       }),
     },
   ];
-  return [{ project, scenarios }];
+  const document = projectV5FromLegacy({
+    id: projectId,
+    name: "Sample depot transition",
+    scene: createDefaultProjectScene(),
+    presets: createMockPresets(),
+    fleet: createMockFleet(),
+    analysis: createMockAnalysis(),
+    scenarios,
+    activeScenarioId: scenarios[0].id,
+  });
+  return [{ document, revision: 1, createdAt: timestamp, updatedAt: timestamp }];
 }

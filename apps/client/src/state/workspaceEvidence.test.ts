@@ -67,16 +67,12 @@ describe("single-environment workspace evidence", () => {
     expect(activeScenario()?.name).toBe("Fast plan");
   });
 
-  it("falls back to the first Scenario when a stored selection no longer resolves", async () => {
+  it("rejects a stored active Scenario that no longer resolves", () => {
     const [sample] = createSampleProjects();
-    setProjectRepository(createMemoryProjectRepository([{
+    expect(() => createMemoryProjectRepository([{
       ...sample,
-      project: { ...sample.project, activeScenarioId: "deleted-scenario" },
-    }]));
-
-    await project().openProject(sample.project.id);
-
-    expect(project().activeScenarioId).toBe(project().scenarios[0].id);
+      document: { ...sample.document, activeScenarioId: "deleted-scenario" },
+    }])).toThrow(/activeScenarioId.*resolve/i);
   });
 
   it("marks a Scenario switch dirty because the selection is persisted", async () => {
@@ -100,7 +96,7 @@ describe("single-environment workspace evidence", () => {
     project().createScenario();
     project().renameScenario(project().activeScenarioId, "Fast plan");
     const exported = project().exportProject();
-    expect(exported.activeScenarioIndex).toBe(1);
+    expect(exported.document.scenarios.findIndex((scenario) => scenario.id === exported.document.activeScenarioId)).toBe(1);
 
     await project().importProject(exported);
     const importedScenarioId = project().activeScenarioId;

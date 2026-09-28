@@ -1,4 +1,5 @@
 import type { M1ProjectDocument, M1ScenarioDocument, ScenarioVehiclePlan as DomainScenarioVehiclePlan } from "../domain/contracts";
+import type { ProjectDocumentV5 } from "../domain/projectV5";
 
 export const NAME_MAX_LENGTH = 100;
 
@@ -36,6 +37,22 @@ export type ProjectSummary = Pick<ProjectRecord, "id" | "name" | "revision" | "u
 export type WorkspaceSaveInput = {
   project: { id: string; name: string; activeScenarioId?: string; expectedRevision?: number; document: ProjectDocument };
   scenarios: { id: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
+};
+
+/** Persistence metadata is deliberately outside the undoable version 5 document. */
+export type AggregateProjectRecord = {
+  document: ProjectDocumentV5;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AggregateProjectSummary = {
+  id: string;
+  name: string;
+  revision: number;
+  updatedAt: string;
+  scenarioCount: number;
 };
 
 export function validateName(value: string): string | null {

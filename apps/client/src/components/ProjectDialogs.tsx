@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { validateName, type ProjectSummary } from "../project/types";
+import { validateName, type AggregateProjectSummary } from "../project/types";
+import { useAppStore } from "../state/appStore";
 import { useProjectStore } from "../state/projectStore";
 
 const secondaryButton = "min-h-9 rounded border border-line-strong px-3 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
@@ -70,7 +71,7 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
   </Modal>;
 }
 
-type ListState = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: ProjectSummary[] };
+type ListState = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: AggregateProjectSummary[] };
 
 export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismiss: () => void }) {
   const currentName = useProjectStore((state) => state.name);
@@ -82,7 +83,7 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 
   useEffect(() => {
     let active = true;
-    useProjectStore.getState().listProjects().then(
+    useAppStore.getState().refreshProjects().then(
       (projects) => { if (active) setList({ state: "ready", projects }); },
       (error: unknown) => { if (active) setList({ state: "error", message: error instanceof Error ? error.message : "Projects could not be loaded." }); },
     );

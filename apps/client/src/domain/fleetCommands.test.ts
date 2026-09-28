@@ -114,14 +114,21 @@ describe("deleting a fleet vehicle", () => {
     project().updateScenarioVehiclePlan(first, "UNIT-01", { transitionYear: 2028, targetPresetId: "electric-van" });
     project().updateScenarioVehiclePlan(second, "UNIT-01", { transitionYear: 2031, targetPresetId: "electric-van" });
     project().updateScenarioVehiclePlan(second, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
+    const historyLength = project().runtime.history.past.length;
 
     deleteFleetVehicle("UNIT-01");
 
+    expect(project().runtime.history.past).toHaveLength(historyLength + 1);
     expect(fleet().vehicles.some((vehicle) => vehicle.id === "UNIT-01")).toBe(false);
     expect(planFor(first, "UNIT-01")).toBeUndefined();
     expect(planFor(second, "UNIT-01")).toBeUndefined();
     // Plans for other vehicles are untouched.
     expect(planFor(second, "UNIT-02")).toEqual({ transitionYear: 2030, targetPresetId: "electric-box-truck" });
+
+    project().undo();
+    expect(fleet().vehicles.some((vehicle) => vehicle.id === "UNIT-01")).toBe(true);
+    expect(planFor(first, "UNIT-01")).toEqual({ transitionYear: 2028, targetPresetId: "electric-van" });
+    expect(planFor(second, "UNIT-01")).toEqual({ transitionYear: 2031, targetPresetId: "electric-van" });
   });
 });
 

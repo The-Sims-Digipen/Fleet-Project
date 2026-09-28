@@ -1,49 +1,48 @@
 import { describe, expect, it } from "vitest";
-import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
+
+import { addVehicleTransition } from "../domain/projectV5";
+import { createProjectV5Fixture } from "../domain/projectV5Fixture";
 import { createMemoryProjectRepository, ProjectConflictError } from "./repository";
-import type { WorkspaceSaveInput } from "./types";
 
-function workspaceInput(): WorkspaceSaveInput {
-  return {
-    project: { id: "project", name: "Depot study", activeScenarioId: "scenario", document: sim01Project },
-    scenarios: [{ id: "scenario", name: "Plan A", expectedRevision: 0, document: sim01Scenario }],
-  };
-}
-
-describe("memory project repository contract", () => {
-  it("round-trips one project environment and its scenarios", async () => {
+describe("aggregate Project repository contract", () => {
+  it("creates, lists, loads, and updates one complete Project record", async () => {
     const repository = createMemoryProjectRepository();
-    const input = workspaceInput();
-    input.project.document = { ...sim01Project, simulationResult: { savings: 100 } } as typeof sim01Project;
-    input.scenarios[0].document = { ...sim01Scenario, results: [1, 2, 3] } as typeof sim01Scenario;
-    const saved = await repository.createWorkspace(input);
-    expect(saved.project.document).toEqual(sim01Project);
-    expect(saved.project.activeScenarioId).toBe("scenario");
-    expect(saved.scenarios[0].document).toEqual(sim01Scenario);
-    expect(saved.project.revision).toBe(1);
-    expect(saved.scenarios[0]).toMatchObject({ revision: 1, projectId: saved.project.id, position: 0 });
+    const document = addVehicleTransition(
+      createProjectV5Fixture("project-1"),
+      { scenarioId: "plan-a", vehicleId: "UNIT-01" },
+      { year: 2030, targetPresetId: "electric-van" },
+    );
+
+    const created = await repository.createProject(document);
+    expect(created.revision).toBe(1);
+    expect(created.document).toEqual(document);
+    expect(await repository.listProjects()).toEqual([
+      expect.objectContaining({ id: "project-1", name: document.name, revision: 1, scenarioCount: 2 }),
+    ]);
+    expect(await repository.getProject("project-1")).toEqual(created);
+
+    const updatedDocument = { ...document, name: "Updated study" };
+    const updated = await repository.updateProject(updatedDocument, created.revision);
+    expect(updated.revision).toBe(2);
+    expect(updated.document.name).toBe("Updated study");
+    expect(updated.document.scenarios[0].vehiclePlans["UNIT-01"].transitions).toEqual([
+      { year: 2030, targetPresetId: "electric-van" },
+    ]);
   });
 
-  it("leaves the stored workspace unchanged after a scenario conflict", async () => {
+  it("leaves the complete stored aggregate unchanged after a stale revision", async () => {
     const repository = createMemoryProjectRepository();
-    const created = await repository.createWorkspace(workspaceInput());
-    await expect(repository.updateWorkspace({
-      project: {
-        id: created.project.id,
-        name: created.project.name,
-        activeScenarioId: created.project.activeScenarioId,
-        expectedRevision: created.project.revision,
-        document: created.project.document,
-      },
-      scenarios: [{
-        id: created.scenarios[0].id,
-        name: created.scenarios[0].name,
-        expectedRevision: 0,
-        document: created.scenarios[0].document,
-      }],
-    })).rejects.toBeInstanceOf(ProjectConflictError);
-    const unchanged = await repository.getWorkspace(created.project.id);
-    expect(unchanged.project.revision).toBe(1);
-    expect(unchanged.scenarios[0].revision).toBe(1);
+    const document = createProjectV5Fixture("project-1");
+    const created = await repository.createProject(document);
+
+    await expect(repository.updateProject({ ...document, name: "Stale write" }, created.revision - 1)).rejects.toBeInstanceOf(ProjectConflictError);
+
+    expect(await repository.getProject(document.id)).toEqual(created);
+  });
+
+  it("rejects unsupported or invalid documents without storing them", async () => {
+    const repository = createMemoryProjectRepository();
+    await expect(repository.createProject({ ...createProjectV5Fixture(), version: 4 } as never)).rejects.toThrow(/unsupported Project document version/i);
+    expect(await repository.listProjects()).toEqual([]);
   });
 });

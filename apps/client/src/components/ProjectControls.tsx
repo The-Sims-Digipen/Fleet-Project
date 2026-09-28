@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { downloadPortableProject, parsePortableProject } from "../project/portableProject";
+import { useAppStore } from "../state/appStore";
 import { useProjectDirty, useProjectStore } from "../state/projectStore";
 import { NameField } from "./NameField";
 import { NewProjectDialog, OpenProjectDialog } from "./ProjectDialogs";
@@ -9,7 +10,7 @@ import { topBarControl, topBarControlActive } from "./topBarStyles";
 export function ProjectControls() {
   const name = useProjectStore((state) => state.name);
   const projectId = useProjectStore((state) => state.projectId);
-  const saveStatus = useProjectStore((state) => state.saveStatus);
+  const saveStatus = useAppStore((state) => state.saveStatus);
   const dirty = useProjectDirty();
   const [dialog, setDialog] = useState<"new" | "open" | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
