@@ -113,6 +113,11 @@ export function createMockPresets(): VehiclePreset[] {
   return seeded(presetSeed, (record) => normalizePreset(record), "preset");
 }
 
+/**
+ * Sample fleet used by tests and the bundled sample project. This is NOT a
+ * product seed: a new project starts with an empty fleet, because which vehicles
+ * a company runs is the user's own data.
+ */
 export function createMockFleet(): FleetVehicle[] {
   const presetIds = new Set(presetSeed.map((preset) => preset.id));
   return seeded(fleetSeed, (record) => normalizeFleetVehicle(record, presetIds), "fleet vehicle");

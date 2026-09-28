@@ -1,0 +1,3 @@
+# ReportLab PDFs are ASCII85-encoded and contain no NUL bytes, so Git misdetects
+# them as text and corrupts them with CRLF conversion on checkout.
+*.pdf binary
