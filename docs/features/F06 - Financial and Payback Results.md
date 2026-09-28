@@ -3,6 +3,10 @@
 **M1 priority:** MUST  
 **Primary owner:** Yap Zhi Kai
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F06 renders T07 view models derived from `SimulationResult`; KPI cards and charts must not contain fallback financial calculations or hard-coded authoritative values.
+
 ## User capability
 
 Users can view recalculated financial results, including baseline-versus-transition costs and payback/breakeven information, after changing scenario decisions or economic assumptions.

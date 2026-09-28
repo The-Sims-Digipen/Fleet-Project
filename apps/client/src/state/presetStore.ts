@@ -1,13 +1,8 @@
 import { create } from "zustand";
 
+import { createMockPresets } from "../domain/mockProject";
 import { vehicleModelEntries } from "../scene/catalog";
-import { loadDefaultPresets } from "../vehicles/defaults";
-import { copyPreset, normalizePreset, presetFileVersion, type PresetFile, type VehiclePreset } from "../vehicles/types";
-
-// Re-exported so callers of the store need only one import.
-export { presetFileVersion, type PresetFile };
-
-export type ImportResult = { ok: true; count: number } | { ok: false; error: string };
+import { copyPreset, normalizePreset, type VehiclePreset } from "../vehicles/types";
 
 const knownModelIds = (): ReadonlySet<string> => new Set(vehicleModelEntries.map(([id]) => id));
 const firstModelId = () => vehicleModelEntries[0]?.[0] ?? "";
@@ -24,6 +19,11 @@ function blankPreset(id: string, name: string): VehiclePreset {
     batteryCapacityKWh: 0,
     chargingPowerKW: 0,
     purchaseCost: 0,
+    maintenanceCostPerYear: 0,
+    rangeKm: null,
+    // Neutral until the preset is given real charging behaviour.
+    chargingEfficiency: 1,
+    acquisition: { kind: "owned", endResidualValue: 0 },
   };
 }
 
@@ -36,9 +36,8 @@ type PresetState = {
   createPreset: () => void;
   duplicatePreset: (id: string) => void;
   updatePreset: (id: string, patch: Partial<VehiclePreset>) => void;
+  /** Removes the preset only. Callers must check references first; see domain/fleetCommands.ts. */
   deletePreset: (id: string) => void;
-  exportPresets: () => string;
-  importPresets: (text: string) => ImportResult;
   replacePresets: (presets: VehiclePreset[]) => void;
   beginEdit: () => void;
   commitEdit: () => void;
@@ -58,7 +57,7 @@ export const usePresetStore = create<PresetState>((set, get) => {
     for (let index = 2; ; index += 1) if (!taken.has(`${base} ${index}`)) return `${base} ${index}`;
   };
   return {
-    presets: loadDefaultPresets(),
+    presets: createMockPresets(),
     selectedPresetId: null,
     baseline: null,
     selectPreset: (id) => {
@@ -91,37 +90,9 @@ export const usePresetStore = create<PresetState>((set, get) => {
       get().commitEdit();
       replace(get().presets.filter((preset) => preset.id !== id));
     },
-    exportPresets: () => JSON.stringify({ version: presetFileVersion, presets: get().presets } satisfies PresetFile, null, 2),
     replacePresets: (presets) => {
       get().commitEdit();
       replace(presets.map(copyPreset));
-    },
-    importPresets: (text) => {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        return { ok: false, error: "File is not valid JSON." };
-      }
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return { ok: false, error: "File is not a preset library." };
-      const file = parsed as Record<string, unknown>;
-      if (file.version !== presetFileVersion) return { ok: false, error: `Unsupported file version ${String(file.version)}; expected ${presetFileVersion}.` };
-      if (!Array.isArray(file.presets)) return { ok: false, error: "File has no preset list." };
-
-      const known = knownModelIds();
-      const imported: VehiclePreset[] = [];
-      const seen = new Set<string>();
-      for (const [index, record] of file.presets.entries()) {
-        const preset = normalizePreset(record, known);
-        if (!preset) return { ok: false, error: `Preset ${index + 1} is invalid or uses an unknown 3D model. Nothing was imported.` };
-        if (seen.has(preset.id)) return { ok: false, error: `Preset ${index + 1} repeats id "${preset.id}". Nothing was imported.` };
-        seen.add(preset.id);
-        imported.push(preset);
-      }
-
-      get().commitEdit();
-      replace(imported);
-      return { ok: true, count: imported.length };
     },
     beginEdit: () => {
       if (!get().baseline) set({ baseline: get().presets });

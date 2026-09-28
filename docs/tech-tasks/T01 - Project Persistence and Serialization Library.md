@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F01, F02, F03, F04
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T01 persists and validates `M1ProjectDocument` and `M1ScenarioDocument`, owns legacy-version migration, and must never persist `SimulationResult` or other derived output.
+
 ## Goal
 
 Provide a reusable persistence boundary for saving/loading complete project workspaces and importing/exporting versioned `.fleetproject` snapshots without coupling UI/domain code directly to IndexedDB.
@@ -11,7 +15,7 @@ Provide a reusable persistence boundary for saving/loading complete project work
 ## Responsibilities
 
 - Maintain the `ProjectRepository` abstraction used by application state.
-- Persist Project, World and Scenario records atomically in IndexedDB.
+- Persist the Project aggregate and its Scenario records atomically in IndexedDB.
 - Persist the authoritative project/fleet/settings/scenario documents supplied by T03/T06.
 - Detect stale revisions/conflicting writes where the current repository contract supports them.
 - Export the live workspace to a versioned `.fleetproject` file.

@@ -42,7 +42,7 @@ Fleet rows show ID/name/type, age, annual/daily distance, replacement year, tran
 
 ### Plan a transition
 
-Choose one or more vehicles and assign a year within the analysis period. Clear transition retains the vehicle's current preset. Update annual counts and the scene immediately after valid edits. A user can duplicate Plan A as Plan B and change ordering without changing A. The depot world remains shared; only scenario-specific schedules, assignments, and planning overlays are duplicated. Shared fleet edits affect both and are explicitly labeled “Applies to all scenarios.”
+Choose one or more vehicles and assign a year within the analysis period. Clear transition retains the vehicle's current preset. Update annual counts and the scene immediately after valid edits. A user can duplicate Plan A as Plan B and change ordering without changing A. The Project depot and fleet remain shared; only Scenario-specific schedules, assignments, and planning overlays are duplicated. Shared fleet edits affect both and are explicitly labeled “Applies to all scenarios.”
 
 The year slider has discrete integer steps, accessible arrow-key behavior, and a numeric/year dropdown alternative. Changing the selected year does not change the plan. Charts show the full horizon and mark the selected year; scene state and selected-year KPIs use the same index.
 
@@ -58,7 +58,7 @@ Full editing behavior is in [depot editor](../tech/depot-editor.md). In Plan vie
 
 Show TCO, CAPEX, annual OPEX, baseline savings, operational emissions, and payback with units and short explanations. Use annual stacked cost bars, cumulative cash cost lines, annual emissions bars, and the transition roadmap. Show terminal residual credit separately so cumulative cash charts and residual-adjusted TCO are not confused.
 
-Compare requires two distinct scenarios in the same project. Comparison is scoped to the currently selected World, so both scenarios use that same World with different scenario overlays. If only one exists, offer Duplicate current plan. Both columns display the shared fleet/analysis revision and no-transition/current-fleet baseline. Controls in Compare inspect rather than edit scenarios; use Edit A/Edit B to return to the chosen Plan. Year selection is shared; cameras are independent with a Reset view command. No mandatory camera synchronization is added.
+Compare requires two distinct Scenarios in the same Project, so both use its one physical environment with different planning overlays. If only one exists, offer Duplicate current plan. Both columns display the shared fleet/analysis revision and no-transition/current-fleet baseline. Controls in Compare inspect rather than edit Scenarios; use Edit A/Edit B to return to the chosen Plan. Year selection is shared; cameras are independent with a Reset view command. No mandatory camera synchronization is added.
 
 Each column includes scene, selected-year counts/demand, full-horizon financial/emissions KPIs, and warnings. Differences are labeled in direction (B minus A) with positive/negative meaning written out. Suitability appears as a sortable list of candidates with factor/reason details and site-wide constraint notices. It never automatically assigns transition years.
 

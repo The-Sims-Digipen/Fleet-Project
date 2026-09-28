@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { objectDefinitions } from "../scene/catalog";
+import { DEFAULT_DEPOT_OBJECT_ID } from "../scene/defaultProjectScene";
 import type { SceneObject } from "../scene/types";
 import { useResolvedName } from "../state/presetStore";
 import { useSceneStore } from "../state/sceneStore";
@@ -67,12 +68,13 @@ export function WorldObjects() {
   const deleteObject = useSceneStore((state) => state.deleteObject);
   const [adding, setAdding] = useState(false);
   const hasSelection = objects.some((object) => object.id === selectedId);
+  const hasDeletableSelection = hasSelection && selectedId !== DEFAULT_DEPOT_OBJECT_ID;
 
   return <CollapsibleSection title="World Objects" defaultOpen onBeforeCollapse={() => useSceneStore.getState().commitEdit()}>
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
         <button type="button" className={actionClass} onClick={() => { useSceneStore.getState().commitEdit(); setAdding(true); }}>Add Object</button>
-        <button type="button" className={actionClass} disabled={!hasSelection} onClick={() => { if (selectedId) deleteObject(selectedId); }}>Delete Object</button>
+        <button type="button" className={actionClass} disabled={!hasDeletableSelection} onClick={() => { if (selectedId) deleteObject(selectedId); }}>Delete Object</button>
         <span className="ml-auto text-xs text-secondary">{objects.length}</span>
       </div>
       <div className="h-44 overflow-y-auto overscroll-contain p-1">

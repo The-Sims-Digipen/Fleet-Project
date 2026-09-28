@@ -2,15 +2,16 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { loadDefaultPresets } from "./vehicles/defaults";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "./domain/mockProject";
+import { DEFAULT_DEPOT_OBJECT_ID } from "./scene/defaultProjectScene";
 import { usePresetStore } from "./state/presetStore";
 import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
-import { initialVehicles, useFleetStore } from "./state/fleetStore";
+import { useFleetStore } from "./state/fleetStore";
 import { useTimelineStore } from "./state/timelineStore";
 import { createProjectFields, useProjectStore } from "./state/projectStore";
 
-vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetPreview }: { fleetPreview: { id: string; name: string; appearance: { tint?: string } }[] | null }) =>
-  <div>{fleetPreview?.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
+vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetObjects }: { fleetObjects: { id: string; name: string; appearance: { tint?: string } }[] }) =>
+  <div>{fleetObjects.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
 vi.mock("./components/ComparisonViewport", () => ({ ComparisonViewport: ({ year }: { year: number }) => <div data-testid="comparison-viewport" data-year={year} /> }));
 vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echarts" /> }));
 beforeEach(() => {
@@ -19,9 +20,10 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null });
-  useFleetStore.setState({ vehicles: initialVehicles });
-  useProjectStore.setState(createProjectFields("Untitled project", useSceneStore.getState().document, 0, usePresetStore.getState().presets));
+  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
+  usePresetStore.setState({ presets: inputs.presets, selectedPresetId: null, baseline: null });
+  useFleetStore.setState({ vehicles: inputs.fleet, analysis: inputs.analysis, baseline: null });
+  useProjectStore.setState(createProjectFields("Untitled project", useSceneStore.getState().document, 0, inputs));
   useTimelineStore.getState().resetYear();
 });
 afterEach(cleanup);
@@ -53,27 +55,24 @@ describe("inspector architecture", () => {
   it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Visualize fleet in 3D" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Target preset for UNIT-01" }), "electric-van");
     await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2028");
     await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-02" }), "");
-    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
+    expect(screen.getByTestId("fleet-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
     act(() => useTimelineStore.getState().setSelectedYear(2028));
-    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#39ff14");
-    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveTextContent("Changed");
-    expect(screen.getByTestId("fleet-preview-UNIT-02")).toHaveAttribute("data-tint", "#ffffff");
+    expect(screen.getByTestId("fleet-UNIT-01")).toHaveAttribute("data-tint", "#39ff14");
+    expect(screen.getByTestId("fleet-UNIT-02")).toHaveAttribute("data-tint", "#ffffff");
     act(() => useTimelineStore.getState().resetYear());
-    expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
+    expect(screen.getByTestId("fleet-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
   });
   it("groups manual simulation inputs and creates an annual cost table", async () => {
     const user = userEvent.setup();
-    state().addObject("van", "diesel-van", "Diesel Delivery Van");
-    const linkedVehicleId = state().editor.selectedObjectId!;
     render(<App />);
     expect(screen.getByRole("heading", { name: "Diesel assumptions" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Electric assumptions" })).toBeInTheDocument();
     const vehicleSelect = screen.getByRole("combobox", { name: "Vehicle" });
-    expect(vehicleSelect.querySelectorAll("option")).toHaveLength(2);
-    await user.selectOptions(vehicleSelect, linkedVehicleId);
+    expect(vehicleSelect.querySelectorAll("option")).toHaveLength(6);
+    await user.selectOptions(vehicleSelect, "UNIT-01");
     expect(screen.queryByLabelText("Diesel consumption (L/100 km)")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Electric consumption (kWh/100 km)")).not.toBeInTheDocument();
     expect(screen.getByText(/Diesel Delivery Van · 9.5 L\/100 km/)).toBeInTheDocument();
@@ -97,7 +96,7 @@ describe("inspector architecture", () => {
     await user.click(screen.getByRole("button", { name: "Create Object" }));
     const id = state().editor.selectedObjectId;
     expect(state().document.objects).toHaveLength(2);
-    expect(id).not.toBe("sample");
+    expect(id).not.toBe(DEFAULT_DEPOT_OBJECT_ID);
     await user.selectOptions(screen.getByLabelText("Material"), "metal");
     expect(state().document.objects[1].appearance.material).toBe("metal");
     expect(state().document.objects[0].appearance).toEqual({});
@@ -172,7 +171,7 @@ describe("inspector architecture", () => {
     await user.type(rotation, "180{Enter}");
     expect(state().document.objects[0].transform.rotation[1]).toBe(Math.PI);
   });
-  it("reflects scene selection in the world list and supports keyboard selection and an empty world", async () => {
+  it("supports keyboard scene selection while preserving the required default depot", async () => {
     const user = userEvent.setup();
     render(<App />);
     act(() => state().addObject("van"));
@@ -181,18 +180,18 @@ describe("inspector architecture", () => {
     await user.click(screen.getByRole("button", { name: "Clear selection" }));
     expect(screen.getByText(/No object selected/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Object" })).toBeDisabled();
-    screen.getByRole("button", { name: "Select Low-poly Van, object 1" }).focus();
+    screen.getByRole("button", { name: "Select Default depot, object 1" }).focus();
     await user.keyboard("{Enter}");
-    expect(state().editor.selectedObjectId).toBe("sample");
-    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(state().editor.selectedObjectId).toBe(DEFAULT_DEPOT_OBJECT_ID);
+    expect(screen.getByRole("button", { name: "Select Default depot, object 1" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("combobox", { name: "Object" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Object" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Select Low-poly Van, object 2" }));
     await user.click(screen.getByRole("button", { name: "Delete Object" }));
-    await user.click(screen.getByRole("button", { name: "Select Low-poly Van, object 1" }));
-    await user.click(screen.getByRole("button", { name: "Delete Object" }));
-    expect(screen.getByText(/No objects in the world/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Default depot, object 1" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add Object" }));
     await user.click(screen.getByRole("button", { name: "Create Object" }));
-    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 2" })).toHaveAttribute("aria-pressed", "true");
   });
   it("cancels object creation without changing the scene or history", async () => {
     const user = userEvent.setup();

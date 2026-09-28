@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F04, F06, F07
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T05 implements a pure, deterministic `SimulationInput -> SimulationResult` boundary using the canonical types and shared SIM01 fixture; it must not import React, Zustand, persistence or charting.
+
 ## Goal
 
 Provide a deterministic, UI-independent calculation engine for baseline and transition scenarios that produces the real financial/energy outputs consumed by the M1 product.

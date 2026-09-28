@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F04, F05, F07
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T04 consumes project `AnalysisSettings` plus T03 transition events, owns the single selected year and playback lifecycle, and must not independently resolve effective vehicle presets.
+
 ## Goal
 
 Own the analysis clock: selected year, seeking and playback lifecycle, plus projection of real scenario events so every time-dependent view uses one shared time source.

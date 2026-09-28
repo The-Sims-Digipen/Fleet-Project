@@ -4,6 +4,10 @@
 **M1 contract:** Required  
 **Supports:** F06, F07
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T07 consumes `SimulationResult` and the T04 selected year to produce display-ready KPI/chart models; it must not recalculate financial, energy or emissions truth.
+
 ## Goal
 
 Provide the typed presentation layer that converts T05 simulation outputs into consistent KPI/chart models for the financial/payback and timeline-oriented result views.

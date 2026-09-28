@@ -35,9 +35,9 @@ charger: {
 },
 ```
 
-Set `vehiclePresetCompatible` to `true` only for geometry that may be selected by a vehicle preset. General scene objects such as depots remain available in World Objects without appearing in the vehicle-model picker.
+Set `vehiclePresetCompatible` to `true` only for geometry that may be selected by a vehicle preset. General scene objects such as depots remain available in the development-only World Objects panel without appearing in the vehicle-model picker.
 
-No viewport, World Objects, or Inspector change is required for another generic procedural model. Click **Add Object** in **World Objects**, choose the definition in the modal, and click **Create Object**, or call `useSceneStore.getState().addObject("charger")`. Each call creates a separate instance with a unique ID and one undo step.
+No viewport, World Objects, or Inspector change is required for another generic procedural model. In a development build, click **Add Object** in **World Objects**, choose the definition in the modal, and click **Create Object**, or call `useSceneStore.getState().addObject("charger")`. These generic panels are intentionally hidden in production.
 
 The compact World Objects list has a fixed-height scrollable area and shows every instance, highlights the current selection, and supports mouse or keyboard selection. Use **Delete Object** to remove the selected instance or **Clear selection** to deselect it. The Inspector only edits the selected object's properties.
 

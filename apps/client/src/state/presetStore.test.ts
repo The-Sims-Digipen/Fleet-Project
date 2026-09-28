@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { loadDefaultPresets } from "../vehicles/defaults";
-import { presetFileVersion, usePresetStore } from "./presetStore";
+import { createMockPresets } from "../domain/mockProject";
+import { usePresetStore } from "./presetStore";
 
 const state = usePresetStore.getState;
-beforeEach(() => usePresetStore.setState({ presets: loadDefaultPresets(), selectedPresetId: null, baseline: null }));
+beforeEach(() => usePresetStore.setState({ presets: createMockPresets(), selectedPresetId: null, baseline: null }));
 
 describe("preset library", () => {
   it("creates, duplicates and deletes presets, clearing a stale selection", () => {
@@ -58,28 +58,4 @@ describe("preset library", () => {
     expect(state().presets[0].purchaseCost).toBe(777);
   });
 
-  it("round-trips an export and rejects bad imports atomically", () => {
-    state().updatePreset(state().presets[0].id, { name: "Exported Van" });
-    const exported = state().exportPresets();
-    expect(JSON.parse(exported).version).toBe(presetFileVersion);
-
-    usePresetStore.setState({ presets: [], selectedPresetId: null, baseline: null });
-    expect(state().importPresets(exported)).toEqual({ ok: true, count: loadDefaultPresets().length });
-    expect(state().presets[0].name).toBe("Exported Van");
-
-    const before = state().presets;
-    const library = JSON.parse(exported);
-    for (const bad of [
-      "not json",
-      JSON.stringify([]),
-      JSON.stringify({ version: 99, presets: [] }),
-      JSON.stringify({ version: presetFileVersion }),
-      JSON.stringify({ version: presetFileVersion, presets: [...library.presets, { ...library.presets[0], purchaseCost: -5 }] }),
-      JSON.stringify({ version: presetFileVersion, presets: [library.presets[0], library.presets[0]] }),
-    ]) {
-      const result = state().importPresets(bad);
-      expect(result.ok).toBe(false);
-      expect(state().presets).toBe(before);
-    }
-  });
 });

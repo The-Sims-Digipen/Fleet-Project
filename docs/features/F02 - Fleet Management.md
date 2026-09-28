@@ -3,9 +3,13 @@
 **M1 priority:** MUST  
 **Primary owner:** Jarrel Tay Wee Han
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F02 reads and edits canonical `FleetVehicle` records through T03 operations; transition year and target preset remain scenario-owned and must not be written into the shared fleet record.
+
 ## User capability
 
-Users can view the fleet and add or edit vehicle information such as vehicle identity, assigned/current preset, annual distance and other M1 planning attributes.
+Users can view the Project's authoritative fleet and add or edit generic vehicle instances, their optional preset, assigned parking lot, annual distance and other M1 planning attributes.
 
 ## User need
 
@@ -14,12 +18,13 @@ The transition model must use fleet data that represents the vehicles being plan
 ## M1 scope
 
 - Display the real project fleet.
-- Add a fleet vehicle.
+- Add a generic fleet vehicle to the first available parking lot.
 - Edit the fields required by transition planning and M1 calculations.
 - Delete a vehicle with defined handling for scenario references.
-- Assign a current vehicle preset.
+- Assign or change an optional vehicle preset without changing vehicle identity.
 - Preserve stable vehicle IDs across edits, scenarios and persistence.
-- Scale the presentation to more than a fixed demo set of vehicles.
+- Enforce one vehicle per parking lot and the current ten-vehicle depot capacity.
+- Derive rendered vehicles from the Project fleet instead of persisting scene vehicles.
 
 Filtering, sorting and bulk planning may be expanded after the minimum real CRUD/data flow is stable.
 
@@ -31,4 +36,4 @@ Filtering, sorting and bulk planning may be expanded after the minimum real CRUD
 
 ## M1 evidence
 
-Create/edit a real fleet vehicle, assign its current preset, use the same vehicle in a scenario transition, save/reopen the project, and verify the vehicle and references are restored.
+Create a generic vehicle, verify automatic parking assignment and 3D rendering, assign/change its preset without changing its ID, use the vehicle in a Scenario transition, save/reopen the Project, then delete it and verify every Scenario plan keyed by its ID is removed.

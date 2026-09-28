@@ -1,70 +1,41 @@
-import type { SceneDocument } from "../scene/types";
-import type { VehiclePreset } from "../vehicles/types";
+import type { M1ProjectDocument, M1ScenarioDocument, ScenarioVehiclePlan as DomainScenarioVehiclePlan } from "../domain/contracts";
 
 export const NAME_MAX_LENGTH = 100;
 
-export type ScenarioVehiclePlan = {
-  transitionYear?: number | null;
-  targetPresetId?: string;
-};
-
-export type ScenarioDocument = {
-  version: 1;
-  /** Scenario-specific transition decisions keyed by shared fleet vehicle id. */
-  vehiclePlans?: Record<string, ScenarioVehiclePlan>;
-} & Record<string, unknown>;
-export type ProjectDocument = { version: 2; vehiclePresets: VehiclePreset[] };
-
-export type WorldRecord = {
-  id: string;
-  name: string;
-  revision: number;
-  createdAt: string;
-  updatedAt: string;
-  document: SceneDocument;
-};
-
-export type WorkspaceWorld = Omit<WorldRecord, "createdAt" | "updatedAt"> & {
-  createdAt?: string;
-  updatedAt?: string;
-  scenarios: Scenario[];
-};
+export type ScenarioVehiclePlan = DomainScenarioVehiclePlan;
+export type ProjectDocument = M1ProjectDocument;
+export type ScenarioDocument = M1ScenarioDocument;
 
 export type Scenario = {
   id: string;
-  worldId: string;
+  projectId: string;
   name: string;
+  position: number;
   revision: number;
-  worldRevision: number;
   createdAt?: string;
   updatedAt?: string;
   document: ScenarioDocument;
 };
 
+export type WorkspaceScenario = Scenario;
+
 export type ProjectRecord = {
   id: string;
-  /** The world that was active when the project was last saved. */
-  worldId: string;
-  /**
-   * The scenario that was active when the project was last saved. Optional so records written
-   * before this field existed still load; reopening falls back to the world's first scenario.
-   */
-  activeScenarioId?: string;
   name: string;
+  /** The last selected Scenario. Missing or stale values fall back to the first Scenario. */
+  activeScenarioId?: string;
   revision: number;
   createdAt: string;
   updatedAt: string;
   document: ProjectDocument;
 };
 
-export type WorkspaceRecord = { project: ProjectRecord; worlds: WorldRecord[]; scenarios: Scenario[] };
-export type ProjectSummary = Pick<ProjectRecord, "id" | "worldId" | "name" | "revision" | "updatedAt"> & { scenarioCount: number; worldCount?: number };
-export type WorldSummary = Pick<WorldRecord, "id" | "name" | "revision" | "updatedAt">;
+export type WorkspaceRecord = { project: ProjectRecord; scenarios: Scenario[] };
+export type ProjectSummary = Pick<ProjectRecord, "id" | "name" | "revision" | "updatedAt"> & { scenarioCount: number };
 
 export type WorkspaceSaveInput = {
-  project: { id: string; name: string; expectedRevision?: number; activeWorldId: string; activeScenarioId?: string; document: ProjectDocument };
-  worlds: { id: string; name: string; expectedRevision: number; document: SceneDocument }[];
-  scenarios: { id: string; worldId: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
+  project: { id: string; name: string; activeScenarioId?: string; expectedRevision?: number; document: ProjectDocument };
+  scenarios: { id: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
 };
 
 export function validateName(value: string): string | null {

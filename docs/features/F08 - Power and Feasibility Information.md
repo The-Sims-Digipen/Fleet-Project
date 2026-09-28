@@ -3,6 +3,10 @@
 **M1 priority:** SHOULD  
 **Primary owner:** Dayton Ng Zhi Jie
 
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). Until a real feasibility engine is scheduled, F08 remains explicitly provisional; any future functional values must consume the canonical project/scenario state rather than introducing a separate charging model inside the panel.
+
 ## User capability
 
 Users can view charging, energy and power-feasibility information associated with a planned fleet transition.
