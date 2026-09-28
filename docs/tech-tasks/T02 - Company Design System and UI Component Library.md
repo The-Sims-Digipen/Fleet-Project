@@ -25,7 +25,7 @@ The stylesheet registers the approved palette, heading/body fonts and package so
 
 When extending tokens, preserve BrandBook values under the `chargedup-*` namespace. Name non-brand colours by semantic purpose (for example `status-danger`), document why they are needed, and do not present them as BrandBook colours. Prefer extending an existing semantic token over adding a component-specific colour.
 
-This foundation provides tokens, self-hosted fonts and the four-variant Button. The standalone Vite React showcase lives in `apps/ui-showcase`, separate from the source-only library package. Dayton remains responsible for the remaining component catalogue and for coordinating later product-screen migrations.
+Reusable components live in the source-based `packages/ui` package. `apps/ui-docs` is the single canonical catalogue for previews, variants, interaction states, tokens, typography, spacing, examples, and usage guidance. It documents the package without becoming a second implementation of the component system. Dayton remains responsible for the remaining component catalogue and for coordinating later product-screen migrations.
 
 ## Responsibilities
 
@@ -34,7 +34,7 @@ This foundation provides tokens, self-hosted fonts and the four-variant Button. 
 - Define consistent hover/focus/disabled/error states.
 - Ensure keyboard/focus behavior and labels are built into interactive components where applicable.
 - Reduce duplicated one-off styling across feature screens.
-- Provide a small component showcase/documentation surface so states can be reviewed independently of product screens.
+- Maintain `apps/ui-docs` as the component documentation surface so states can be reviewed independently of product screens.
 
 ## M1 boundaries
 
