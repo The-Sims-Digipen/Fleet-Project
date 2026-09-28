@@ -39,3 +39,7 @@ Desktop.ini
 
 # Exported local prototype projects
 *.fleetproject
+
+# Machine-local agent state
+/.scratch/
+/CONTEXT.md
