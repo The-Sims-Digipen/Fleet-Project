@@ -122,9 +122,8 @@ function createYear(year: number): MutableYear {
   };
 }
 
-function calculateSeries(document: ProjectDocument, scenarioId: string | null): SimulationSeries {
+function calculateSeries(document: ProjectDocument, scenarioId: string | null, years: readonly number[]): SimulationSeries {
   const { analysis } = document;
-  const years = Array.from({ length: analysis.yearCount }, (_, index) => analysis.startYear + index);
   const annual = years.map(createYear);
   const presetById = new Map(document.vehiclePresets.map((preset) => [preset.id, preset]));
   const scenario = scenarioId === null ? undefined : document.scenarios.find((entry) => entry.id === scenarioId);
@@ -137,7 +136,9 @@ function calculateSeries(document: ProjectDocument, scenarioId: string | null): 
     const replacementIsSuperseded = replacementYear !== null
       && firstTransitionYear !== undefined
       && firstTransitionYear <= replacementYear;
-    let holding = initialHolding(vehicle);
+    const transitionBeforeWindow = transitions.filter((transition) => transition.year < analysis.startYear).at(-1);
+    const initialPreset = transitionBeforeWindow ? presetById.get(transitionBeforeWindow.targetPresetId) : undefined;
+    let holding = initialPreset ? acquiredHolding(initialPreset, 0) : initialHolding(vehicle);
 
     years.forEach((year, index) => {
       const row = annual[index];
@@ -251,7 +252,9 @@ function payback(
   if (!baseline.annual.length || !scenario.annual.length) return { year: null, status: "not-reached" };
   const savings = baseline.annual.map((row, index) => row.cumulativeCashCost - scenario.annual[index].cumulativeCashCost);
   const startYear = baseline.annual[0].year;
-  const upfrontPremium = scenario.annual[0].vehicleAcquisitionCapex - baseline.annual[0].vehicleAcquisitionCapex;
+  const baselineUpfrontCost = baseline.annual[0].vehicleAcquisitionCapex + baseline.annual[0].leaseExitFees - baseline.annual[0].disposalCredits;
+  const scenarioUpfrontCost = scenario.annual[0].vehicleAcquisitionCapex + scenario.annual[0].leaseExitFees - scenario.annual[0].disposalCredits;
+  const upfrontPremium = scenarioUpfrontCost - baselineUpfrontCost;
   if (upfrontPremium <= 0 && savings.every((value) => value >= 0)) return { year: startYear, status: "initial-parity" };
   const index = savings.findIndex((value, current) => value >= 0 && savings.slice(current).every((later) => later >= 0));
   return index < 0 ? { year: null, status: "not-reached" } : { year: baseline.annual[index].year, status: "reached" };
@@ -259,9 +262,10 @@ function payback(
 
 /** Derive baseline and every Scenario from the same validated Project assumptions. */
 export function simulateProject(document: ProjectDocument): ProjectSimulation {
-  const baseline = calculateSeries(document, null);
+  const years = Array.from({ length: document.analysis.yearCount }, (_, index) => document.analysis.startYear + index);
+  const baseline = calculateSeries(document, null, years);
   const scenarios = Object.fromEntries(document.scenarios.map((scenario) => {
-    const result = calculateSeries(document, scenario.id);
+    const result = calculateSeries(document, scenario.id, years);
     result.totals.savings = baseline.totals.tco - result.totals.tco;
     result.totals.emissionsReductionKgCo2e = baseline.totals.emissionsKgCo2e - result.totals.emissionsKgCo2e;
     const reached = payback(baseline, result);
@@ -273,6 +277,5 @@ export function simulateProject(document: ProjectDocument): ProjectSimulation {
       paybackStatus: reached.status,
     } satisfies ScenarioSimulation];
   }));
-  const years = Array.from({ length: document.analysis.yearCount }, (_, index) => document.analysis.startYear + index);
   return { years, baseline, scenarios };
 }

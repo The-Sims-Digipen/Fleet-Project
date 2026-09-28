@@ -101,6 +101,54 @@ describe("Project simulation", () => {
     expect(scenario.annual.map(({ transitionCount }) => transitionCount)).toEqual([0, 0, 1, 0]);
   });
 
+  it("starts from the holding of the last transition before the analysis window", () => {
+    const document = workedTransitionProject();
+    const vehicle = document.environment.vehicles[0];
+    const electric = document.vehiclePresets.find((preset) => preset.id === "electric-van")!;
+    const hybrid = document.vehiclePresets.find((preset) => preset.id === "hybrid-van")!;
+    document.analysis.startYear = 2028;
+    document.analysis.yearCount = 2;
+    document.environment.vehicles[0] = {
+      ...vehicle,
+      replacementYear: 2029,
+      currentHolding: { kind: "leased", annualPayment: 1_000, exitFee: 50 },
+    };
+    document.vehiclePresets = document.vehiclePresets.map((preset) => preset.id === electric.id
+      ? { ...preset, acquisition: { kind: "leased" as const, annualPayment: 400, exitFee: 250 } }
+      : preset);
+    document.scenarios[0].vehiclePlans[vehicle.id].transitions = [
+      { year: 2026, targetPresetId: electric.id },
+      { year: 2029, targetPresetId: hybrid.id },
+    ];
+
+    const scenario = simulateProject(normalizeProject(document)).scenarios["plan-a"];
+
+    expect(scenario.annual.map(({ leasePayments }) => leasePayments)).toEqual([400, 0]);
+    expect(scenario.annual.map(({ leaseExitFees }) => leaseExitFees)).toEqual([0, 250]);
+    expect(scenario.annual.map(({ transitionCount }) => transitionCount)).toEqual([0, 1]);
+    expect(scenario.annual[1].replacementCapex).toBe(0);
+  });
+
+  it("does not label payback as initial parity when a lease exit fee creates an upfront premium", () => {
+    const document = workedTransitionProject();
+    const vehicle = document.environment.vehicles[0];
+    const electric = document.vehiclePresets.find((preset) => preset.id === "electric-van")!;
+    document.environment.vehicles[0] = {
+      ...vehicle,
+      currentHolding: { kind: "leased", annualPayment: 1_000, exitFee: 200 },
+    };
+    document.vehiclePresets = document.vehiclePresets.map((preset) => preset.id === electric.id
+      ? { ...preset, acquisition: { kind: "leased" as const, annualPayment: 0, exitFee: 200 } }
+      : preset);
+
+    const simulation = simulateProject(normalizeProject(document));
+    const scenario = simulation.scenarios["plan-a"];
+
+    expect(scenario.annual[0].leaseExitFees).toBe(200);
+    expect(scenario.annual.every((year, index) => year.cumulativeCashCost <= simulation.baseline.annual[index].cumulativeCashCost)).toBe(true);
+    expect(scenario.paybackStatus).toBe("reached");
+  });
+
   it("applies the shared discount rate to present-value TCO while retaining nominal cash flows", () => {
     const document = workedTransitionProject();
     document.analysis.discountRate = 0.1;
