@@ -68,3 +68,17 @@ Read the documents relevant to the change before implementing it. Do not require
 - [`AGENTS/source-requirements.md`](AGENTS/source-requirements.md) — use when changing product scope; preserves requirements from the supplied PDF and DOCX briefs.
 - [`AGENTS/verification.md`](AGENTS/verification.md) — use when adding acceptance criteria, integration verification, regression coverage, or release checks.
 - [`AGENTS/typed-objects-plan.md`](AGENTS/typed-objects-plan.md) — use for typed 3D objects, supplied models, asset handling, and related scene architecture.
+
+## Agent skills
+
+### Issue tracker
+
+Tickets are stored as machine-local Markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Local tickets use the default canonical triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a single-context layout with a machine-local root `CONTEXT.md` and shared ADRs under `docs/adr/`. See `docs/agents/domain.md`.
