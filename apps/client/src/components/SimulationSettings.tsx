@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { useSceneStore } from "../state/sceneStore";
+import { useFleetStore } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, SelectControl, type EditLifecycle } from "./controls";
@@ -59,15 +59,14 @@ export function SimulationSettings() {
   const [result, setResult] = useState<Result | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [routeDistances, setRouteDistances] = useState<Record<string, number>>({});
-  const objects = useSceneStore((state) => state.document.objects);
+  const vehicles = useFleetStore((state) => state.vehicles);
   const presets = usePresetStore((state) => state.presets);
-  const vehicles = objects.filter((object) => object.definitionId === "van");
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? vehicles[0] ?? null;
   const selectedPreset = presets.find((preset) => preset.id === selectedVehicle?.presetId);
   const dieselPreset = selectedPreset?.propulsion === "diesel" ? selectedPreset : presets.find((preset) => preset.category === selectedPreset?.category && preset.propulsion === "diesel");
   const electricPreset = selectedPreset?.propulsion === "electric" ? selectedPreset : presets.find((preset) => preset.category === selectedPreset?.category && preset.propulsion === "electric");
-  const vehicleName = selectedPreset?.name ?? selectedVehicle?.name ?? "Vehicle";
-  const annualRouteDistance = selectedVehicle ? routeDistances[selectedVehicle.id] ?? assumptions.annualRouteDistance : assumptions.annualRouteDistance;
+  const vehicleName = selectedVehicle?.name ?? "Vehicle";
+  const annualRouteDistance = selectedVehicle ? routeDistances[selectedVehicle.id] ?? selectedVehicle.annualKm : assumptions.annualRouteDistance;
   const canSimulate = Boolean(selectedVehicle && selectedPreset && dieselPreset && electricPreset);
   const baseline = useRef<Assumptions | null>(null);
   const update = (patch: Partial<Assumptions>) => { setResult(null); setAssumptions((current) => ({ ...current, ...patch })); };
@@ -83,10 +82,10 @@ export function SimulationSettings() {
 
   return <CollapsibleSection title="Simulation" defaultOpen description="Enter route and price assumptions, then compare diesel and electric preset performance year by year.">
     <div className="grid gap-5">
-      <InputGroup title="Simulation setup" description="Choose any vehicle in the scene, then enter its annual route distance manually.">
-        <SelectControl label="Vehicle" value={selectedVehicle?.id ?? ""} options={vehicles.map((vehicle, index) => ({ value: vehicle.id, label: `Vehicle ${index + 1}: ${presets.find((preset) => preset.id === vehicle.presetId)?.name ?? vehicle.name}` }))} onChange={(id) => { setResult(null); setSelectedVehicleId(id); }} />
-        {!selectedVehicle && <p role="alert" className="text-xs leading-relaxed text-secondary">Add a van to the scene to run a simulation.</p>}
-        {selectedVehicle && !selectedPreset && <p role="alert" className="text-xs leading-relaxed text-amber-200">This scene vehicle has no linked preset, so its consumption is unavailable. Add the vehicle from Vehicle Presets to calculate costs.</p>}
+      <InputGroup title="Simulation setup" description="Choose any Project fleet vehicle, then enter its annual route distance manually.">
+        <SelectControl label="Vehicle" value={selectedVehicle?.id ?? ""} options={vehicles.map((vehicle) => ({ value: vehicle.id, label: `${vehicle.name}: ${presets.find((preset) => preset.id === vehicle.presetId)?.name ?? "Generic vehicle"}` }))} onChange={(id) => { setResult(null); setSelectedVehicleId(id); }} />
+        {!selectedVehicle && <p role="alert" className="text-xs leading-relaxed text-secondary">Add a vehicle in Fleet Management to run a simulation.</p>}
+        {selectedVehicle && !selectedPreset && <p role="alert" className="text-xs leading-relaxed text-amber-200">This fleet vehicle has no assigned preset, so its consumption is unavailable. Assign a VehiclePreset in Fleet Management to calculate costs.</p>}
         <NumberControl label="Simulation length (years)" value={assumptions.years} min={1} step={1} edit={edit} onChange={(years) => { if (Number.isInteger(years)) update({ years }); }} />
         <NumberControl label="Selected vehicle route distance (km/year)" value={annualRouteDistance} min={0} step={100} edit={edit} onChange={updateRouteDistance} />
       </InputGroup>

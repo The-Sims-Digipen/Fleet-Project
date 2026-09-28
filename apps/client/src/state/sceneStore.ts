@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { createObject, getDefinition } from "../scene/catalog";
+import { createDefaultProjectScene, DEFAULT_DEPOT_OBJECT_ID } from "../scene/defaultProjectScene";
 import { copyTransform, type Appearance, type SceneDocument, type SceneObject, type Transform, type TransformProperty, type Vector3 } from "../scene/types";
 
 export type TransformMode = "translate" | "rotate" | "scale";
@@ -13,14 +14,10 @@ export type EditorState = {
 };
 
 export function createDocument(): SceneDocument {
-  return {
-    version: 3,
-    light: 65,
-    objects: [createObject("van", "sample")!],
-  };
+  return createDefaultProjectScene();
 }
 
-export function createEditorState(selectedObjectId: string | null = "sample"): EditorState {
+export function createEditorState(selectedObjectId: string | null = DEFAULT_DEPOT_OBJECT_ID): EditorState {
   return { selectedObjectId, transformMode: "translate", transformSpace: "world", snapEnabled: true };
 }
 
@@ -129,6 +126,7 @@ export const useSceneStore = create<SceneState>((set, get) => {
       patchEditor({ selectedObjectId: object.id });
     },
     deleteObject: (id) => {
+      if (id === DEFAULT_DEPOT_OBJECT_ID) return;
       get().commitEdit();
       change({ ...get().document, objects: get().document.objects.filter((object) => object.id !== id) });
     },

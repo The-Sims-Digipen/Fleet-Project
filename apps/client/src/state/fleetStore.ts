@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
 import { copyFleetVehicle, createFleetVehicle, isYearInPeriod, normalizeAnalysisSettings, normalizeFleetVehicle, uniqueVehicleName } from "../domain/fleet";
+import { firstAvailableParkingLot, hasValidParkingAssignments } from "../domain/depotLayout";
 import { createMockAnalysis, createMockFleet } from "../domain/mockProject";
 import { usePresetStore } from "./presetStore";
 
@@ -22,7 +23,7 @@ type FleetState = {
   analysis: AnalysisSettings;
   /** Snapshot taken when a continuous edit begins, so Escape can restore it. */
   baseline: FleetVehicle[] | null;
-  /** Returns the new vehicle id, or null when no preset exists to reference. */
+  /** Returns the new vehicle id, or null when all parking lots are occupied. */
   createVehicle: () => string | null;
   duplicateVehicle: (id: string) => string | null;
   updateVehicle: (id: string, patch: Partial<FleetVehicle>) => void;
@@ -36,8 +37,6 @@ type FleetState = {
 };
 
 const knownPresetIds = (): ReadonlySet<string> => new Set(usePresetStore.getState().presets.map((preset) => preset.id));
-const firstPresetId = () => usePresetStore.getState().presets[0]?.id;
-
 export const useFleetStore = create<FleetState>((set, get) => {
   return {
     vehicles: createMockFleet(),
@@ -46,10 +45,9 @@ export const useFleetStore = create<FleetState>((set, get) => {
 
     createVehicle: () => {
       get().commitEdit();
-      const presetId = firstPresetId();
-      // A fleet vehicle must resolve to a preset, so it cannot be created without one.
-      if (!presetId) return null;
-      const vehicle = createFleetVehicle(crypto.randomUUID(), uniqueVehicleName("New Vehicle", get().vehicles), presetId);
+      const parkingLot = firstAvailableParkingLot(get().vehicles);
+      if (!parkingLot) return null;
+      const vehicle = createFleetVehicle(crypto.randomUUID(), uniqueVehicleName("New Vehicle", get().vehicles), parkingLot.id);
       if (!normalizeFleetVehicle(vehicle, knownPresetIds())) return null;
       set({ vehicles: [...get().vehicles, vehicle] });
       return vehicle.id;
@@ -58,8 +56,9 @@ export const useFleetStore = create<FleetState>((set, get) => {
     duplicateVehicle: (id) => {
       get().commitEdit();
       const source = get().vehicles.find((vehicle) => vehicle.id === id);
-      if (!source) return null;
-      const copy = { ...copyFleetVehicle(source), id: crypto.randomUUID(), name: uniqueVehicleName(`${source.name} copy`, get().vehicles) };
+      const parkingLot = firstAvailableParkingLot(get().vehicles);
+      if (!source || !parkingLot) return null;
+      const copy = { ...copyFleetVehicle(source), id: crypto.randomUUID(), name: uniqueVehicleName(`${source.name} copy`, get().vehicles), parkingLotId: parkingLot.id };
       set({ vehicles: [...get().vehicles, copy] });
       return copy.id;
     },
@@ -71,7 +70,9 @@ export const useFleetStore = create<FleetState>((set, get) => {
       // draft never replaces valid inputs (docs/tech/contracts.md).
       const next = normalizeFleetVehicle({ ...current, ...patch, id: current.id }, knownPresetIds());
       if (!next || !isYearInPeriod(get().analysis, next.replacementYear)) return;
-      set({ vehicles: get().vehicles.map((vehicle) => (vehicle.id === id ? next : vehicle)) });
+      const vehicles = get().vehicles.map((vehicle) => (vehicle.id === id ? next : vehicle));
+      if (!hasValidParkingAssignments(vehicles)) return;
+      set({ vehicles });
     },
 
     removeVehicle: (id) => {
@@ -81,7 +82,7 @@ export const useFleetStore = create<FleetState>((set, get) => {
 
     replaceFleet: (vehicles) => {
       get().commitEdit();
-      set({ vehicles: vehicles.map(copyFleetVehicle) });
+      if (hasValidParkingAssignments(vehicles)) set({ vehicles: vehicles.map(copyFleetVehicle) });
     },
 
     updateAnalysis: (patch) => {

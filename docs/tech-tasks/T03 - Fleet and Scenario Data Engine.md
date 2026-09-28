@@ -27,7 +27,7 @@ Provide the canonical domain/state engine for real fleet vehicles, preset refere
 
 - T03 answers **what fleet/scenario data exists and what a vehicle's effective state is**.
 - T04 answers **what year/time is selected**.
-- T06 answers **which Project/World/Scenario workspace is active and how it is managed**.
+- T06 answers **which Project/Scenario workspace is active and how it is managed**.
 
 ## M1 evidence
 

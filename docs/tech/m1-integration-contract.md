@@ -10,9 +10,8 @@ The importable, framework-independent contract is `apps/client/src/domain/contra
 
 The contract fixes these decisions:
 
-- Project-owned inputs: vehicle presets, fleet vehicles, analysis period, currency, common fuel price, and common emissions factors.
+- Project-owned inputs: one physical scene, vehicle presets, authoritative fleet vehicles, analysis period, currency, common fuel price, and common emissions factors.
 - Scenario-owned inputs: per-vehicle target preset/transition year and scenario electricity/charging assumptions.
-- World-owned inputs: serializable 3D objects and transforms.
 - Editor-only state: selection, camera, transform tool, drafts and undo mechanics.
 - Derived state: simulation, analytics and effective-year projections are recomputed and are never authoritative persisted data.
 - Transition semantics: current preset before the transition year and target preset from the transition year onward.
@@ -22,15 +21,16 @@ The contract fixes these decisions:
 
 - IDs are stable and immutable after creation; project preset IDs and fleet vehicle IDs are unique.
 - Every numeric domain value is finite. Distances, prices, costs and emissions factors are nonnegative; `yearCount` is a positive integer; utilisation and charging share are within 0–1; charging efficiency is greater than 0 and at most 1.
-- Every fleet `currentPresetId` and scenario `targetPresetId` resolves inside the same project. Every `vehiclePlans` key resolves to a project fleet vehicle.
+- Every fleet `presetId` is null or resolves inside the same Project; every Scenario `targetPresetId` and `vehiclePlans` key resolves inside that Project.
+- Every vehicle occupies one unique default-depot parking lot, and a Project contains at most ten fleet vehicles.
 - A transition year is null/absent or inside the project's inclusive analysis period.
 - Deleting a referenced preset is blocked and the UI lists the fleet/scenario references that must first be reassigned or cleared.
 - Deleting a fleet vehicle requires confirmation that lists affected scenario plans, then removes the vehicle and all of those plan entries as one domain edit.
-- Scenario duplication deep-copies plans and assumptions. The last scenario for a World cannot be deleted.
+- Scenario duplication deep-copies plans and assumptions. The last Scenario for a Project cannot be deleted.
 - Invalid form drafts remain component-local and never replace the last valid domain value.
 - When the analysis period changes, T04 clamps the selected year to the new period and stops playback. Scenario switching retains the selected year because the period is project-owned.
 
-Legacy project document version 2 and scenario document version 1 remain readable during integration. The authoritative M1 shapes are project version 3 and scenario version 2. T01 owns format migration and rejection of unsupported versions; feature components must not implement migrations.
+The authoritative shapes are Project document version 4 and Scenario document version 2. Legacy multi-World Project data is intentionally discarded during this pre-release change; feature components must not implement migrations.
 
 ## Ownership and shared-file boundaries
 
@@ -41,7 +41,7 @@ Legacy project document version 2 and scenario document version 1 remain readabl
 | T03 domain | Tan Wei Jun | Fleet/preset CRUD, reference integrity, effective-year state | `domain/contracts.ts`, the real fleet/scenario domain store and selectors |
 | T04 timeline | Jarrel Tay Wee Han | Selected year, seek/play/pause/reset, transition-event projection | `state/timelineStore.ts`, `components/TimelineControl.tsx` |
 | T05 simulation | Elijah Chua Jye Kang | Pure `SimulationInput -> SimulationResult`; no React/storage/chart imports | the new simulation engine directory |
-| T06 workspace | Brandon Koh Kai Yang | Active project/world/scenario, dirty state and valid snapshots | `state/projectStore.ts`, workspace panels |
+| T06 workspace | Brandon Koh Kai Yang | Active Project/Scenario, dirty state and valid snapshots | `state/projectStore.ts`, workspace panels |
 | T07 analytics | Yap Zhi Kai | Transform `SimulationResult` into KPI/chart view models; no recalculation | the new analytics directory and `components/CostAnalysis.tsx` |
 | F05/assembly | Chew Shee Yang | Read T03 + T04 state into 3D; final top-level composition | `App.tsx`, `components/Sidebar.tsx`, 3D integration adapters |
 

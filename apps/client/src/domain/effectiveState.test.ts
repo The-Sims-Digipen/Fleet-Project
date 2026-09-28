@@ -25,7 +25,7 @@ describe("scenario plan resolution", () => {
     expect(planChangesPreset(vehicle, { transitionYear: null, targetPresetId: "sim01-electric" })).toBe(false);
     expect(planChangesPreset(vehicle, { transitionYear: 2027, targetPresetId: null })).toBe(false);
     // Transitioning to the preset it already runs is not a change.
-    expect(planChangesPreset(vehicle, { transitionYear: 2027, targetPresetId: vehicle.currentPresetId })).toBe(false);
+    expect(planChangesPreset(vehicle, { transitionYear: 2027, targetPresetId: vehicle.presetId })).toBe(false);
   });
 });
 
@@ -46,7 +46,7 @@ describe("effective vehicle state", () => {
   it("stays on the current preset for every year when nothing is planned", () => {
     for (const year of [2026, 2030, 2099]) {
       expect(effectiveVehicleState(vehicle, undefined, presetIds, year)).toEqual({
-        vehicleId: vehicle.id, presetId: vehicle.currentPresetId, transitioned: false, transitionYear: null,
+        vehicleId: vehicle.id, presetId: vehicle.presetId, transitioned: false, transitionYear: null,
       });
     }
   });
@@ -100,6 +100,6 @@ describe("scenario isolation", () => {
     // Editing one plan leaves the other and the shared fleet untouched.
     early.vehiclePlans["SIM01-VEHICLE"].transitionYear = 2028;
     expect(late.vehiclePlans["SIM01-VEHICLE"].transitionYear).toBe(2029);
-    expect(sim01Project.fleetVehicles[0].currentPresetId).toBe("sim01-diesel");
+    expect(sim01Project.fleetVehicles[0].presetId).toBe("sim01-diesel");
   });
 });
