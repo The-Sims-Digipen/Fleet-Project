@@ -1,5 +1,6 @@
 import type { PaybackResult, SimulationResult } from "../domain/contracts";
 
+/** Financial values copied from the authoritative T05 simulation result. */
 export type FinancialKpis = {
   tco: number;
   savings: number;
@@ -8,6 +9,7 @@ export type FinancialKpis = {
   payback: PaybackResult;
 };
 
+/** Parallel series consumed by the financial charts. Values remain unformatted for charting. */
 export type FinancialChartViewModel = {
   years: number[];
   baselineCumulativeCost: number[];
@@ -15,6 +17,7 @@ export type FinancialChartViewModel = {
   annualSavings: number[];
 };
 
+/** Financial comparison for the year currently selected by T04. */
 export type SelectedYearFinancialViewModel = {
   year: number;
   baselineCost: number;
@@ -23,6 +26,7 @@ export type SelectedYearFinancialViewModel = {
   cumulativeSavings: number;
 };
 
+/** Display-ready financial projection for F06 and the selected-year context from F07. */
 export type FinancialViewModel = {
   currency: string;
   kpis: FinancialKpis;
@@ -31,6 +35,18 @@ export type FinancialViewModel = {
   paybackLabel: string;
 };
 
+/**
+ * Projects T05 financial output into the typed T07 presentation contract.
+ *
+ * This function only selects and reshapes values already calculated by the
+ * simulation engine. It must not calculate costs, savings, payback, or other
+ * financial truth independently.
+ *
+ * @param simulation Authoritative annual comparison and totals from T05.
+ * @param currency ISO 4217 project currency used by the consuming UI.
+ * @param selectedYear T04's shared year selection for the contextual summary.
+ * @returns KPI, chart-series, payback, and selected-year presentation data.
+ */
 export function createFinancialViewModel(
   simulation: SimulationResult,
   currency: string,

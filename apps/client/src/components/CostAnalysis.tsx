@@ -10,6 +10,13 @@ import { usePresetStore } from "../state/presetStore";
 import { useProjectStore } from "../state/projectStore";
 import { useTimelineStore } from "../state/timelineStore";
 
+/**
+ * Renders the active scenario's T07 financial view model.
+ *
+ * T05 remains the source of financial truth: this component builds the
+ * project input, runs the simulation, and delegates result shaping to
+ * createFinancialViewModel before configuring the charts and KPI cards.
+ */
 export function CostAnalysis() {
   const vehicles = useFleetStore((state) => state.vehicles);
   const presets = usePresetStore((state) => state.presets);
@@ -63,7 +70,7 @@ export function CostAnalysis() {
     <div className="grid grid-cols-2 gap-3">
       <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Payback period</p><p className="mt-2 text-2xl font-semibold">{viewModel.paybackLabel}</p><p className="mt-1 text-xs text-secondary">{paybackYear ? (kpis.payback.status === "initial-parity" ? "Initial parity" : "End-of-year cash breakeven") : "No lasting payback in the modeled period"}</p></article>
       <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Estimated savings</p><p className="mt-2 text-2xl font-semibold">{currency.format(kpis.savings)}</p><p className="mt-1 text-xs text-secondary">Baseline TCO minus active plan</p></article>
-      <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Transition cost</p><p className="mt-2 text-2xl font-semibold">{currency.format(kpis.capex)}</p><p className="mt-1 text-xs text-secondary">Total transition CAPEX (Captial Expenditure)</p></article>
+      <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Transition cost</p><p className="mt-2 text-2xl font-semibold">{currency.format(kpis.capex)}</p><p className="mt-1 text-xs text-secondary">Total transition CAPEX (Capital Expenditure)</p></article>
       <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">TCO (Total Cost of Ownership)</p><p className="mt-2 text-2xl font-semibold">{currency.format(kpis.tco)}</p><p className="mt-1 text-xs text-secondary">Active plan over {annual.length} years</p></article>
       <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">OPEX (Operating Expense)</p><p className="mt-2 text-2xl font-semibold">{currency.format(kpis.opex)}</p><p className="mt-1 text-xs text-secondary">Total operating expenditure</p></article>
       <article className="rounded-lg border border-line bg-panel p-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Plan status</p><p className={`mt-2 text-2xl font-semibold ${kpis.savings >= 0 ? "text-accent" : "text-[#d58b79]"}`}>{kpis.savings >= 0 ? "Lower TCO" : "Higher TCO"}</p><p className="mt-1 text-xs text-secondary">Compared with baseline</p></article>
