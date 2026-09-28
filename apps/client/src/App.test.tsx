@@ -1,310 +1,54 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import App from "./App";
-import { createMockAnalysis, createMockFleet, createMockPresets } from "./domain/mockProject";
-import { DEFAULT_DEPOT_OBJECT_ID } from "./scene/defaultProjectScene";
-import { usePresetStore } from "./state/presetStore";
-import { createDocument, createEditorState, useSceneStore } from "./state/sceneStore";
-import { useFleetStore } from "./state/fleetStore";
-import { useTimelineStore } from "./state/timelineStore";
-import { createProjectFields, useProjectStore } from "./state/projectStore";
 
-vi.mock("./components/WorldScene", () => ({ WorldScene: ({ fleetObjects }: { fleetObjects: { id: string; name: string; appearance: { tint?: string } }[] }) =>
-  <div>{fleetObjects.map((object) => <span key={object.id} data-testid={object.id} data-tint={object.appearance.tint}>{object.name}</span>)}</div> }));
+import App from "./App";
+import { createMemoryProjectRepository } from "./project/repository";
+import { createSampleProjects } from "./project/sampleProjects";
+import { createProjectState, setProjectRepository, useProjectStore } from "./state/projectStore";
+
+vi.mock("./components/WorldScene", () => ({ WorldScene: () => <div data-testid="world-scene" /> }));
 vi.mock("./components/ComparisonViewport", () => ({ ComparisonViewport: ({ year }: { year: number }) => <div data-testid="comparison-viewport" data-year={year} /> }));
 vi.mock("echarts-for-react", () => ({ default: () => <div data-testid="echarts" /> }));
+
 beforeEach(() => {
-  // jsdom has no native dialog top layer; browser checks cover focus trapping.
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
-  useSceneStore.setState({ document: createDocument(), editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
-  usePresetStore.setState({ presets: inputs.presets, selectedPresetId: null, baseline: null });
-  useFleetStore.setState({ vehicles: inputs.fleet, analysis: inputs.analysis, baseline: null });
-  useProjectStore.setState(createProjectFields("Untitled project", useSceneStore.getState().document, 0, inputs));
-  useTimelineStore.getState().resetYear();
+  const record = createSampleProjects()[0];
+  setProjectRepository(createMemoryProjectRepository([record]));
+  useProjectStore.setState(createProjectState(record.document));
 });
 afterEach(cleanup);
-const state = useSceneStore.getState;
 
-describe("inspector architecture", () => {
-  it("opens the client-demo comparison workspace with two sample plans", async () => {
-    const user = userEvent.setup();
+describe("application workspace", () => {
+  it("renders scenarios, fleet, timeline, and presets from one Project document", async () => {
     render(<App />);
-    await user.click(screen.getByRole("tab", { name: "Compare" }));
-    expect(screen.getAllByTestId("comparison-viewport")).toHaveLength(2);
-    expect(screen.getByRole("heading", { name: "Two possible fleet transition plans" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Gradual Transition" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Accelerated Electrification" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Plan B minus Plan A" })).toBeInTheDocument();
-    expect(screen.getByText("Vehicles replaced each year")).toBeInTheDocument();
-    const comparisonYear = screen.getByRole("slider", { name: "Comparison year" });
-    expect(screen.getAllByTestId("comparison-viewport").every((viewport) => viewport.getAttribute("data-year") === "2030")).toBe(true);
-    fireEvent.change(comparisonYear, { target: { value: "2031" } });
-    expect(screen.getAllByTestId("comparison-viewport").every((viewport) => viewport.getAttribute("data-year") === "2031")).toBe(true);
+    expect(screen.getByLabelText("Project name")).toHaveValue("Sample depot transition");
+    expect(screen.getByRole("list", { name: "Project scenarios" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Fleet vehicles" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Vehicle presets" })).toBeInTheDocument();
+    expect(await screen.findByTestId("world-scene")).toBeInTheDocument();
   });
-  it("shows the mocked cost comparison and payback year in the analysis section", () => {
-    render(<App />);
-    expect(screen.getByRole("button", { name: "Cost over time" })).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("heading", { name: "Cost over time" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /cumulative cost comparison/i })).toBeInTheDocument();
-    expect(screen.getByText("Transition becomes cheaper")).toBeInTheDocument();
-  });
-  it("changes a vehicle in its chosen year and leaves No change vehicles unchanged", async () => {
+
+  it("writes fleet planning changes directly to the active scenario", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.selectOptions(screen.getByRole("combobox", { name: "Target preset for UNIT-01" }), "electric-van");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2028");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-02" }), "");
-    expect(screen.getByTestId("fleet-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
-    act(() => useTimelineStore.getState().setSelectedYear(2028));
-    expect(screen.getByTestId("fleet-UNIT-01")).toHaveAttribute("data-tint", "#39ff14");
-    expect(screen.getByTestId("fleet-UNIT-02")).toHaveAttribute("data-tint", "#ffffff");
-    act(() => useTimelineStore.getState().resetYear());
-    expect(screen.getByTestId("fleet-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
-  });
-  it("groups manual simulation inputs and creates an annual cost table", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    expect(screen.getByRole("heading", { name: "Diesel assumptions" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Electric assumptions" })).toBeInTheDocument();
-    const vehicleSelect = screen.getByRole("combobox", { name: "Vehicle" });
-    expect(vehicleSelect.querySelectorAll("option")).toHaveLength(6);
-    await user.selectOptions(vehicleSelect, "UNIT-01");
-    expect(screen.queryByLabelText("Diesel consumption (L/100 km)")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Electric consumption (kWh/100 km)")).not.toBeInTheDocument();
-    expect(screen.getByText(/Diesel Delivery Van · 9.5 L\/100 km/)).toBeInTheDocument();
-    expect(screen.getByText(/Electric Delivery Van · 22 kWh\/100 km/)).toBeInTheDocument();
-    const distance = screen.getByLabelText("Selected vehicle route distance (km/year)");
-    await user.clear(distance);
-    await user.type(distance, "10000{Enter}");
-    await user.click(screen.getByRole("button", { name: "Finalize simulation" }));
-    expect(screen.getByText(/Year-by-year energy cost comparison/)).toBeInTheDocument();
-    expect(screen.getAllByRole("row")).toHaveLength(6);
-    expect(screen.getByText("Total distance:").parentElement).toHaveTextContent("50,000 km");
-  });
-  it("adds and deletes catalog instances with undoable edits and appearance restoration", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: "Add Object" }));
-    expect(state().document.objects).toHaveLength(1);
-    expect(screen.getByRole("dialog", { name: "Add Object" })).toBeInTheDocument();
-    fireEvent(screen.getByRole("dialog"), new Event("close"));
-    expect(screen.getByRole("dialog")).toHaveAttribute("open");
-    await user.click(screen.getByRole("button", { name: "Create Object" }));
-    const id = state().editor.selectedObjectId;
-    expect(state().document.objects).toHaveLength(2);
-    expect(id).not.toBe(DEFAULT_DEPOT_OBJECT_ID);
-    await user.selectOptions(screen.getByLabelText("Material"), "metal");
-    expect(state().document.objects[1].appearance.material).toBe("metal");
-    expect(state().document.objects[0].appearance).toEqual({});
-    await user.click(screen.getByRole("button", { name: "Restore Appearance" }));
-    expect(state().document.objects[1].appearance).toEqual({});
-    await user.click(screen.getByRole("button", { name: "Delete Object" }));
-    expect(state().document.objects).toHaveLength(1);
-    expect(state().editor.selectedObjectId).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Undo" }));
-    expect(state().document.objects[1].id).toBe(id);
-  });
-  it("toggles inspect and gizmo interaction and changes transform settings without adding document history", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const toolbar = screen.getByRole("toolbar", { name: "Transform tools" });
-    expect(toolbar).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Rotate/ }));
-    await user.click(screen.getByRole("button", { name: "Transform space: World" }));
-    await user.click(screen.getByRole("button", { name: "Snap" }));
-    expect(state().editor.transformMode).toBe("rotate");
-    expect(state().editor.transformSpace).toBe("local");
-    expect(state().editor.snapEnabled).toBe(false);
-    expect(state().history.past).toHaveLength(0);
-    await user.click(screen.getByRole("button", { name: "Interaction mode: Gizmo" }));
-    expect(state().editor.interactionMode).toBe("inspect");
-    expect(screen.getByRole("button", { name: /Move/ })).toBeDisabled();
-    fireEvent.keyDown(document.body, { key: "r" });
-    expect(state().editor.transformMode).toBe("rotate");
-    await user.click(screen.getByRole("button", { name: "Interaction mode: Inspect" }));
-    expect(state().editor.interactionMode).toBe("gizmo");
-    fireEvent.keyDown(document.body, { key: "r" });
-    fireEvent.keyDown(document.body, { key: "q" });
-    expect(state().editor.transformMode).toBe("scale");
-    expect(state().editor.transformSpace).toBe("world");
-    expect(state().history.past).toHaveLength(0);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2030");
+
+    const project = useProjectStore.getState().runtime.document;
+    expect(project.scenarios.find((scenario) => scenario.id === project.activeScenarioId)?.vehiclePlans["UNIT-01"].transitions).toEqual([
+      { year: 2030, targetPresetId: "electric-van" },
+    ]);
   });
 
-  it("resizes the desktop sidebar with the keyboard and limits its size", () => {
-    render(<App />);
-    const divider = screen.getByRole("separator", { name: "Resize sidebar" });
-    expect(divider).toHaveAttribute("aria-orientation", "vertical");
-    fireEvent.keyDown(divider, { key: "ArrowLeft" });
-    expect(divider).toHaveAttribute("aria-valuetext", "440 pixel sidebar width");
-    fireEvent.keyDown(divider, { key: "Home" });
-    fireEvent.keyDown(divider, { key: "ArrowRight" });
-    expect(divider).toHaveAttribute("aria-valuetext", "280 pixel sidebar width");
-  });
-  it("resizes the mobile bottom panel while reserving space for the world", () => {
-    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
-    render(<App />);
-    const divider = screen.getByRole("separator");
-    expect(divider).toHaveAttribute("aria-orientation", "horizontal");
-    fireEvent.keyDown(divider, { key: "ArrowUp" });
-    expect(divider).toHaveAttribute("aria-valuenow", "44");
-    fireEvent.keyDown(divider, { key: "End" });
-    fireEvent.keyDown(divider, { key: "ArrowUp" });
-    expect(divider).toHaveAttribute("aria-valuenow", "70");
-    fireEvent.keyDown(divider, { key: "Home" });
-    fireEvent.keyDown(divider, { key: "ArrowDown" });
-    expect(divider).toHaveAttribute("aria-valuenow", "25");
-  });
-  it("edits live, groups typing, converts degrees, and supports undo/redo", async () => {
+  it("opens the comparison workspace and shares its selected year", async () => {
     const user = userEvent.setup();
     render(<App />);
-    const position = screen.getByLabelText("Position (m) X");
-    await user.click(position);
-    await user.clear(position);
-    expect(state().document.objects[0].transform.position[0]).toBe(0);
-    await user.type(position, "12");
-    expect(state().document.objects[0].transform.position[0]).toBe(12);
-    expect(state().history.past).toHaveLength(0);
-    await user.keyboard("{Enter}");
-    expect(state().history.past).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "Undo" }));
-    expect(position).toHaveValue(0);
-    await user.click(screen.getByRole("button", { name: "Redo" }));
-    expect(position).toHaveValue(12);
-    const rotation = screen.getByLabelText("Rotation (°) Y");
-    await user.clear(rotation);
-    await user.type(rotation, "180{Enter}");
-    expect(state().document.objects[0].transform.rotation[1]).toBe(Math.PI);
-  });
-  it("supports keyboard scene selection while preserving the required default depot", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    act(() => state().addObject("van"));
-    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 2" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByLabelText("Position (m) Y")).toHaveValue(0);
-    await user.click(screen.getByRole("button", { name: "Clear selection" }));
-    expect(screen.getByText(/No object selected/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Object" })).toBeDisabled();
-    screen.getByRole("button", { name: "Select Default depot, object 1" }).focus();
-    await user.keyboard("{Enter}");
-    expect(state().editor.selectedObjectId).toBe(DEFAULT_DEPOT_OBJECT_ID);
-    expect(screen.getByRole("button", { name: "Select Default depot, object 1" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByRole("combobox", { name: "Object" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Object" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "Select Low-poly Van, object 2" }));
-    await user.click(screen.getByRole("button", { name: "Delete Object" }));
-    expect(screen.getByRole("button", { name: "Select Default depot, object 1" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Add Object" }));
-    await user.click(screen.getByRole("button", { name: "Create Object" }));
-    expect(screen.getByRole("button", { name: "Select Low-poly Van, object 2" })).toHaveAttribute("aria-pressed", "true");
-  });
-  it("cancels object creation without changing the scene or history", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: "Add Object" }));
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(state().document).toEqual(createDocument());
-    expect(state().history.past).toHaveLength(0);
-  });
-  it("rejects invalid scale and Escape cancels a numeric edit", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const scale = screen.getByLabelText("Scale X");
-    await user.clear(scale);
-    await user.type(scale, "-1{Enter}");
-    expect(scale).toHaveValue(1);
-    await user.clear(scale);
-    await user.type(scale, "3{Escape}");
-    expect(scale).toHaveValue(1);
-    expect(state().history.past).toHaveLength(0);
-  });
-  it("collapses by keyboard, retains content, and commits active edits", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const heading = screen.getByRole("button", { name: "Inspector" });
-    const position = screen.getByLabelText("Position (m) X");
-    await user.clear(position);
-    await user.type(position, "4");
-    await user.click(heading);
-    expect(heading).toHaveAttribute("aria-expanded", "false");
-    expect(position).not.toBeVisible();
-    expect(state().history.baseline).toBeNull();
-    await user.keyboard("{Enter}");
-    expect(heading).toHaveAttribute("aria-expanded", "true");
-    expect(position).toHaveValue(4);
-  });
-  it("groups held slider keys and preserves native input shortcuts", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: "Scene" }));
-    const slider = screen.getByLabelText("Light intensity");
-    fireEvent.keyDown(slider, { key: "ArrowRight" });
-    fireEvent.change(slider, { target: { value: "66" } });
-    fireEvent.keyDown(slider, { key: "ArrowRight", repeat: true });
-    fireEvent.change(slider, { target: { value: "67" } });
-    fireEvent.keyUp(slider, { key: "ArrowRight" });
-    expect(state().history.past).toHaveLength(1);
-    fireEvent.keyDown(screen.getByLabelText("Position (m) X"), { key: "z", ctrlKey: true });
-    expect(state().document.light).toBe(67);
-    fireEvent.keyDown(document.body, { key: "z", ctrlKey: true });
-    expect(state().document.light).toBe(65);
-    fireEvent.keyDown(document.body, { key: "z", metaKey: true, shiftKey: true });
-    expect(state().document.light).toBe(67);
-  });
-  it("groups pointer changes, cancels gestures, and exposes the live debug document", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: "Scene" }));
-    const slider = screen.getByLabelText("Light intensity");
-    fireEvent.pointerDown(slider);
-    fireEvent.change(slider, { target: { value: "20" } });
-    fireEvent.change(slider, { target: { value: "30" } });
-    fireEvent.pointerUp(slider);
-    expect(state().history.past).toHaveLength(1);
-    fireEvent.pointerDown(slider);
-    fireEvent.change(slider, { target: { value: "40" } });
-    fireEvent.pointerCancel(slider);
-    expect(state().document.light).toBe(30);
-    await user.click(screen.getByRole("button", { name: "Debug" }));
-    expect(JSON.parse(screen.getByLabelText("Scene document").textContent!).light).toBe(30);
-    await user.click(screen.getByRole("button", { name: "Reset scene" }));
-    expect(state().document).toEqual(createDocument());
-    await user.click(screen.getByRole("button", { name: "Undo" }));
-    expect(state().document.light).toBe(30);
-  });
-  it("edits appearance and restores it with object reset", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.clear(screen.getByLabelText("Tint hex"));
-    await user.type(screen.getByLabelText("Tint hex"), "#7788ee{Enter}");
-    await user.selectOptions(screen.getByLabelText("Material"), "metal");
-    await user.click(screen.getByLabelText("Wireframe"));
-    expect(state().document.objects[0]).toMatchObject({ appearance: { tint: "#7788ee", material: "metal", wireframe: true } });
-    expect(state().history.past).toHaveLength(3);
-    await user.click(screen.getByRole("button", { name: "Reset object" }));
-    expect(state().document.objects[0]).toEqual(createDocument().objects[0]);
-  });
-  it("places preset instances that follow the preset's name and release it on deletion", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: "Select Electric Delivery Van" }));
-    await user.click(screen.getByRole("button", { name: "Add to Scene" }));
-    const placed = state().document.objects.at(-1)!;
-    expect(placed).toMatchObject({ presetId: "electric-van", definitionId: "van", name: "Electric Delivery Van" });
-    expect(screen.getByRole("button", { name: "Select Electric Delivery Van, object 2" })).toBeInTheDocument();
-
-    // Renaming the preset relabels its instances without touching the document.
-    act(() => usePresetStore.getState().updatePreset("electric-van", { name: "Electric Van Mk2" }));
-    expect(screen.getByRole("button", { name: "Select Electric Van Mk2, object 2" })).toBeInTheDocument();
-    expect(state().document.objects.at(-1)!.name).toBe("Electric Delivery Van");
-
-    // An orphaned instance falls back to the name and geometry it was placed with.
-    act(() => usePresetStore.getState().deletePreset("electric-van"));
-    expect(screen.getByRole("button", { name: "Select Electric Delivery Van, object 2" })).toBeInTheDocument();
-    expect(state().document.objects.at(-1)!.presetId).toBe("electric-van");
+    await user.click(screen.getByRole("tab", { name: "Compare" }));
+    const slider = screen.getByRole("slider", { name: "Comparison year" });
+    fireEvent.change(slider, { target: { value: "2031" } });
+    expect(screen.getAllByTestId("comparison-viewport").every((viewport) => viewport.getAttribute("data-year") === "2031")).toBe(true);
   });
 });

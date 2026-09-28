@@ -1,4 +1,4 @@
-import { normalizeProjectV5, type ProjectDocumentV5 } from "../domain/projectV5";
+import { normalizeProject, type ProjectDocument } from "../domain/project";
 import {
   DatabaseUnavailableError,
   normalizeProjectRecord,
@@ -6,7 +6,7 @@ import {
   ProjectNotFoundError,
   type ProjectRepository,
 } from "./repository";
-import type { AggregateProjectRecord, AggregateProjectSummary } from "./types";
+import type { ProjectRecord, ProjectSummary } from "./types";
 
 const DATABASE_NAME = "fleet-transition-planner";
 const DATABASE_VERSION = 4;
@@ -35,7 +35,7 @@ function openDatabase(databaseName: string): Promise<IDBDatabase> {
     const request = indexedDB.open(databaseName, DATABASE_VERSION);
     request.onupgradeneeded = () => {
       const database = request.result;
-      // Pre-release reset: version 5 replaces split Project/Scenario records.
+      // The current schema stores one complete Project aggregate per record.
       for (const storeName of Array.from(database.objectStoreNames)) database.deleteObjectStore(storeName);
       database.createObjectStore(STORE_PROJECTS, { keyPath: "document.id" });
     };
@@ -58,10 +58,10 @@ async function withDatabase<T>(databaseName: string, operation: (database: IDBDa
   }
 }
 
-async function readProject(database: IDBDatabase, id: string): Promise<AggregateProjectRecord> {
+async function readProject(database: IDBDatabase, id: string): Promise<ProjectRecord> {
   const transaction = database.transaction(STORE_PROJECTS, "readonly");
   const done = transactionDone(transaction);
-  const record = await requestResult(transaction.objectStore(STORE_PROJECTS).get(id) as IDBRequest<AggregateProjectRecord | undefined>);
+  const record = await requestResult(transaction.objectStore(STORE_PROJECTS).get(id) as IDBRequest<ProjectRecord | undefined>);
   await done;
   if (!record) throw new ProjectNotFoundError();
   return normalizeProjectRecord(structuredClone(record));
@@ -69,15 +69,15 @@ async function readProject(database: IDBDatabase, id: string): Promise<Aggregate
 
 async function writeProject(
   database: IDBDatabase,
-  value: ProjectDocumentV5,
+  value: ProjectDocument,
   mode: "create" | "update",
   expectedRevision?: number,
-): Promise<AggregateProjectRecord> {
-  const document = normalizeProjectV5(value);
+): Promise<ProjectRecord> {
+  const document = normalizeProject(value);
   const transaction = database.transaction(STORE_PROJECTS, "readwrite");
   const done = transactionDone(transaction);
   const store = transaction.objectStore(STORE_PROJECTS);
-  const current = await requestResult(store.get(document.id) as IDBRequest<AggregateProjectRecord | undefined>);
+  const current = await requestResult(store.get(document.id) as IDBRequest<ProjectRecord | undefined>);
   if (mode === "create" && current) {
     throw new ProjectConflictError("A project with this ID already exists.");
   }
@@ -88,7 +88,7 @@ async function writeProject(
     throw new ProjectConflictError();
   }
   const timestamp = nowIso();
-  const record: AggregateProjectRecord = current
+  const record: ProjectRecord = current
     ? { document, revision: current.revision + 1, createdAt: current.createdAt, updatedAt: timestamp }
     : { document, revision: 1, createdAt: timestamp, updatedAt: timestamp };
   await requestResult(store.put(structuredClone(record)));
@@ -101,9 +101,9 @@ export function createIndexedDbProjectRepository(databaseName = DATABASE_NAME): 
     listProjects: () => withDatabase(databaseName, async (database) => {
       const transaction = database.transaction(STORE_PROJECTS, "readonly");
       const done = transactionDone(transaction);
-      const records = await requestResult(transaction.objectStore(STORE_PROJECTS).getAll() as IDBRequest<AggregateProjectRecord[]>);
+      const records = await requestResult(transaction.objectStore(STORE_PROJECTS).getAll() as IDBRequest<ProjectRecord[]>);
       await done;
-      return records.map<AggregateProjectSummary>((record) => {
+      return records.map<ProjectSummary>((record) => {
         const normalized = normalizeProjectRecord(record);
         return {
           id: normalized.document.id,

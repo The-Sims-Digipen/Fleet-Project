@@ -1,5 +1,5 @@
-import { normalizeProjectV5, type ProjectDocumentV5 } from "../domain/projectV5";
-import type { AggregateProjectRecord, AggregateProjectSummary } from "./types";
+import { normalizeProject, type ProjectDocument } from "../domain/project";
+import type { ProjectRecord, ProjectSummary } from "./types";
 
 export class ProjectNotFoundError extends Error {
   constructor(message = "This project no longer exists.") { super(message); }
@@ -13,10 +13,10 @@ export class DatabaseUnavailableError extends Error {
 
 /** One aggregate crosses this seam; adapters never expose Scenario persistence separately. */
 export type ProjectRepository = {
-  listProjects: () => Promise<AggregateProjectSummary[]>;
-  getProject: (id: string) => Promise<AggregateProjectRecord>;
-  createProject: (document: ProjectDocumentV5) => Promise<AggregateProjectRecord>;
-  updateProject: (document: ProjectDocumentV5, expectedRevision: number) => Promise<AggregateProjectRecord>;
+  listProjects: () => Promise<ProjectSummary[]>;
+  getProject: (id: string) => Promise<ProjectRecord>;
+  createProject: (document: ProjectDocument) => Promise<ProjectRecord>;
+  updateProject: (document: ProjectDocument, expectedRevision: number) => Promise<ProjectRecord>;
 };
 
 const nowIso = () => new Date().toISOString();
@@ -31,10 +31,10 @@ function normalizeMetadata(value: unknown, path: string) {
   return { revision: source.revision, createdAt: source.createdAt as string, updatedAt: source.updatedAt as string };
 }
 
-export function normalizeProjectRecord(value: unknown): AggregateProjectRecord {
+export function normalizeProjectRecord(value: unknown): ProjectRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("project record must be an object.");
   const source = value as Record<string, unknown>;
-  return { document: normalizeProjectV5(source.document), ...normalizeMetadata(source, "project record") };
+  return { document: normalizeProject(source.document), ...normalizeMetadata(source, "project record") };
 }
 
 function apiError(status: number, body: unknown): Error {
@@ -58,16 +58,16 @@ export function createApiProjectRepository(): ProjectRepository {
   return {
     listProjects: () => request("/api/v1/projects"),
     getProject: async (id) => normalizeProjectRecord(await request(`/api/v1/projects/${encodeURIComponent(id)}`)),
-    createProject: async (document) => normalizeProjectRecord(await request("/api/v1/projects", { method: "POST", body: JSON.stringify({ document: normalizeProjectV5(document) }) })),
+    createProject: async (document) => normalizeProjectRecord(await request("/api/v1/projects", { method: "POST", body: JSON.stringify({ document: normalizeProject(document) }) })),
     updateProject: async (document, expectedRevision) => normalizeProjectRecord(await request(`/api/v1/projects/${encodeURIComponent(document.id)}`, {
       method: "PUT",
-      body: JSON.stringify({ document: normalizeProjectV5(document), expectedRevision }),
+      body: JSON.stringify({ document: normalizeProject(document), expectedRevision }),
     })),
   };
 }
 
-export function createMemoryProjectRepository(seed: AggregateProjectRecord[] = []): ProjectRepository {
-  const projects = new Map<string, AggregateProjectRecord>();
+export function createMemoryProjectRepository(seed: ProjectRecord[] = []): ProjectRepository {
+  const projects = new Map<string, ProjectRecord>();
   for (const entry of seed) {
     const record = normalizeProjectRecord(entry);
     if (projects.has(record.document.id)) throw new ProjectConflictError(`Duplicate Project “${record.document.id}”.`);
@@ -90,7 +90,7 @@ export function createMemoryProjectRepository(seed: AggregateProjectRecord[] = [
     },
 
     createProject: async (value) => {
-      const document = normalizeProjectV5(value);
+      const document = normalizeProject(value);
       if (projects.has(document.id)) throw new ProjectConflictError("A project with this ID already exists.");
       const timestamp = nowIso();
       const record = { document, revision: 1, createdAt: timestamp, updatedAt: timestamp };
@@ -99,7 +99,7 @@ export function createMemoryProjectRepository(seed: AggregateProjectRecord[] = [
     },
 
     updateProject: async (value, expectedRevision) => {
-      const document = normalizeProjectV5(value);
+      const document = normalizeProject(value);
       const current = projects.get(document.id);
       if (!current) throw new ProjectNotFoundError();
       if (current.revision !== expectedRevision) throw new ProjectConflictError();

@@ -1,8 +1,8 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
 
-import { addVehicleTransition } from "../domain/projectV5";
-import { createProjectV5Fixture } from "../domain/projectV5Fixture";
+import { addVehicleTransition } from "../domain/project";
+import { createProjectFixture } from "../domain/projectFixture";
 import { createIndexedDbProjectRepository } from "./indexedDbRepository";
 import { createMemoryProjectRepository, ProjectConflictError } from "./repository";
 import type { ProjectRepository } from "./repository";
@@ -16,7 +16,7 @@ describe.each(adapters)("aggregate Project repository contract: $name", ({ creat
   it("creates, lists, loads, and updates one complete Project record", async () => {
     const repository = createRepository();
     const document = addVehicleTransition(
-      createProjectV5Fixture("project-1"),
+      createProjectFixture("project-1"),
       { scenarioId: "plan-a", vehicleId: "UNIT-01" },
       { year: 2030, targetPresetId: "electric-van" },
     );
@@ -40,7 +40,7 @@ describe.each(adapters)("aggregate Project repository contract: $name", ({ creat
 
   it("leaves the complete stored aggregate unchanged after a stale revision", async () => {
     const repository = createRepository();
-    const document = createProjectV5Fixture("project-1");
+    const document = createProjectFixture("project-1");
     const created = await repository.createProject(document);
 
     await expect(repository.updateProject({ ...document, name: "Stale write" }, created.revision - 1)).rejects.toBeInstanceOf(ProjectConflictError);
@@ -50,7 +50,7 @@ describe.each(adapters)("aggregate Project repository contract: $name", ({ creat
 
   it("rejects unsupported or invalid documents without storing them", async () => {
     const repository = createRepository();
-    await expect(repository.createProject({ ...createProjectV5Fixture(), version: 4 } as never)).rejects.toThrow(/unsupported Project document version/i);
+    await expect(repository.createProject({ ...createProjectFixture(), version: 4 } as never)).rejects.toThrow(/unsupported Project document version/i);
     expect(await repository.listProjects()).toEqual([]);
   });
 });

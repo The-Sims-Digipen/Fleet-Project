@@ -1,6 +1,8 @@
-# Adding a module or object type
+# Extending the editor
 
-Compose another `CollapsibleSection` in `Sidebar`, supplying a title, optional description, `defaultOpen`, and children. Its accessible disclosure preserves mounted child state. Modules with editable controls should pass `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`, passing values, change callbacks, and edit lifecycle callbacks; the controls themselves do not depend on Zustand. Keep feature logic in an isolated component and let `Sidebar` compose panels.
+Compose each sidebar feature as an isolated component inside `Sidebar` using `CollapsibleSection`. Supply a title, optional description, `defaultOpen`, and children. Modules with editable controls should pass `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`; they receive values, callbacks, and an edit lifecycle and do not depend on Zustand.
+
+Feature components read the canonical document from `useProjectStore(state => state.runtime.document)` and call focused store actions or Project commands. Do not introduce a second feature store for a slice of Project data. Editor-only values belong in `ProjectEditorState`; persisted domain values belong in `ProjectDocument`.
 
 ## Register a procedural model
 
@@ -23,7 +25,7 @@ export function createChargerModel() {
 }
 ```
 
-Then import the factory in `apps/client/src/scene/catalog.ts` and register a stable definition:
+Then import the factory in `apps/client/src/scene/catalog.ts` and register a stable definition. Set `vehiclePresetCompatible` to `true` only for geometry selectable by a vehicle preset.
 
 ```ts
 charger: {
@@ -35,26 +37,16 @@ charger: {
 },
 ```
 
-Set `vehiclePresetCompatible` to `true` only for geometry that may be selected by a vehicle preset. General scene objects such as depots remain available in the development-only World Objects panel without appearing in the vehicle-model picker.
+Registering geometry does not create a new domain entity. If a charger, bay, obstacle, or other object needs product behavior or persistence, first add a typed Project-domain concept and its validation/commands, then project it into a `SceneObject` for rendering. Generic arbitrary scene objects are intentionally not a second persistence model.
 
-No viewport, World Objects, or Inspector change is required for another generic procedural model. In a development build, click **Add Object** in **World Objects**, choose the definition in the modal, and click **Create Object**, or call `useSceneStore.getState().addObject("charger")`. These generic panels are intentionally hidden in production.
+## Rendering and ownership
 
-The compact World Objects list has a fixed-height scrollable area and shows every instance, highlights the current selection, and supports mouse or keyboard selection. Use **Delete Object** to remove the selected instance or **Clear selection** to deselect it. The Inspector only edits the selected object's properties.
+`scene/types.ts` contains small render DTOs such as `SceneObject`, `Transform`, and appearance overrides. `createProjectSceneObjects` derives these from the Project environment, active Scenario, and selected year. Render DTOs and Three.js objects are never persisted.
 
-## Types, rendering, and ownership
+`ObjectDefinition.kind` selects a renderer from the typed registry in `ModelObject.tsx`. Currently only `procedural` is implemented. Add future kinds with explicit renderers alongside their actual behavior. A model supplies presentation; it does not define fleet or planning data.
 
-`scene/types.ts` contains serializable scene data. Version 3 objects store `id`, `name`, `definitionId`, an optional vehicle `presetId`, `transform`, and `appearance`; they never store `THREE.Group`, geometry, materials, or factory functions. Catalog definitions are runtime configuration and connect stable definition IDs to factories.
+Every procedural factory call must return newly owned geometry and materials. Do not reuse mutable `Object3D`, geometry, material, or texture instances across calls. `createProceduralInstance` applies appearance, creates selection bounds, and disposes resources when the instance unmounts. Factory failures are isolated by the per-object render boundary.
 
-`ObjectDefinition.kind` selects a renderer from the typed registry in `ModelObject.tsx`. Currently only `procedural` is implemented. Add future domain kinds with explicit types, renderers, and inspector fields alongside their actual behavior. A model supplies presentation; it does not define fleet, charger, bay, or obstacle business data.
+The viewport uses Three.js `TransformControls` on the selected typed Project object. Interaction mode, transform mode, transform space, snapping, lighting, and camera state are editor-only. Depot and vehicle transforms are persisted and share the Project undo history.
 
-Every call to a procedural factory must return newly owned geometry and materials. Do not reuse mutable `Object3D`, geometry, material, or texture instances across factory calls. `createProceduralInstance` applies appearance overrides, creates the non-interactive selection bounds, and disposes all resources owned by that instance when it unmounts. Factory failures are isolated by the per-object render boundary.
-
-Generated model materials are used by default. Tint multiplies their colors; material presets override roughness and metalness on PBR materials; wireframe affects supporting mesh materials. **Restore Appearance** clears overrides. **Reset object** restores definition transform defaults and appearance while preserving the ID and name. Creation, deletion, and reset remain undoable. Selection is cleared whenever its object no longer exists; undo does not restore selection.
-
-## Low-poly van
-
-`models/van.ts` contains the first procedural object. `createVanModel()` returns a multi-part `THREE.Group` built at metre scale with a body, tapered cab, windows, bumpers, lights, and low-sided wheel cylinders. It uses only generated Three.js geometry and materials; there are no external model files or runtime asset requests.
-
-The Debug module exposes the document without editing it. The viewport uses Three.js `TransformControls` on the selected object root for move/rotate/scale editing. The toolbar's interaction toggle switches between inspect selection/navigation and gizmo editing without clearing the selection. Interaction mode, gizmo transform mode, transform space, and snapping are editor-only state and are not persisted in the scene document. Persistence and backend integration are future additions. DOM tests verify controls and state; real-browser checks remain required for picking, orbiting, outlines, and WebGL rendering.
-
-See [editing and history](editing-and-history.md) for edit lifecycle behavior and the [architecture](architecture.md#current-scene-editor-architecture) for state ownership.
+See [editing and history](editing-and-history.md) and [architecture](architecture.md#ownership-boundaries).

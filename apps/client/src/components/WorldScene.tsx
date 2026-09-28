@@ -1,14 +1,15 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MOUSE, type Group } from "three";
+import { createProjectSceneObjects } from "../scene/fleetSceneObjects";
 import type { SceneObject } from "../scene/types";
-import { useSceneStore } from "../state/sceneStore";
+import { useProjectStore } from "../state/projectStore";
 import { ModelObject } from "./ModelObject";
 import { TransformGizmo } from "./TransformGizmo";
 
 function Lighting() {
-  const light = useSceneStore((state) => state.document.light);
+  const light = useProjectStore((state) => state.runtime.editor.lightIntensity);
   return <><ambientLight intensity={0.35 + light / 100} /><directionalLight position={[6, 9, 5]} intensity={0.5 + light / 45} /></>;
 }
 
@@ -39,15 +40,16 @@ function WorldObjectsLayer({ objects, isClick, markDragged }: {
   isClick: () => boolean;
   markDragged: () => void;
 }) {
-  const selectedId = useSceneStore((state) => state.editor.selectedObjectId);
-  const interactionMode = useSceneStore((state) => state.editor.interactionMode);
+  const selection = useProjectStore((state) => state.runtime.editor.selection);
+  const selectedId = selection?.id ?? null;
+  const interactionMode = useProjectStore((state) => state.runtime.editor.interactionMode);
   const roots = useRef(new Map<string, Group>());
   const [registeredTarget, setRegisteredTarget] = useState<RegisteredTarget | null>(null);
 
   const registerRoot = useCallback((id: string, group: Group | null) => {
     if (group) {
       roots.current.set(id, group);
-      if (useSceneStore.getState().editor.selectedObjectId === id) {
+      if (useProjectStore.getState().runtime.editor.selection?.id === id) {
         setRegisteredTarget((current) => current?.id === id && current.group === group ? current : { id, group });
       }
       return;
@@ -72,13 +74,22 @@ function WorldObjectsLayer({ objects, isClick, markDragged }: {
   const selectedTarget = selectedId && registeredTarget?.id === selectedId ? registeredTarget.group : null;
 
   return <>
-    {objects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selectable={import.meta.env.DEV} registerRoot={import.meta.env.DEV ? registerRoot : undefined} />)}
-    {import.meta.env.DEV && interactionMode === "gizmo" && <TransformGizmo objectId={selectedId} target={selectedTarget} markDragged={markDragged} />}
+    {objects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selected={import.meta.env.DEV && selectedId === object.id}
+      onSelect={() => {
+        if (!import.meta.env.DEV) return;
+        const document = useProjectStore.getState().runtime.document;
+        useProjectStore.getState().selectObject(object.id === document.environment.depot.id
+          ? { kind: "depot", id: object.id }
+          : { kind: "vehicle", id: object.id });
+      }} registerRoot={import.meta.env.DEV ? registerRoot : undefined} />)}
+    {import.meta.env.DEV && interactionMode === "gizmo" && <TransformGizmo object={selection} target={selectedTarget} markDragged={markDragged} />}
   </>;
 }
 
-export function WorldScene({ cameraReset, fleetObjects }: { cameraReset: number; fleetObjects: SceneObject[] }) {
-  const objects = useSceneStore((state) => state.document.objects);
+export function WorldScene({ cameraReset }: { cameraReset: number }) {
+  const document = useProjectStore((state) => state.runtime.document);
+  const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
+  const objects = useMemo(() => createProjectSceneObjects(document, selectedYear), [document, selectedYear]);
   // Track the full pointer path: returning to the start after orbiting is still a drag.
   const gesture = useRef({ x: 0, y: 0, dragged: false, primary: false });
   const isClick = useCallback(() => gesture.current.primary && !gesture.current.dragged, []);
@@ -94,14 +105,13 @@ export function WorldScene({ cameraReset, fleetObjects }: { cameraReset: number;
     }}
     onPointerMoveCapture={(event) => { if (Math.hypot(event.clientX - gesture.current.x, event.clientY - gesture.current.y) > 4) gesture.current.dragged = true; }}
     onPointerCancelCapture={markDragged}>
-    <p className="sr-only">Project depot with {fleetObjects.length} fleet vehicles assigned to parking lots.</p>
+    <p className="sr-only">Project depot with {document.environment.vehicles.length} fleet vehicles.</p>
     <Canvas dpr={[1, 1.5]} camera={{ position: [8, 7, 9], fov: 42, near: 0.1, far: 200 }}
       fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">WebGL is unavailable. The sidebar remains usable.</div>}
-      onPointerMissed={() => { if (import.meta.env.DEV && isClick()) useSceneStore.getState().selectObject(null); }}>
+      onPointerMissed={() => { if (import.meta.env.DEV && isClick()) useProjectStore.getState().selectObject(null); }}>
       <color attach="background" args={["#07100f"]} />
       <Lighting />
       <WorldObjectsLayer objects={objects} isClick={isClick} markDragged={markDragged} />
-      {fleetObjects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selectable={false} />)}
       <CameraControls reset={cameraReset} />
     </Canvas>
   </div>;

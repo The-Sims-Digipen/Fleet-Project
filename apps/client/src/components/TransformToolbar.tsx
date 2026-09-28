@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { useSceneStore, type TransformMode } from "../state/sceneStore";
+import { useProjectStore } from "../state/projectStore";
+import type { ProjectEditorState } from "../state/projectRuntime";
 
-const modes: { mode: TransformMode; label: string; shortcut: string }[] = [
+const modes: { mode: ProjectEditorState["transformMode"]; label: string; shortcut: string }[] = [
   { mode: "translate", label: "Move", shortcut: "W" },
   { mode: "rotate", label: "Rotate", shortcut: "E" },
   { mode: "scale", label: "Scale", shortcut: "R" },
@@ -14,16 +15,16 @@ function isTypingTarget(target: EventTarget | null) {
 }
 
 export function TransformToolbar() {
-  const selected = useSceneStore((state) => state.editor.selectedObjectId !== null);
-  const interactionMode = useSceneStore((state) => state.editor.interactionMode);
-  const mode = useSceneStore((state) => state.editor.transformMode);
-  const space = useSceneStore((state) => state.editor.transformSpace);
-  const snap = useSceneStore((state) => state.editor.snapEnabled);
-  const editing = useSceneStore((state) => state.history.baseline !== null);
-  const setInteractionMode = useSceneStore((state) => state.setInteractionMode);
-  const setMode = useSceneStore((state) => state.setTransformMode);
-  const setSpace = useSceneStore((state) => state.setTransformSpace);
-  const setSnap = useSceneStore((state) => state.setSnapEnabled);
+  const selected = useProjectStore((state) => state.runtime.editor.selection !== null);
+  const interactionMode = useProjectStore((state) => state.runtime.editor.interactionMode);
+  const mode = useProjectStore((state) => state.runtime.editor.transformMode);
+  const space = useProjectStore((state) => state.runtime.editor.transformSpace);
+  const snap = useProjectStore((state) => state.runtime.editor.snapEnabled);
+  const editing = useProjectStore((state) => state.runtime.history.activeEdit !== null);
+  const setInteractionMode = useProjectStore((state) => state.setInteractionMode);
+  const setMode = useProjectStore((state) => state.setTransformMode);
+  const setSpace = useProjectStore((state) => state.setTransformSpace);
+  const setSnap = useProjectStore((state) => state.setSnapEnabled);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

@@ -102,8 +102,8 @@ export function ComparisonViewport({ plan, year, reset }: { plan: DemoPlanKey; y
       <ambientLight intensity={0.7} />
       <directionalLight position={[8, 14, 6]} intensity={1.6} castShadow />
       <directionalLight position={[-8, 7, -8]} intensity={0.45} />
-      <ModelObject object={depot} isClick={isClick} selectable={false} />
-      {fleetObjects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selectable={false} />)}
+      <ModelObject object={depot} isClick={isClick} selected={false} onSelect={() => undefined} />
+      {fleetObjects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selected={false} onSelect={() => undefined} />)}
       <Camera reset={reset} />
     </Canvas>
   </div>;

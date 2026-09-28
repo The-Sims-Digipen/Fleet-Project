@@ -6,9 +6,10 @@ export type EditLifecycle = { beginEdit: () => void; commitEdit: () => void; can
 export function NumberControl({ label, value, onChange, min, step = 0.1, edit }: {
   label: string; value: number; onChange: (value: number) => void; min?: number; step?: number; edit: EditLifecycle;
 }) {
+  const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
-  return <label className="grid min-w-0 gap-2 text-[0.72rem] font-semibold text-secondary"><span className="text-[0.62rem]">{label}</span>
-    <input className="min-h-[42px] w-full min-w-0 cursor-text rounded-[7px] border border-line-strong bg-control px-2 py-1.5 text-primary" type="number" value={draft ?? Number(value.toFixed(4))} min={min} step={step}
+  return <label className="grid min-w-0 gap-2 text-[0.72rem] font-semibold text-secondary" htmlFor={id}><span className="text-[0.62rem]">{label}</span>
+    <input id={id} name={id} className="min-h-[42px] w-full min-w-0 cursor-text rounded-[7px] border border-line-strong bg-control px-2 py-1.5 text-primary" type="number" value={draft ?? Number(value.toFixed(4))} min={min} step={step}
       onFocus={() => { edit.beginEdit(); setDraft(String(Number(value.toFixed(4)))); }}
       onChange={(event) => {
         const text = event.target.value;
@@ -35,9 +36,10 @@ export function NumberControl({ label, value, onChange, min, step = 0.1, edit }:
 export function TextControl({ label, value, onChange, maxLength = 100, edit }: {
   label: string; value: string; onChange: (value: string) => void; maxLength?: number; edit: EditLifecycle;
 }) {
+  const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
-  return <label className="grid min-w-0 gap-2 text-[0.72rem] font-semibold text-secondary"><span>{label}</span>
-    <input className="min-h-11 w-full min-w-0 cursor-text rounded-lg border border-line-strong bg-control px-[11px] py-1.5 text-primary" type="text" value={draft ?? value} maxLength={maxLength} spellCheck={false}
+  return <label className="grid min-w-0 gap-2 text-[0.72rem] font-semibold text-secondary" htmlFor={id}><span>{label}</span>
+    <input id={id} name={id} className="min-h-11 w-full min-w-0 cursor-text rounded-lg border border-line-strong bg-control px-[11px] py-1.5 text-primary" type="text" value={draft ?? value} maxLength={maxLength} spellCheck={false}
       onFocus={() => { edit.beginEdit(); setDraft(value); }}
       onChange={(event) => {
         const text = event.target.value;
@@ -85,7 +87,8 @@ export function RangeControl({ label, value, min, max, unit = "", onChange, edit
 export function SelectControl<T extends string>({ label, value, options, onChange }: {
   label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void;
 }) {
-  return <label className="grid gap-2 text-[0.72rem] font-semibold text-secondary"><span>{label}</span><select className="min-h-11 w-full rounded-lg border border-line-strong bg-control px-[11px] text-primary" value={value} onChange={(event) => onChange(event.target.value as T)}>
+  const id = useId();
+  return <label className="grid gap-2 text-[0.72rem] font-semibold text-secondary" htmlFor={id}><span>{label}</span><select id={id} name={id} className="min-h-11 w-full rounded-lg border border-line-strong bg-control px-[11px] text-primary" value={value} onChange={(event) => onChange(event.target.value as T)}>
     {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
   </select></label>;
 }
@@ -93,11 +96,13 @@ export function SelectControl<T extends string>({ label, value, options, onChang
 export function ColorControl({ label, value, onChange, edit }: {
   label: string; value: string; onChange: (value: string) => void; edit: EditLifecycle;
 }) {
+  const pickerId = useId();
+  const textId = useId();
   const [draft, setDraft] = useState<string | null>(null);
   return <div className="grid gap-2 text-[0.72rem] font-semibold text-secondary"><span>{label}</span><span className="flex min-h-11 w-full items-center gap-[9px] rounded-lg border border-line-strong bg-control px-[11px] text-primary">
-    <input className="size-[26px] shrink-0 border-0 bg-transparent p-0" type="color" aria-label={label} value={value} onFocus={edit.beginEdit} onBlur={edit.commitEdit}
+    <input id={pickerId} name={pickerId} className="size-[26px] shrink-0 border-0 bg-transparent p-0" type="color" aria-label={label} value={value} onFocus={edit.beginEdit} onBlur={edit.commitEdit}
       onChange={(event) => { edit.beginEdit(); onChange(event.target.value); }} />
-    <input className="h-8 min-w-0 w-full flex-1 cursor-text border-0 bg-transparent p-0 font-mono text-xs text-secondary" type="text" aria-label={`${label} hex`} value={draft ?? value.toUpperCase()} maxLength={7} spellCheck={false}
+    <input id={textId} name={textId} className="h-8 min-w-0 w-full flex-1 cursor-text border-0 bg-transparent p-0 font-mono text-xs text-secondary" type="text" aria-label={`${label} hex`} value={draft ?? value.toUpperCase()} maxLength={7} spellCheck={false}
       onFocus={() => { edit.beginEdit(); setDraft(value); }}
       onChange={(event) => { const text = event.target.value; setDraft(text); if (/^#[0-9a-f]{6}$/i.test(text)) { edit.beginEdit(); onChange(text); } }}
       onBlur={() => { edit.commitEdit(); setDraft(null); }}

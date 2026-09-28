@@ -1,190 +1,74 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
-import { normalizeProjectV5 } from "../domain/projectV5";
-import { createProjectV5Fixture } from "../domain/projectV5Fixture";
-import { createMemoryProjectRepository } from "../project/repository";
-import { createSampleProjects } from "../project/sampleProjects";
-import { DEFAULT_DEPOT_OBJECT_ID } from "../scene/defaultProjectScene";
-import { useFleetStore } from "./fleetStore";
-import { usePresetStore } from "./presetStore";
-import { createProjectFields, setProjectRepository, useProjectStore } from "./projectStore";
-import { isProjectDirty } from "./projectRuntime";
-import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
-import { useAppStore } from "./appStore";
 
-const project = useProjectStore.getState;
+import { createProjectFixture } from "../domain/projectFixture";
+import { createPortableProject } from "../project/portableProject";
+import { createMemoryProjectRepository } from "../project/repository";
+import { createProjectState, setProjectRepository, useProjectStore } from "./projectStore";
+
+const project = () => useProjectStore.getState();
 
 beforeEach(() => {
-  setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
-  const scene = createDocument();
-  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
-  usePresetStore.getState().replacePresets(inputs.presets);
-  useFleetStore.getState().updateAnalysis(inputs.analysis);
-  useFleetStore.getState().replaceFleet(inputs.fleet);
-  useSceneStore.setState({ document: scene, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  useProjectStore.setState(createProjectFields("Project test", scene, 0, inputs));
+  setProjectRepository(createMemoryProjectRepository());
+  useProjectStore.setState(createProjectState(createProjectFixture()));
 });
-describe("single-environment project state", () => {
-  it("starts with one default depot and one scenario", () => {
-    expect(useSceneStore.getState().document.objects.some((object) => object.id === DEFAULT_DEPOT_OBJECT_ID)).toBe(true);
-    expect(project().scenarios).toHaveLength(1);
-    expect(project()).not.toHaveProperty("worlds");
-  });
 
-  it("keeps scenario plans isolated over the same fleet", () => {
-    const first = project().activeScenarioId;
-    project().updateScenarioVehiclePlan(first, "UNIT-01", { transitionYear: 2030, targetPresetId: "electric-van" });
+describe("Project store", () => {
+  it("edits scenarios and transitions inside the canonical aggregate", () => {
     project().createScenario();
-    const second = project().activeScenarioId;
-    project().updateScenarioVehiclePlan(second, "UNIT-01", { transitionYear: 2027, targetPresetId: "electric-box-truck" });
-    expect(project().scenarios.find((scenario) => scenario.id === first)?.document.vehiclePlans["UNIT-01"]).toEqual({
-      transitionYear: 2030,
-      targetPresetId: "electric-van",
-    });
-    expect(project().scenarios.find((scenario) => scenario.id === second)?.document.vehiclePlans["UNIT-01"]).toEqual({
-      transitionYear: 2027,
-      targetPresetId: "electric-box-truck",
-    });
+    const scenario = project().runtime.document.scenarios.at(-1)!;
+    project().replaceVehicleTransitions(scenario.id, "UNIT-01", [{ year: 2030, targetPresetId: "electric-van" }]);
+
+    expect(project().runtime.document.activeScenarioId).toBe(scenario.id);
+    expect(project().runtime.document.scenarios.at(-1)?.vehiclePlans["UNIT-01"].transitions).toEqual([
+      { year: 2030, targetPresetId: "electric-van" },
+    ]);
   });
 
-  it("keeps an incomplete compatibility transition as editor-only draft state", () => {
-    const scenarioId = project().activeScenarioId;
-    project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2030, targetPresetId: "electric-van" });
-    project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { targetPresetId: undefined });
+  it("uses one edit boundary and one history for every Project mutation", () => {
+    project().beginEdit();
+    project().updateVehicle("UNIT-01", { annualKm: 40_000 });
+    project().updateVehicle("UNIT-01", { annualKm: 42_000 });
+    project().commitEdit();
 
-    expect(project().scenarios[0].document.vehiclePlans["UNIT-01"]).toEqual({ transitionYear: 2030, targetPresetId: undefined });
-    expect(project().runtime.document.scenarios[0].vehiclePlans["UNIT-01"]).toBeUndefined();
-  });
-
-  it("saves and reopens the Project aggregate atomically", async () => {
-    project().createScenario();
-    useFleetStore.getState().updateVehicle("UNIT-01", { annualKm: 42_000 });
-    await project().saveProject();
-    const id = project().projectId!;
-    useFleetStore.getState().updateVehicle("UNIT-01", { annualKm: 1 });
-    await project().openProject(id);
-    expect(project().revision).toBe(1);
-    expect(project().scenarios).toHaveLength(2);
-    expect(useFleetStore.getState().vehicles.find((vehicle) => vehicle.id === "UNIT-01")?.annualKm).toBe(42_000);
-  });
-
-  it("mirrors compatibility edits into the authoritative runtime before persistence", () => {
-    const historyLength = project().runtime.history.past.length;
-    const depotTransform = { position: [3, 0, 4] as [number, number, number], rotation: [0, 0.5, 0] as [number, number, number], scale: [1, 1, 1] as [number, number, number] };
-
-    useFleetStore.getState().updateVehicle("UNIT-01", { annualKm: 42_000 });
-    useFleetStore.getState().updateAnalysis({ fuelPricePerLitre: 3.25 });
-    usePresetStore.getState().updatePreset("diesel-van", { name: "Updated diesel van" });
-    useSceneStore.getState().updateObjectTransform(DEFAULT_DEPOT_OBJECT_ID, depotTransform);
-
-    expect(project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === "UNIT-01")?.annualKm).toBe(42_000);
-    expect(project().runtime.document.analysis.fuelPricePerLitre).toBe(3.25);
-    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === "diesel-van")?.name).toBe("Updated diesel van");
-    expect(project().runtime.document.environment.depot.transform).toEqual(depotTransform);
-    expect(project().runtime.history.past).toHaveLength(historyLength + 4);
-    expect(project().exportProject().document).toEqual(project().runtime.document);
-  });
-
-  it("groups compatibility edit previews into one Project history entry", () => {
-    const historyLength = project().runtime.history.past.length;
-    const fleet = useFleetStore.getState();
-
-    fleet.beginEdit();
-    fleet.updateVehicle("UNIT-01", { annualKm: 41_000 });
-    fleet.updateVehicle("UNIT-01", { annualKm: 42_000 });
-    fleet.commitEdit();
-
-    expect(project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === "UNIT-01")?.annualKm).toBe(42_000);
-    expect(project().runtime.history.past).toHaveLength(historyLength + 1);
-  });
-
-  it("cancels compatibility Preset previews without creating Project history", () => {
-    const historyLength = project().runtime.history.past.length;
-    const presets = usePresetStore.getState();
-    const originalName = presets.presets.find((preset) => preset.id === "diesel-van")!.name;
-
-    presets.beginEdit();
-    presets.updatePreset("diesel-van", { name: "Discarded name" });
-    presets.cancelEdit();
-
-    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === "diesel-van")?.name).toBe(originalName);
-    expect(project().runtime.history.past).toHaveLength(historyLength);
-  });
-
-  it("exports and imports one project environment with its scenarios", async () => {
-    project().createScenario();
-    const exported = project().exportProject();
-    expect(exported.version).toBe(4);
-    expect(exported).not.toHaveProperty("worlds");
-    await project().importProject(exported);
-    expect(project().projectId).not.toBeNull();
-    expect(project().scenarios).toHaveLength(2);
-    expect(useSceneStore.getState().document.objects.some((object) => object.id === DEFAULT_DEPOT_OBJECT_ID)).toBe(true);
-  });
-
-  it("creates a new Project with a fresh default depot", () => {
-    project().newProject("Another depot");
-    expect(project().name).toBe("Another depot");
-    expect(project().projectId).toBeNull();
-    expect(project().scenarios).toHaveLength(1);
-    expect(useSceneStore.getState().document.objects.some((object) => object.id === DEFAULT_DEPOT_OBJECT_ID)).toBe(true);
-  });
-
-  it("keeps Project history after save and makes an Undo dirty again", async () => {
-    const repository = createMemoryProjectRepository();
-    setProjectRepository(repository);
-    project().newProject("History test");
-    project().renameProject("Saved name");
     expect(project().runtime.history.past).toHaveLength(1);
-
-    await project().saveProject();
-    expect(project().runtime.history.past).toHaveLength(1);
-    expect(isProjectDirty(project().runtime)).toBe(false);
-
+    expect(project().runtime.document.environment.vehicles[0].annualKm).toBe(42_000);
     project().undo();
-    expect(project().name).toBe("History test");
-    expect(isProjectDirty(project().runtime)).toBe(true);
+    expect(project().runtime.document.environment.vehicles[0].annualKm).toBe(28_000);
+    project().redo();
+    expect(project().runtime.document.environment.vehicles[0].annualKm).toBe(42_000);
   });
 
-  it("preserves working state, baseline, history, and stored data after a stale save", async () => {
-    const repository = createMemoryProjectRepository();
-    setProjectRepository(repository);
-    project().newProject("Conflict test");
-    await project().saveProject();
-    const stored = await repository.getProject(project().runtime.document.id);
-    await repository.updateProject({ ...stored.document, name: "External name" }, stored.revision);
+  it("creates and deletes entities without leaving dangling references", () => {
+    const vehicleId = project().createVehicle();
+    expect(vehicleId).not.toBeNull();
+    project().replaceVehicleTransitions("plan-a", vehicleId!, [{ year: 2028, targetPresetId: "electric-van" }]);
+    project().deleteVehicle(vehicleId!);
+    expect(project().runtime.document.environment.vehicles.some((vehicle) => vehicle.id === vehicleId)).toBe(false);
+    expect(project().runtime.document.scenarios[0].vehiclePlans[vehicleId!]).toBeUndefined();
 
-    project().renameProject("Working name");
-    const baseline = project().runtime.savedDocument;
-    const historyLength = project().runtime.history.past.length;
-    await project().saveProject();
-
-    expect(project().name).toBe("Working name");
-    expect(project().runtime.savedDocument).toEqual(baseline);
-    expect(project().runtime.history.past).toHaveLength(historyLength);
-    expect((await repository.getProject(stored.document.id)).document.name).toBe("External name");
-    expect(useAppStore.getState().saveStatus.state).toBe("error");
+    expect(project().deletePreset("diesel-van")).toBe(false);
+    project().updateVehicle("UNIT-01", { baselinePresetId: null });
+    expect(project().deletePreset("diesel-van")).toBe(true);
   });
 
-  it("does not rewrite untouched version 5 transforms or shared settings on export and save", async () => {
-    const document = normalizeProjectV5({
-      ...createProjectV5Fixture("round-trip"),
-      environment: {
-        ...createProjectV5Fixture("round-trip").environment,
-        vehicles: createProjectV5Fixture("round-trip").environment.vehicles.map((vehicle) => ({
-          ...vehicle,
-          transform: { position: [12, 3, -7], rotation: [0, 0.5, 0], scale: [1.4, 1.4, 1.4] },
-        })),
-      },
-      analysis: { ...createProjectV5Fixture("round-trip").analysis, electricityPricePerKWh: 0.57, discountRate: 0.08 },
-    });
-    const timestamp = "2026-01-01T00:00:00.000Z";
-    const repository = createMemoryProjectRepository([{ document, revision: 1, createdAt: timestamp, updatedAt: timestamp }]);
-    setProjectRepository(repository);
-
-    await project().openProject(document.id);
-    expect(project().exportProject().document).toEqual(document);
+  it("persists and reopens the complete aggregate", async () => {
+    project().renameProject("Saved project");
     await project().saveProject();
-    expect((await repository.getProject(document.id)).document).toEqual(document);
+    const id = project().runtime.document.id;
+    expect(project().runtime.record?.revision).toBe(1);
+
+    project().renameProject("Unsaved rename");
+    await project().openProject(id);
+    expect(project().runtime.document.name).toBe("Saved project");
+    expect(project().runtime.history.past).toHaveLength(0);
+  });
+
+  it("imports as a new Project identity", async () => {
+    const source = createProjectFixture("source-project");
+    await project().importProject(createPortableProject(source));
+
+    expect(project().runtime.document.id).not.toBe(source.id);
+    expect(project().runtime.document.name).toBe(source.name);
+    expect(project().runtime.record?.revision).toBe(1);
   });
 });

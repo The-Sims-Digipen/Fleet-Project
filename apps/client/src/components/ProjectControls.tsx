@@ -8,8 +8,8 @@ import { topBarControl, topBarControlActive } from "./topBarStyles";
 
 /** Header controls for browser-local project persistence plus portable import/export. */
 export function ProjectControls() {
-  const name = useProjectStore((state) => state.name);
-  const projectId = useProjectStore((state) => state.projectId);
+  const name = useProjectStore((state) => state.runtime.document.name);
+  const projectId = useProjectStore((state) => state.runtime.record ? state.runtime.document.id : null);
   const saveStatus = useAppStore((state) => state.saveStatus);
   const dirty = useProjectDirty();
   const [dialog, setDialog] = useState<"new" | "open" | null>(null);

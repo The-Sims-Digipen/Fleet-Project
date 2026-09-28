@@ -1,59 +1,27 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
-import { PROJECT_FLEET_CAPACITY } from "../domain/depotLayout";
-import { createFleetSceneObjects } from "../scene/fleetSceneObjects";
-import { useFleetStore } from "../state/fleetStore";
-import { usePresetStore } from "../state/presetStore";
+import { describe, expect, it } from "vitest";
 
-beforeEach(() => {
-  usePresetStore.getState().replacePresets(createMockPresets());
-  useFleetStore.setState({ vehicles: createMockFleet(), analysis: createMockAnalysis(), baseline: null });
-});
+import { addVehicleTransition } from "../domain/project";
+import { createProjectFixture } from "../domain/projectFixture";
+import { createProjectSceneObjects } from "./fleetSceneObjects";
 
-describe("Project-owned fleet rendering", () => {
-  it("derives exactly one parked scene object per fleet vehicle", () => {
-    const vehicles = useFleetStore.getState().vehicles;
-    const objects = createFleetSceneObjects({
-      vehicles,
-      presets: usePresetStore.getState().presets,
-      vehiclePlans: {},
-      year: 2026,
-    });
-    expect(objects).toHaveLength(vehicles.length);
-    expect(new Set(objects.map((object) => object.id)).size).toBe(vehicles.length);
-    expect(new Set(objects.map((object) => object.transform.position.join(","))).size).toBe(vehicles.length);
+describe("Project scene projection", () => {
+  it("renders the depot and vehicles from their authoritative transforms", () => {
+    const project = createProjectFixture();
+    const objects = createProjectSceneObjects(project, project.analysis.startYear);
+
+    expect(objects.map((object) => object.id)).toEqual([project.environment.depot.id, "UNIT-01"]);
+    expect(objects[0].transform).toEqual(project.environment.depot.transform);
+    expect(objects[1].transform).toEqual(project.environment.vehicles[0].transform);
   });
 
-  it("renders a generic vehicle without a preset and changes only its appearance when assigned", () => {
-    const id = useFleetStore.getState().createVehicle()!;
-    const before = createFleetSceneObjects({
-      vehicles: useFleetStore.getState().vehicles,
-      presets: usePresetStore.getState().presets,
-      vehiclePlans: {},
-      year: 2026,
-    }).find((object) => object.id === `fleet-${id}`)!;
-    expect(before.appearance.tint).toBe("#87928f");
+  it("projects the active scenario's effective preset for the selected year", () => {
+    const project = addVehicleTransition(
+      createProjectFixture(),
+      { scenarioId: "plan-a", vehicleId: "UNIT-01" },
+      { year: 2030, targetPresetId: "electric-van" },
+    );
 
-    useFleetStore.getState().updateVehicle(id, { presetId: "electric-van" });
-    const after = createFleetSceneObjects({
-      vehicles: useFleetStore.getState().vehicles,
-      presets: usePresetStore.getState().presets,
-      vehiclePlans: {},
-      year: 2026,
-    }).find((object) => object.id === `fleet-${id}`)!;
-    expect(after.id).toBe(before.id);
-    expect(after.transform).toEqual(before.transform);
-    expect(after.appearance.tint).toBe("#85d8ff");
-  });
-
-  it("assigns each available lot once and refuses an eleventh vehicle", () => {
-    while (useFleetStore.getState().vehicles.length < PROJECT_FLEET_CAPACITY) {
-      expect(useFleetStore.getState().createVehicle()).not.toBeNull();
-    }
-    const vehicles = useFleetStore.getState().vehicles;
-    expect(new Set(vehicles.map((vehicle) => vehicle.parkingLotId)).size).toBe(PROJECT_FLEET_CAPACITY);
-    expect(useFleetStore.getState().createVehicle()).toBeNull();
-    expect(useFleetStore.getState().vehicles).toHaveLength(PROJECT_FLEET_CAPACITY);
+    expect(createProjectSceneObjects(project, 2029)[1].appearance.tint).not.toBe("#39ff14");
+    expect(createProjectSceneObjects(project, 2030)[1]).toMatchObject({ presetId: "electric-van", appearance: { tint: "#39ff14" } });
   });
 });
-

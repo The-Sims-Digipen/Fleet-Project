@@ -1,15 +1,15 @@
 import {
   addVehicleTransition,
-  copyProjectV5,
-  normalizeProjectV5,
+  copyProject,
+  normalizeProject,
   removeVehicleTransition,
   replaceVehicleTransitions,
   updateVehicleTransition,
-  type ProjectDocumentV5,
+  type ProjectDocument,
   type ProjectAnalysisSettings,
   type ProjectVehicle,
   type VehicleTransition,
-} from "../domain/projectV5";
+} from "../domain/project";
 import type { Transform } from "../scene/types";
 import type { VehiclePreset } from "../vehicles/types";
 
@@ -27,6 +27,8 @@ export type ProjectEditorState = {
   selection: WorldObjectReference | null;
   hover: WorldObjectReference | null;
   selectedYear: number;
+  selectedPresetId: string | null;
+  lightIntensity: number;
   interactionMode: "inspect" | "gizmo";
   transformMode: "translate" | "rotate" | "scale";
   transformSpace: "world" | "local";
@@ -36,15 +38,15 @@ export type ProjectEditorState = {
 };
 
 export type ProjectHistory = {
-  past: ProjectDocumentV5[];
-  future: ProjectDocumentV5[];
-  activeEdit: ProjectDocumentV5 | null;
+  past: ProjectDocument[];
+  future: ProjectDocument[];
+  activeEdit: ProjectDocument | null;
 };
 
 export type ProjectRuntime = {
-  document: ProjectDocumentV5;
+  document: ProjectDocument;
   record: ProjectRecordMetadata | null;
-  savedDocument: ProjectDocumentV5;
+  savedDocument: ProjectDocument;
   editor: ProjectEditorState;
   history: ProjectHistory;
 };
@@ -57,9 +59,13 @@ export type ProjectCommand =
   | { type: "rename-scenario"; scenarioId: string; name: string }
   | { type: "delete-scenario"; scenarioId: string }
   | { type: "clear-vehicle-plans"; vehicleId: string }
+  | { type: "create-vehicle"; vehicle: ProjectVehicle }
+  | { type: "update-vehicle"; vehicleId: string; patch: Partial<ProjectVehicle> }
   | { type: "delete-vehicle"; vehicleId: string }
-  | { type: "replace-fleet-data"; vehicles: ProjectVehicle[]; analysis: ProjectAnalysisSettings }
-  | { type: "replace-vehicle-presets"; presets: VehiclePreset[] }
+  | { type: "create-vehicle-preset"; preset: VehiclePreset }
+  | { type: "update-vehicle-preset"; presetId: string; patch: Partial<VehiclePreset> }
+  | { type: "delete-vehicle-preset"; presetId: string }
+  | { type: "update-analysis"; patch: Partial<ProjectAnalysisSettings> }
   | { type: "set-depot-transform"; transform: Transform }
   | { type: "set-vehicle-transform"; vehicleId: string; transform: Transform }
   | { type: "add-vehicle-transition"; scenarioId: string; vehicleId: string; transition: VehicleTransition }
@@ -67,14 +73,16 @@ export type ProjectCommand =
   | { type: "remove-vehicle-transition"; scenarioId: string; vehicleId: string; year: number }
   | { type: "replace-vehicle-transitions"; scenarioId: string; vehicleId: string; transitions: VehicleTransition[] };
 
-const projectDocumentsEqual = (left: ProjectDocumentV5, right: ProjectDocumentV5) => JSON.stringify(left) === JSON.stringify(right);
-const appendHistorySnapshot = (documents: ProjectDocumentV5[], document: ProjectDocumentV5) => [...documents, copyProjectV5(document)].slice(-100);
+const projectDocumentsEqual = (left: ProjectDocument, right: ProjectDocument) => JSON.stringify(left) === JSON.stringify(right);
+const appendHistorySnapshot = (documents: ProjectDocument[], document: ProjectDocument) => [...documents, copyProject(document)].slice(-100);
 
-function defaultEditor(document: ProjectDocumentV5): ProjectEditorState {
+function defaultEditor(document: ProjectDocument): ProjectEditorState {
   return {
     selection: null,
     hover: null,
     selectedYear: document.analysis.startYear,
+    selectedPresetId: null,
+    lightIntensity: 65,
     interactionMode: "inspect",
     transformMode: "translate",
     transformSpace: "world",
@@ -84,41 +92,42 @@ function defaultEditor(document: ProjectDocumentV5): ProjectEditorState {
   };
 }
 
-function referenceExists(document: ProjectDocumentV5, reference: WorldObjectReference | null): boolean {
+function referenceExists(document: ProjectDocument, reference: WorldObjectReference | null): boolean {
   if (!reference) return true;
   if (reference.kind === "depot") return reference.id === document.environment.depot.id;
   return document.environment.vehicles.some((vehicle) => vehicle.id === reference.id);
 }
 
-function editorForDocument(editor: ProjectEditorState, document: ProjectDocumentV5): ProjectEditorState {
+function editorForDocument(editor: ProjectEditorState, document: ProjectDocument): ProjectEditorState {
   const endYear = document.analysis.startYear + document.analysis.yearCount - 1;
   return {
     ...editor,
     selection: referenceExists(document, editor.selection) ? editor.selection : null,
     hover: referenceExists(document, editor.hover) ? editor.hover : null,
+    selectedPresetId: document.vehiclePresets.some((preset) => preset.id === editor.selectedPresetId) ? editor.selectedPresetId : null,
     selectedYear: Math.max(document.analysis.startYear, Math.min(endYear, Math.round(editor.selectedYear))),
   };
 }
 
-export function createProjectRuntime(document: ProjectDocumentV5, record: ProjectRecordMetadata | null = null): ProjectRuntime {
-  const normalized = normalizeProjectV5(document);
+export function createProjectRuntime(document: ProjectDocument, record: ProjectRecordMetadata | null = null): ProjectRuntime {
+  const normalized = normalizeProject(document);
   return {
     document: normalized,
     record: record ? { ...record } : null,
-    savedDocument: copyProjectV5(normalized),
+    savedDocument: copyProject(normalized),
     editor: defaultEditor(normalized),
     history: { past: [], future: [], activeEdit: null },
   };
 }
 
-export function applyProjectCommand(document: ProjectDocumentV5, command: ProjectCommand): ProjectDocumentV5 {
+export function applyProjectCommand(document: ProjectDocument, command: ProjectCommand): ProjectDocument {
   switch (command.type) {
     case "rename-project":
-      return normalizeProjectV5({ ...document, name: command.name });
+      return normalizeProject({ ...document, name: command.name });
     case "set-active-scenario":
-      return normalizeProjectV5({ ...document, activeScenarioId: command.scenarioId });
+      return normalizeProject({ ...document, activeScenarioId: command.scenarioId });
     case "create-scenario":
-      return normalizeProjectV5({
+      return normalizeProject({
         ...document,
         activeScenarioId: command.scenario.id,
         scenarios: [...document.scenarios, { ...command.scenario, vehiclePlans: {} }],
@@ -126,14 +135,14 @@ export function applyProjectCommand(document: ProjectDocumentV5, command: Projec
     case "duplicate-scenario": {
       const source = document.scenarios.find((scenario) => scenario.id === command.sourceScenarioId);
       if (!source) return document;
-      return normalizeProjectV5({
+      return normalizeProject({
         ...document,
         activeScenarioId: command.scenario.id,
         scenarios: [...document.scenarios, { ...command.scenario, vehiclePlans: structuredClone(source.vehiclePlans) }],
       });
     }
     case "rename-scenario":
-      return normalizeProjectV5({
+      return normalizeProject({
         ...document,
         scenarios: document.scenarios.map((scenario) => scenario.id === command.scenarioId ? { ...scenario, name: command.name } : scenario),
       });
@@ -144,10 +153,10 @@ export function applyProjectCommand(document: ProjectDocumentV5, command: Projec
       const activeScenarioId = document.activeScenarioId === command.scenarioId
         ? scenarios[Math.min(index, scenarios.length - 1)].id
         : document.activeScenarioId;
-      return normalizeProjectV5({ ...document, scenarios, activeScenarioId });
+      return normalizeProject({ ...document, scenarios, activeScenarioId });
     }
     case "clear-vehicle-plans":
-      return normalizeProjectV5({
+      return normalizeProject({
         ...document,
         scenarios: document.scenarios.map((scenario) => {
           const vehiclePlans = { ...scenario.vehiclePlans };
@@ -155,8 +164,23 @@ export function applyProjectCommand(document: ProjectDocumentV5, command: Projec
           return { ...scenario, vehiclePlans };
         }),
       });
+    case "create-vehicle":
+      return normalizeProject({
+        ...document,
+        environment: { ...document.environment, vehicles: [...document.environment.vehicles, structuredClone(command.vehicle)] },
+      });
+    case "update-vehicle":
+      return normalizeProject({
+        ...document,
+        environment: {
+          ...document.environment,
+          vehicles: document.environment.vehicles.map((vehicle) => vehicle.id === command.vehicleId
+            ? { ...vehicle, ...structuredClone(command.patch), id: vehicle.id }
+            : vehicle),
+        },
+      });
     case "delete-vehicle":
-      return normalizeProjectV5({
+      return normalizeProject({
         ...document,
         environment: { ...document.environment, vehicles: document.environment.vehicles.filter((vehicle) => vehicle.id !== command.vehicleId) },
         scenarios: document.scenarios.map((scenario) => {
@@ -165,24 +189,23 @@ export function applyProjectCommand(document: ProjectDocumentV5, command: Projec
           return { ...scenario, vehiclePlans };
         }),
       });
-    case "replace-fleet-data": {
-      const vehicleIds = new Set(command.vehicles.map((vehicle) => vehicle.id));
-      return normalizeProjectV5({
+    case "create-vehicle-preset":
+      return normalizeProject({ ...document, vehiclePresets: [...document.vehiclePresets, structuredClone(command.preset)] });
+    case "update-vehicle-preset":
+      return normalizeProject({
         ...document,
-        environment: { ...document.environment, vehicles: structuredClone(command.vehicles) },
-        analysis: structuredClone(command.analysis),
-        scenarios: document.scenarios.map((scenario) => ({
-          ...scenario,
-          vehiclePlans: Object.fromEntries(Object.entries(scenario.vehiclePlans).filter(([vehicleId]) => vehicleIds.has(vehicleId))),
-        })),
+        vehiclePresets: document.vehiclePresets.map((preset) => preset.id === command.presetId
+          ? { ...preset, ...structuredClone(command.patch), id: preset.id }
+          : preset),
       });
-    }
-    case "replace-vehicle-presets":
-      return normalizeProjectV5({ ...document, vehiclePresets: structuredClone(command.presets) });
+    case "delete-vehicle-preset":
+      return normalizeProject({ ...document, vehiclePresets: document.vehiclePresets.filter((preset) => preset.id !== command.presetId) });
+    case "update-analysis":
+      return normalizeProject({ ...document, analysis: { ...document.analysis, ...structuredClone(command.patch) } });
     case "set-depot-transform":
-      return normalizeProjectV5({ ...document, environment: { ...document.environment, depot: { ...document.environment.depot, transform: structuredClone(command.transform) } } });
+      return normalizeProject({ ...document, environment: { ...document.environment, depot: { ...document.environment.depot, transform: structuredClone(command.transform) } } });
     case "set-vehicle-transform":
-      return normalizeProjectV5({
+      return normalizeProject({
         ...document,
         environment: {
           ...document.environment,
@@ -214,7 +237,7 @@ export function executeProjectCommand(runtime: ProjectRuntime, command: ProjectC
 
 export function beginProjectEdit(runtime: ProjectRuntime): ProjectRuntime {
   if (runtime.history.activeEdit) return runtime;
-  return { ...runtime, history: { ...runtime.history, activeEdit: copyProjectV5(runtime.document) } };
+  return { ...runtime, history: { ...runtime.history, activeEdit: copyProject(runtime.document) } };
 }
 
 export function previewProjectCommand(runtime: ProjectRuntime, command: ProjectCommand): ProjectRuntime {
@@ -239,7 +262,7 @@ export function cancelProjectEdit(runtime: ProjectRuntime): ProjectRuntime {
   if (!start) return runtime;
   return {
     ...runtime,
-    document: copyProjectV5(start),
+    document: copyProject(start),
     editor: editorForDocument(runtime.editor, start),
     history: { ...runtime.history, activeEdit: null },
   };
@@ -249,7 +272,7 @@ export function undoProjectCommand(runtime: ProjectRuntime): ProjectRuntime {
   const committed = commitProjectEdit(runtime);
   const previous = committed.history.past.at(-1);
   if (!previous) return committed;
-  const document = copyProjectV5(previous);
+  const document = copyProject(previous);
   return {
     ...committed,
     document,
@@ -266,7 +289,7 @@ export function redoProjectCommand(runtime: ProjectRuntime): ProjectRuntime {
   const committed = commitProjectEdit(runtime);
   const next = committed.history.future.at(-1);
   if (!next) return committed;
-  const document = copyProjectV5(next);
+  const document = copyProject(next);
   return {
     ...committed,
     document,
@@ -282,6 +305,7 @@ export function redoProjectCommand(runtime: ProjectRuntime): ProjectRuntime {
 export function updateProjectEditor(runtime: ProjectRuntime, patch: Partial<ProjectEditorState>): ProjectRuntime {
   const commitKeys: ReadonlySet<keyof ProjectEditorState> = new Set([
     "selection",
+    "selectedPresetId",
     "interactionMode",
     "transformMode",
     "transformSpace",
@@ -297,14 +321,14 @@ export function updateProjectEditor(runtime: ProjectRuntime, patch: Partial<Proj
 export function markProjectSaved(
   runtime: ProjectRuntime,
   record: ProjectRecordMetadata,
-  savedDocument: ProjectDocumentV5,
+  savedDocument: ProjectDocument,
 ): ProjectRuntime {
-  return { ...runtime, record: { ...record }, savedDocument: copyProjectV5(savedDocument) };
+  return { ...runtime, record: { ...record }, savedDocument: copyProject(savedDocument) };
 }
 
 export function replaceOpenProject(
   _runtime: ProjectRuntime,
-  document: ProjectDocumentV5,
+  document: ProjectDocument,
   record: ProjectRecordMetadata | null,
 ): ProjectRuntime {
   return createProjectRuntime(document, record);

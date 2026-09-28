@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { CollapsibleSection } from "./CollapsibleSection";
-import { analysisEndYear } from "../domain/contracts";
-import { transitionEvents } from "../domain/effectiveState";
-import { useFleetStore } from "../state/fleetStore";
-import { usePresetStore } from "../state/presetStore";
 import { useProjectStore } from "../state/projectStore";
-import { useTimelineStore } from "../state/timelineStore";
 
 const chargerEvents = [
   { year: 2029, kind: "charger", label: "Depot charger installation" },
@@ -15,23 +10,22 @@ const chargerEvents = [
 const buttonClass = "min-h-9 rounded-lg border border-line-strong px-3 text-xs font-bold text-secondary hover:border-[#668078] hover:text-primary";
 
 export function TimelineControl() {
-  const selectedYear = useTimelineStore((state) => state.selectedYear);
-  const setSelectedYear = useTimelineStore((state) => state.setSelectedYear);
-  const resetYear = useTimelineStore((state) => state.resetYear);
-  const vehicles = useFleetStore((state) => state.vehicles);
-  const analysis = useFleetStore((state) => state.analysis);
-  const presets = usePresetStore((state) => state.presets);
-  const scenarios = useProjectStore((state) => state.scenarios);
-  const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
+  const document = useProjectStore((state) => state.runtime.document);
+  const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
+  const setSelectedYear = useProjectStore((state) => state.setSelectedYear);
+  const resetYear = useProjectStore((state) => state.resetSelectedYear);
+  const { analysis, scenarios, activeScenarioId } = document;
   const scenario = scenarios.find((item) => item.id === activeScenarioId) ?? scenarios[0];
   const [playing, setPlaying] = useState(false);
 
   const startYear = analysis.startYear;
-  const endYear = analysisEndYear(analysis);
-  // Vehicle markers are the scenario's real transitions, projected by T03.
+  const endYear = analysis.startYear + analysis.yearCount - 1;
   const vehicleEvents = scenario
-    ? transitionEvents(vehicles, scenario.document.vehiclePlans, new Set(presets.map((preset) => preset.id)), analysis)
-      .map((event) => ({ year: event.year, kind: "vehicle" as const, label: `${event.vehicleId} vehicle change` }))
+    ? Object.entries(scenario.vehiclePlans).flatMap(([vehicleId, plan]) => plan.transitions.map((transition) => ({
+      year: transition.year,
+      kind: "vehicle" as const,
+      label: `${vehicleId} vehicle change`,
+    }))).filter((event) => event.year >= startYear && event.year <= endYear)
     : [];
   const events = [...vehicleEvents, ...chargerEvents].sort((a, b) => a.year - b.year);
   const vehicleYears = [...new Set(vehicleEvents.map((event) => event.year))];
@@ -40,9 +34,9 @@ export function TimelineControl() {
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(() => {
-      const timeline = useTimelineStore.getState();
-      if (timeline.selectedYear >= endYear) setPlaying(false);
-      else timeline.setSelectedYear(timeline.selectedYear + 1);
+      const project = useProjectStore.getState();
+      if (project.runtime.editor.selectedYear >= endYear) setPlaying(false);
+      else project.setSelectedYear(project.runtime.editor.selectedYear + 1);
     }, 1000);
     return () => window.clearInterval(timer);
   }, [endYear, playing]);

@@ -1,8 +1,6 @@
-import type { CurrentVehicleHolding, FleetVehicle } from "./contracts";
 import { PROJECT_FLEET_CAPACITY } from "./depotLayout";
-import { normalizeAnalysisSettings, normalizeFleetVehicle } from "./fleet";
 import type { Transform } from "../scene/types";
-import { copyPreset, normalizePreset, type VehiclePreset } from "../vehicles/types";
+import { copyPreset, maxNameLength, normalizePreset, type VehiclePreset } from "../vehicles/types";
 
 export const PROJECT_DOCUMENT_VERSION = 5 as const;
 
@@ -14,9 +12,25 @@ export type ProjectDepot = {
   transform: Transform;
 };
 
-export type ProjectVehicle = Omit<FleetVehicle, "presetId" | "parkingLotId"> & {
+export type CurrentVehicleHolding =
+  | { kind: "owned"; currentValue: number; endResidualValue: number }
+  | { kind: "leased"; annualPayment: number; exitFee: number };
+
+export type ProjectVehicle = {
+  id: string;
+  name: string;
   baselinePresetId: string | null;
   transform: Transform;
+  annualKm: number;
+  typicalDailyKm: number;
+  operatingDays: number;
+  utilisation: number;
+  routePattern: "predictable" | "variable";
+  returnsToDepot: boolean;
+  depotDwellHours: number;
+  externalChargingAccess: boolean;
+  replacementYear: number | null;
+  currentHolding: CurrentVehicleHolding;
 };
 
 export type VehicleTransition = { year: number; targetPresetId: string };
@@ -27,7 +41,7 @@ export type ProjectScenario = {
   vehiclePlans: Record<string, ProjectVehiclePlan>;
 };
 
-export type ProjectDocumentV5 = {
+export type ProjectDocument = {
   version: typeof PROJECT_DOCUMENT_VERSION;
   id: string;
   name: string;
@@ -56,6 +70,7 @@ export const DEFAULT_DEPOT: ProjectDepot = {
 };
 
 const reservedIds = new Set(["__proto__", "constructor", "prototype"]);
+const routePatterns = ["predictable", "variable"] as const;
 
 function fail(path: string, message: string): never {
   throw new Error(`${path} ${message}`);
@@ -81,6 +96,20 @@ function finite(value: unknown, path: string): number {
   return value;
 }
 
+function amount(value: unknown, path: string): number {
+  const result = finite(value, path);
+  if (result < 0) fail(path, "must be nonnegative.");
+  return result;
+}
+
+function integer(value: unknown, path: string, minimum?: number, maximum?: number): number {
+  const result = finite(value, path);
+  if (!Number.isInteger(result) || (minimum !== undefined && result < minimum) || (maximum !== undefined && result > maximum)) {
+    fail(path, "must be an integer in the supported range.");
+  }
+  return result;
+}
+
 function vector(value: unknown, path: string, positive = false): [number, number, number] {
   if (!Array.isArray(value) || value.length !== 3) fail(path, "must contain three numbers.");
   const result = value.map((entry, index) => finite(entry, `${path}[${index}]`)) as [number, number, number];
@@ -99,13 +128,21 @@ function transform(value: unknown, path: string): Transform {
 
 function requiredAnalysis(value: unknown = DEFAULT_PROJECT_ANALYSIS) {
   const source = record(value, "project.analysis");
-  const legacy = normalizeAnalysisSettings(source);
-  if (!legacy) fail("project.analysis", "is invalid.");
-  const electricityPricePerKWh = finite(source.electricityPricePerKWh, "project.analysis.electricityPricePerKWh");
+  const currency = name(source.currency, "project.analysis.currency");
+  if (currency.length > 8) fail("project.analysis.currency", "must contain eight characters or fewer.");
+  const electricityPricePerKWh = amount(source.electricityPricePerKWh, "project.analysis.electricityPricePerKWh");
   const discountRate = finite(source.discountRate, "project.analysis.discountRate");
-  if (electricityPricePerKWh < 0) fail("project.analysis.electricityPricePerKWh", "must be nonnegative.");
   if (discountRate < 0 || discountRate > 1) fail("project.analysis.discountRate", "must be between 0 and 1.");
-  return { ...legacy, electricityPricePerKWh, discountRate };
+  return {
+    startYear: integer(source.startYear, "project.analysis.startYear"),
+    yearCount: integer(source.yearCount, "project.analysis.yearCount", 1),
+    currency,
+    fuelPricePerLitre: amount(source.fuelPricePerLitre, "project.analysis.fuelPricePerLitre"),
+    electricityPricePerKWh,
+    fuelEmissionsKgCo2ePerLitre: amount(source.fuelEmissionsKgCo2ePerLitre, "project.analysis.fuelEmissionsKgCo2ePerLitre"),
+    electricityEmissionsKgCo2ePerKWh: amount(source.electricityEmissionsKgCo2ePerKWh, "project.analysis.electricityEmissionsKgCo2ePerKWh"),
+    discountRate,
+  };
 }
 
 function depot(value: unknown, path: string): ProjectDepot {
@@ -116,17 +153,54 @@ function depot(value: unknown, path: string): ProjectDepot {
 function projectVehicle(value: unknown, presetIds: ReadonlySet<string>, path: string): ProjectVehicle {
   const source = record(value, path);
   const baselinePresetId = source.baselinePresetId;
-  const normalized = normalizeFleetVehicle({ ...source, presetId: baselinePresetId, parkingLotId: "parking-lot-01" }, presetIds);
-  if (!normalized) fail(path, "is invalid.");
-  const { presetId: _presetId, parkingLotId: _parkingLotId, ...vehicle } = normalized;
-  return { ...vehicle, baselinePresetId: baselinePresetId as string | null, transform: transform(source.transform, `${path}.transform`) };
+  if (baselinePresetId !== null && (typeof baselinePresetId !== "string" || !presetIds.has(baselinePresetId))) {
+    fail(`${path}.baselinePresetId`, "must be null or resolve to a Project Preset.");
+  }
+  if (!routePatterns.includes(source.routePattern as ProjectVehicle["routePattern"])) fail(`${path}.routePattern`, "is invalid.");
+  if (typeof source.returnsToDepot !== "boolean") fail(`${path}.returnsToDepot`, "must be boolean.");
+  if (typeof source.externalChargingAccess !== "boolean") fail(`${path}.externalChargingAccess`, "must be boolean.");
+  const depotDwellHours = amount(source.depotDwellHours, `${path}.depotDwellHours`);
+  if (depotDwellHours > 24) fail(`${path}.depotDwellHours`, "must not exceed 24.");
+  const utilisation = finite(source.utilisation, `${path}.utilisation`);
+  if (utilisation < 0 || utilisation > 1) fail(`${path}.utilisation`, "must be between 0 and 1.");
+  const replacementYear = source.replacementYear;
+  if (replacementYear !== null && (typeof replacementYear !== "number" || !Number.isInteger(replacementYear))) {
+    fail(`${path}.replacementYear`, "must be null or an integer year.");
+  }
+  const holding = record(source.currentHolding, `${path}.currentHolding`);
+  const currentHolding: CurrentVehicleHolding = holding.kind === "owned"
+    ? { kind: "owned", currentValue: amount(holding.currentValue, `${path}.currentHolding.currentValue`), endResidualValue: amount(holding.endResidualValue, `${path}.currentHolding.endResidualValue`) }
+    : holding.kind === "leased"
+      ? { kind: "leased", annualPayment: amount(holding.annualPayment, `${path}.currentHolding.annualPayment`), exitFee: amount(holding.exitFee, `${path}.currentHolding.exitFee`) }
+      : fail(`${path}.currentHolding.kind`, "is invalid.");
+  return {
+    id: identifier(source.id, `${path}.id`),
+    name: name(source.name, `${path}.name`).slice(0, maxNameLength),
+    baselinePresetId: baselinePresetId as string | null,
+    transform: transform(source.transform, `${path}.transform`),
+    annualKm: amount(source.annualKm, `${path}.annualKm`),
+    typicalDailyKm: amount(source.typicalDailyKm, `${path}.typicalDailyKm`),
+    operatingDays: integer(source.operatingDays, `${path}.operatingDays`, 0, 366),
+    utilisation,
+    routePattern: source.routePattern as ProjectVehicle["routePattern"],
+    returnsToDepot: source.returnsToDepot,
+    depotDwellHours,
+    externalChargingAccess: source.externalChargingAccess,
+    replacementYear: replacementYear as number | null,
+    currentHolding,
+  };
 }
 
 function unique(ids: readonly string[], path: string): void {
   if (new Set(ids).size !== ids.length) fail(path, "must not contain duplicate identifiers.");
 }
 
-function scenarios(value: unknown, vehicleIds: ReadonlySet<string>, presetIds: ReadonlySet<string>): ProjectScenario[] {
+function scenarios(
+  value: unknown,
+  vehicleIds: ReadonlySet<string>,
+  presetIds: ReadonlySet<string>,
+  analysis: ProjectAnalysisSettings,
+): ProjectScenario[] {
   if (!Array.isArray(value) || value.length === 0) fail("project.scenarios", "must contain at least one Scenario.");
   const normalized = value.map((entry, scenarioIndex): ProjectScenario => {
     const path = `project.scenarios[${scenarioIndex}]`;
@@ -141,6 +215,10 @@ function scenarios(value: unknown, vehicleIds: ReadonlySet<string>, presetIds: R
         const transitionPath = `${path}.vehiclePlans.${vehicleId}.transitions[${transitionIndex}]`;
         const transition = record(transitionValue, transitionPath);
         if (typeof transition.year !== "number" || !Number.isInteger(transition.year)) fail(`${transitionPath}.year`, "must be an integer.");
+        const endYear = analysis.startYear + analysis.yearCount - 1;
+        if (transition.year < analysis.startYear || transition.year > endYear) {
+          fail(`${transitionPath}.year`, `must be within the analysis period ${analysis.startYear}-${endYear}.`);
+        }
         const targetPresetId = identifier(transition.targetPresetId, `${transitionPath}.targetPresetId`);
         if (!presetIds.has(targetPresetId)) fail(`${transitionPath}.targetPresetId`, `does not resolve to Preset “${targetPresetId}”.`);
         return { year: transition.year, targetPresetId };
@@ -156,7 +234,7 @@ function scenarios(value: unknown, vehicleIds: ReadonlySet<string>, presetIds: R
   return normalized;
 }
 
-export function normalizeProjectV5(value: unknown): ProjectDocumentV5 {
+export function normalizeProject(value: unknown): ProjectDocument {
   const source = record(value, "project");
   if (source.version !== PROJECT_DOCUMENT_VERSION) fail("project.version", `unsupported Project document version “${String(source.version)}”.`);
   if (!Array.isArray(source.vehiclePresets)) fail("project.vehiclePresets", "must be an array.");
@@ -174,7 +252,8 @@ export function normalizeProjectV5(value: unknown): ProjectDocumentV5 {
   }
   const vehicles = environment.vehicles.map((entry, index) => projectVehicle(entry, presetIds, `project.environment.vehicles[${index}]`));
   unique(vehicles.map((vehicle) => vehicle.id), "project.environment.vehicles");
-  const normalizedScenarios = scenarios(source.scenarios, new Set(vehicles.map((vehicle) => vehicle.id)), presetIds);
+  const analysis = requiredAnalysis(source.analysis);
+  const normalizedScenarios = scenarios(source.scenarios, new Set(vehicles.map((vehicle) => vehicle.id)), presetIds, analysis);
   const activeScenarioId = identifier(source.activeScenarioId, "project.activeScenarioId");
   if (!normalizedScenarios.some((scenario) => scenario.id === activeScenarioId)) fail("project.activeScenarioId", "must resolve to a Scenario in this Project.");
   return {
@@ -185,11 +264,11 @@ export function normalizeProjectV5(value: unknown): ProjectDocumentV5 {
     environment: { depot: depot(environment.depot, "project.environment.depot"), vehicles },
     vehiclePresets: vehiclePresets.map(copyPreset),
     scenarios: normalizedScenarios,
-    analysis: requiredAnalysis(source.analysis),
+    analysis,
   };
 }
 
-export function createProjectV5(input: {
+export function createProject(input: {
   id: string;
   name: string;
   depot?: ProjectDepot;
@@ -198,9 +277,9 @@ export function createProjectV5(input: {
   scenarios?: ProjectScenario[];
   activeScenarioId?: string;
   analysis?: ProjectAnalysisSettings;
-}): ProjectDocumentV5 {
+}): ProjectDocument {
   const scenarios = input.scenarios ?? [{ id: `${input.id}-scenario-1`, name: "Plan A", vehiclePlans: {} }];
-  return normalizeProjectV5({
+  return normalizeProject({
     version: PROJECT_DOCUMENT_VERSION,
     id: input.id,
     name: input.name,
@@ -212,8 +291,8 @@ export function createProjectV5(input: {
   });
 }
 
-export function copyProjectV5(document: ProjectDocumentV5): ProjectDocumentV5 {
-  return normalizeProjectV5(structuredClone(document));
+export function copyProject(document: ProjectDocument): ProjectDocument {
+  return normalizeProject(structuredClone(document));
 }
 
 export type VehiclePlanReference = {
@@ -222,10 +301,10 @@ export type VehiclePlanReference = {
 };
 
 export function addVehicleTransition(
-  document: ProjectDocumentV5,
+  document: ProjectDocument,
   reference: VehiclePlanReference,
   transition: VehicleTransition,
-): ProjectDocumentV5 {
+): ProjectDocument {
   const { scenarioId, vehicleId } = reference;
   const scenario = document.scenarios.find((entry) => entry.id === scenarioId);
   if (!scenario) throw new Error(`Scenario “${scenarioId}” does not exist.`);
@@ -234,7 +313,7 @@ export function addVehicleTransition(
   const current = scenario.vehiclePlans[vehicleId]?.transitions ?? [];
   if (current.some((entry) => entry.year === transition.year)) throw new Error(`Vehicle “${vehicleId}” already has a transition in ${transition.year}.`);
   const transitions = [...current, { ...transition }].sort((left, right) => left.year - right.year);
-  return normalizeProjectV5({
+  return normalizeProject({
     ...document,
     scenarios: document.scenarios.map((entry) => entry.id === scenarioId
       ? { ...entry, vehiclePlans: { ...entry.vehiclePlans, [vehicleId]: { transitions } } }
@@ -243,7 +322,7 @@ export function addVehicleTransition(
 }
 
 export function effectivePresetIdFor(
-  document: ProjectDocumentV5,
+  document: ProjectDocument,
   scenarioId: string,
   vehicleId: string,
   year: number,
@@ -260,15 +339,15 @@ export function effectivePresetIdFor(
 }
 
 function withVehicleTransitions(
-  document: ProjectDocumentV5,
+  document: ProjectDocument,
   reference: VehiclePlanReference,
   transitions: readonly VehicleTransition[],
-): ProjectDocumentV5 {
+): ProjectDocument {
   const { scenarioId, vehicleId } = reference;
   if (!document.environment.vehicles.some((entry) => entry.id === vehicleId)) throw new Error(`Vehicle “${vehicleId}” does not exist.`);
   if (!document.scenarios.some((entry) => entry.id === scenarioId)) throw new Error(`Scenario “${scenarioId}” does not exist.`);
   const sorted = transitions.map((entry) => ({ ...entry })).sort((left, right) => left.year - right.year);
-  return normalizeProjectV5({
+  return normalizeProject({
     ...document,
     scenarios: document.scenarios.map((scenario) => {
       if (scenario.id !== scenarioId) return scenario;
@@ -281,11 +360,11 @@ function withVehicleTransitions(
 }
 
 export function updateVehicleTransition(
-  document: ProjectDocumentV5,
+  document: ProjectDocument,
   reference: VehiclePlanReference,
   currentYear: number,
   transition: VehicleTransition,
-): ProjectDocumentV5 {
+): ProjectDocument {
   const { scenarioId, vehicleId } = reference;
   const current = document.scenarios.find((entry) => entry.id === scenarioId)?.vehiclePlans[vehicleId]?.transitions ?? [];
   if (!current.some((entry) => entry.year === currentYear)) throw new Error(`Vehicle “${vehicleId}” has no transition in ${currentYear}.`);
@@ -293,21 +372,19 @@ export function updateVehicleTransition(
 }
 
 export function removeVehicleTransition(
-  document: ProjectDocumentV5,
+  document: ProjectDocument,
   reference: VehiclePlanReference,
   year: number,
-): ProjectDocumentV5 {
+): ProjectDocument {
   const { scenarioId, vehicleId } = reference;
   const current = document.scenarios.find((entry) => entry.id === scenarioId)?.vehiclePlans[vehicleId]?.transitions ?? [];
   return withVehicleTransitions(document, reference, current.filter((entry) => entry.year !== year));
 }
 
 export function replaceVehicleTransitions(
-  document: ProjectDocumentV5,
+  document: ProjectDocument,
   reference: VehiclePlanReference,
   transitions: readonly VehicleTransition[],
-): ProjectDocumentV5 {
+): ProjectDocument {
   return withVehicleTransitions(document, reference, transitions);
 }
-
-export type { CurrentVehicleHolding };

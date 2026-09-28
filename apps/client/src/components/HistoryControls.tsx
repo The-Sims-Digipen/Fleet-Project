@@ -1,17 +1,16 @@
 import { useEffect } from "react";
-import { useSceneStore } from "../state/sceneStore";
+import { useProjectStore } from "../state/projectStore";
 import { topBarControl } from "./topBarStyles";
 
 export function HistoryControls() {
-  const canUndo = useSceneStore(
+  const canUndo = useProjectStore(
     (state) =>
-      state.history.past.length > 0 ||
-      (state.history.baseline !== null &&
-        state.history.baseline !== state.document),
+      state.runtime.history.past.length > 0 ||
+      state.runtime.history.activeEdit !== null,
   );
-  const canRedo = useSceneStore((state) => state.history.future.length > 0);
-  const undo = useSceneStore((state) => state.undo);
-  const redo = useSceneStore((state) => state.redo);
+  const canRedo = useProjectStore((state) => state.runtime.history.future.length > 0);
+  const undo = useProjectStore((state) => state.undo);
+  const redo = useProjectStore((state) => state.redo);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

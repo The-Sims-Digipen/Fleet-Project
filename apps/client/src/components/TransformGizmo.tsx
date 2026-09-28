@@ -4,7 +4,8 @@ import { Mesh, Vector3, type Group, type Object3D } from "three";
 import { TransformControls as TransformControlsImpl } from "three/addons/controls/TransformControls.js";
 
 import type { Transform } from "../scene/types";
-import { useSceneStore } from "../state/sceneStore";
+import { useProjectStore } from "../state/projectStore";
+import type { WorldObjectReference } from "../state/projectRuntime";
 
 const MIN_SCALE = 0.01;
 const TRANSLATION_SNAP = 0.25;
@@ -57,8 +58,8 @@ function hasEnabled(value: unknown): value is ToggleableControls {
  * scene object is selected. Keeping the controls persistent avoids stale DOM
  * listeners and attachment races when objects are added, removed or switched.
  */
-export function TransformGizmo({ objectId, target, markDragged }: {
-  objectId: string | null;
+export function TransformGizmo({ object, target, markDragged }: {
+  object: WorldObjectReference | null;
   target: Group | null;
   markDragged: () => void;
 }) {
@@ -66,9 +67,9 @@ export function TransformGizmo({ objectId, target, markDragged }: {
   const gl = useThree((state) => state.gl);
   const sceneControls = useThree((state) => state.controls);
   const defaultControls = hasEnabled(sceneControls) ? sceneControls : undefined;
-  const mode = useSceneStore((state) => state.editor.transformMode);
-  const space = useSceneStore((state) => state.editor.transformSpace);
-  const snap = useSceneStore((state) => state.editor.snapEnabled);
+  const mode = useProjectStore((state) => state.runtime.editor.transformMode);
+  const space = useProjectStore((state) => state.runtime.editor.transformSpace);
+  const snap = useProjectStore((state) => state.runtime.editor.snapEnabled);
 
   // Construct without a DOM element. TransformControls connects to the canvas
   // in an effect below, keeping DOM listener side effects out of React render.
@@ -80,7 +81,7 @@ export function TransformGizmo({ objectId, target, markDragged }: {
   }, [controls]);
 
   const syncTransform = useCallback(() => {
-    if (!objectId || !target) return;
+    if (!object || !target) return;
 
     // TransformControls permits crossing through zero while scaling. The scene
     // format deliberately only permits positive scales, so keep both the live
@@ -96,8 +97,8 @@ export function TransformGizmo({ objectId, target, markDragged }: {
       rotation: [target.rotation.x, target.rotation.y, target.rotation.z],
       scale: [target.scale.x, target.scale.y, target.scale.z],
     };
-    useSceneStore.getState().updateObjectTransform(objectId, transform);
-  }, [objectId, target]);
+    useProjectStore.getState().updateObjectTransform(object, transform);
+  }, [object, target]);
 
   useEffect(() => {
     controls.connect(gl.domElement);
@@ -135,16 +136,16 @@ export function TransformGizmo({ objectId, target, markDragged }: {
 
   useEffect(() => {
     const onMouseDown = () => {
-      if (!objectId || !target) return;
+      if (!object || !target) return;
       markDragged();
-      useSceneStore.getState().beginEdit();
+      useProjectStore.getState().beginEdit();
     };
     const onObjectChange = () => syncTransform();
     const onMouseUp = () => {
-      if (!objectId || !target) return;
+      if (!object || !target) return;
       markDragged();
       syncTransform();
-      useSceneStore.getState().commitEdit();
+      useProjectStore.getState().commitEdit();
     };
 
     controls.addEventListener("mouseDown", onMouseDown);
@@ -155,13 +156,13 @@ export function TransformGizmo({ objectId, target, markDragged }: {
       controls.removeEventListener("objectChange", onObjectChange);
       controls.removeEventListener("mouseUp", onMouseUp);
     };
-  }, [controls, markDragged, objectId, syncTransform, target]);
+  }, [controls, markDragged, object, syncTransform, target]);
 
   useEffect(() => {
     const cancelActiveDrag = () => {
       if (!controls.dragging) return;
       controls.reset();
-      useSceneStore.getState().cancelEdit();
+      useProjectStore.getState().cancelEdit();
       // reset() restores the object but intentionally keeps the pointer gesture
       // active. End it as well so the gizmo cannot resume moving after Escape
       // and OrbitControls is immediately re-enabled.

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { getProjectRepository } from "../project/repositoryContext";
-import type { AggregateProjectSummary } from "../project/types";
+import type { ProjectSummary } from "../project/types";
 
 export type RepositoryStatus =
   | { state: "idle" }
@@ -14,12 +14,12 @@ export type SaveStatus =
   | { state: "error"; message: string };
 
 type AppState = {
-  projectSummaries: AggregateProjectSummary[];
+  projectSummaries: ProjectSummary[];
   repositoryStatus: RepositoryStatus;
   saveStatus: SaveStatus;
   setRepositoryStatus: (status: RepositoryStatus) => void;
   setSaveStatus: (status: SaveStatus) => void;
-  refreshProjects: () => Promise<AggregateProjectSummary[]>;
+  refreshProjects: () => Promise<ProjectSummary[]>;
   resetRepositoryState: () => void;
 };
 

@@ -3,15 +3,15 @@ import { describe, expect, it } from "vitest";
 import { createMockPresets } from "./mockProject";
 import {
   addVehicleTransition,
-  createProjectV5,
+  createProject,
   DEFAULT_DEPOT,
   effectivePresetIdFor,
-  normalizeProjectV5,
+  normalizeProject,
   removeVehicleTransition,
   replaceVehicleTransitions,
   updateVehicleTransition,
   type ProjectVehicle,
-} from "./projectV5";
+} from "./project";
 
 const vehicle = (id: string, baselinePresetId: string | null): ProjectVehicle => ({
   id,
@@ -30,10 +30,10 @@ const vehicle = (id: string, baselinePresetId: string | null): ProjectVehicle =>
   currentHolding: { kind: "owned", currentValue: 10_000, endResidualValue: 2_000 },
 });
 
-describe("Project document version 5", () => {
+describe("Project document", () => {
   it("creates and validates one complete aggregate", () => {
     const presets = createMockPresets();
-    const document = createProjectV5({
+    const document = createProject({
       id: "project-1",
       name: "Depot transition",
       depot: DEFAULT_DEPOT,
@@ -51,12 +51,12 @@ describe("Project document version 5", () => {
       environment: { depot: { id: "default-project-depot" }, vehicles: [{ id: "vehicle-1", baselinePresetId: presets[0].id }] },
       scenarios: [{ id: "scenario-1", name: "Plan A" }],
     });
-    expect(normalizeProjectV5(JSON.parse(JSON.stringify(document)))).toEqual(document);
+    expect(normalizeProject(JSON.parse(JSON.stringify(document)))).toEqual(document);
   });
 
-  it("adds transitions in ascending order even outside the analysis period", () => {
+  it("adds transitions in ascending order within the analysis period", () => {
     const presets = createMockPresets();
-    const document = createProjectV5({
+    const document = createProject({
       id: "project-1",
       name: "Depot transition",
       vehicles: [vehicle("vehicle-1", presets[0].id)],
@@ -66,19 +66,19 @@ describe("Project document version 5", () => {
     });
 
     const reference = { scenarioId: "scenario-1", vehicleId: "vehicle-1" };
-    const later = addVehicleTransition(document, reference, { year: 2042, targetPresetId: presets[1].id });
-    const earlier = addVehicleTransition(later, reference, { year: 2024, targetPresetId: presets[2].id });
+    const later = addVehicleTransition(document, reference, { year: 2034, targetPresetId: presets[1].id });
+    const earlier = addVehicleTransition(later, reference, { year: 2027, targetPresetId: presets[2].id });
 
     expect(earlier.scenarios[0].vehiclePlans["vehicle-1"].transitions).toEqual([
-      { year: 2024, targetPresetId: presets[2].id },
-      { year: 2042, targetPresetId: presets[1].id },
+      { year: 2027, targetPresetId: presets[2].id },
+      { year: 2034, targetPresetId: presets[1].id },
     ]);
     expect(document.scenarios[0].vehiclePlans).toEqual({});
   });
 
   it("resolves null baselines and every transition at or before the selected year", () => {
     const presets = createMockPresets();
-    const base = createProjectV5({
+    const base = createProject({
       id: "project-1",
       name: "Depot transition",
       vehicles: [vehicle("vehicle-1", null)],
@@ -99,7 +99,7 @@ describe("Project document version 5", () => {
 
   it("updates, removes, and replaces transition timelines without allowing duplicate years", () => {
     const presets = createMockPresets();
-    const base = createProjectV5({
+    const base = createProject({
       id: "project-1",
       name: "Depot transition",
       vehicles: [vehicle("vehicle-1", presets[0].id)],
@@ -122,7 +122,7 @@ describe("Project document version 5", () => {
 
   it("rejects invalid identities and references throughout the aggregate", () => {
     const presets = createMockPresets();
-    const valid = createProjectV5({
+    const valid = createProject({
       id: "project-1",
       name: "Depot transition",
       vehicles: [vehicle("vehicle-1", presets[0].id)],
@@ -131,15 +131,16 @@ describe("Project document version 5", () => {
       activeScenarioId: "scenario-1",
     });
 
-    expect(() => normalizeProjectV5({ ...valid, activeScenarioId: "missing" })).toThrow(/activeScenarioId.*resolve/i);
-    expect(() => normalizeProjectV5({ ...valid, scenarios: [] })).toThrow(/at least one Scenario/i);
-    expect(() => normalizeProjectV5({ ...valid, environment: { ...valid.environment, vehicles: [...valid.environment.vehicles, valid.environment.vehicles[0]] } })).toThrow(/duplicate identifiers/i);
-    expect(() => normalizeProjectV5({ ...valid, vehiclePresets: [...valid.vehiclePresets, valid.vehiclePresets[0]] })).toThrow(/duplicate identifiers/i);
-    expect(() => normalizeProjectV5({
+    expect(() => normalizeProject({ ...valid, activeScenarioId: "missing" })).toThrow(/activeScenarioId.*resolve/i);
+    expect(() => normalizeProject({ ...valid, scenarios: [] })).toThrow(/at least one Scenario/i);
+    expect(() => normalizeProject({ ...valid, environment: { ...valid.environment, vehicles: [...valid.environment.vehicles, valid.environment.vehicles[0]] } })).toThrow(/duplicate identifiers/i);
+    expect(() => normalizeProject({ ...valid, vehiclePresets: [...valid.vehiclePresets, valid.vehiclePresets[0]] })).toThrow(/duplicate identifiers/i);
+    expect(() => addVehicleTransition(valid, { scenarioId: "scenario-1", vehicleId: "vehicle-1" }, { year: 2040, targetPresetId: presets[1].id })).toThrow(/analysis period/i);
+    expect(() => normalizeProject({
       ...valid,
       scenarios: [{ ...valid.scenarios[0], vehiclePlans: { missing: { transitions: [] } } }],
     })).toThrow(/does not resolve to a Project Vehicle/i);
-    expect(() => normalizeProjectV5({
+    expect(() => normalizeProject({
       ...valid,
       scenarios: [{ ...valid.scenarios[0], vehiclePlans: { "vehicle-1": { transitions: [{ year: 2030, targetPresetId: "missing" }] } } }],
     })).toThrow(/does not resolve to Preset/i);
@@ -149,7 +150,7 @@ describe("Project document version 5", () => {
     const presets = createMockPresets();
     const template = vehicle("vehicle-template", presets[0].id);
 
-    expect(() => createProjectV5({
+    expect(() => createProject({
       id: "project-1",
       name: "Fleet capacity",
       vehicles: Array.from({ length: 11 }, (_, index) => ({ ...template, id: `vehicle-${index}` })),

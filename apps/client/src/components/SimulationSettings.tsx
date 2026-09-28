@@ -1,6 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { useFleetStore } from "../state/fleetStore";
-import { usePresetStore } from "../state/presetStore";
+import { useProjectStore } from "../state/projectStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, SelectControl, type EditLifecycle } from "./controls";
 
@@ -59,10 +58,10 @@ export function SimulationSettings() {
   const [result, setResult] = useState<Result | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [routeDistances, setRouteDistances] = useState<Record<string, number>>({});
-  const vehicles = useFleetStore((state) => state.vehicles);
-  const presets = usePresetStore((state) => state.presets);
+  const vehicles = useProjectStore((state) => state.runtime.document.environment.vehicles);
+  const presets = useProjectStore((state) => state.runtime.document.vehiclePresets);
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? vehicles[0] ?? null;
-  const selectedPreset = presets.find((preset) => preset.id === selectedVehicle?.presetId);
+  const selectedPreset = presets.find((preset) => preset.id === selectedVehicle?.baselinePresetId);
   const dieselPreset = selectedPreset?.propulsion === "diesel" ? selectedPreset : presets.find((preset) => preset.category === selectedPreset?.category && preset.propulsion === "diesel");
   const electricPreset = selectedPreset?.propulsion === "electric" ? selectedPreset : presets.find((preset) => preset.category === selectedPreset?.category && preset.propulsion === "electric");
   const vehicleName = selectedVehicle?.name ?? "Vehicle";
@@ -83,7 +82,7 @@ export function SimulationSettings() {
   return <CollapsibleSection title="Simulation" defaultOpen description="Enter route and price assumptions, then compare diesel and electric preset performance year by year.">
     <div className="grid gap-5">
       <InputGroup title="Simulation setup" description="Choose any Project fleet vehicle, then enter its annual route distance manually.">
-        <SelectControl label="Vehicle" value={selectedVehicle?.id ?? ""} options={vehicles.map((vehicle) => ({ value: vehicle.id, label: `${vehicle.name}: ${presets.find((preset) => preset.id === vehicle.presetId)?.name ?? "Generic vehicle"}` }))} onChange={(id) => { setResult(null); setSelectedVehicleId(id); }} />
+        <SelectControl label="Vehicle" value={selectedVehicle?.id ?? ""} options={vehicles.map((vehicle) => ({ value: vehicle.id, label: `${vehicle.name}: ${presets.find((preset) => preset.id === vehicle.baselinePresetId)?.name ?? "Generic vehicle"}` }))} onChange={(id) => { setResult(null); setSelectedVehicleId(id); }} />
         {!selectedVehicle && <p role="alert" className="text-xs leading-relaxed text-secondary">Add a vehicle in Fleet Management to run a simulation.</p>}
         {selectedVehicle && !selectedPreset && <p role="alert" className="text-xs leading-relaxed text-amber-200">This fleet vehicle has no assigned preset, so its consumption is unavailable. Assign a VehiclePreset in Fleet Management to calculate costs.</p>}
         <NumberControl label="Simulation length (years)" value={assumptions.years} min={1} step={1} edit={edit} onChange={(years) => { if (Number.isInteger(years)) update({ years }); }} />

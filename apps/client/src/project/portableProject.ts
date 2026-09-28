@@ -1,4 +1,4 @@
-import { normalizeProjectV5, type ProjectDocumentV5 } from "../domain/projectV5";
+import { normalizeProject, type ProjectDocument } from "../domain/project";
 
 export const PORTABLE_PROJECT_FORMAT = "fleet-transition-planner-project";
 export const PORTABLE_PROJECT_VERSION = 4;
@@ -7,7 +7,7 @@ export type PortableProjectFile = {
   format: typeof PORTABLE_PROJECT_FORMAT;
   version: typeof PORTABLE_PROJECT_VERSION;
   exportedAt: string;
-  document: ProjectDocumentV5;
+  document: ProjectDocument;
 };
 
 export function parsePortableProject(value: unknown): PortableProjectFile {
@@ -21,11 +21,11 @@ export function parsePortableProject(value: unknown): PortableProjectFile {
     format: PORTABLE_PROJECT_FORMAT,
     version: PORTABLE_PROJECT_VERSION,
     exportedAt: source.exportedAt,
-    document: normalizeProjectV5(source.document),
+    document: normalizeProject(source.document),
   };
 }
 
-export function createPortableProject(document: ProjectDocumentV5): PortableProjectFile {
+export function createPortableProject(document: ProjectDocument): PortableProjectFile {
   return parsePortableProject({
     format: PORTABLE_PROJECT_FORMAT,
     version: PORTABLE_PROJECT_VERSION,

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { createProjectV5Fixture } from "../domain/projectV5Fixture";
+import { createProjectFixture } from "../domain/projectFixture";
 import { createPortableProject, parsePortableProject, projectFileName } from "./portableProject";
 
 describe("portable aggregate Project files", () => {
-  it("round-trips the complete version 5 document without runtime state", () => {
-    const document = createProjectV5Fixture();
+  it("round-trips the complete Project document without runtime state", () => {
+    const document = createProjectFixture();
     const file = createPortableProject(document);
 
     expect(parsePortableProject(JSON.parse(JSON.stringify(file)))).toEqual(file);
@@ -22,7 +22,7 @@ describe("portable aggregate Project files", () => {
       format: "fleet-transition-planner-project",
       version: 4,
       exportedAt: new Date().toISOString(),
-      document: { ...createProjectV5Fixture(), scenarios: [] },
+      document: { ...createProjectFixture(), scenarios: [] },
     })).toThrow(/at least one Scenario/i);
   });
 });

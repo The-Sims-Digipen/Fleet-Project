@@ -8,8 +8,8 @@ const actionClass = "min-h-7 rounded border border-line-strong px-2 text-[0.68re
 
 /** Manages the alternative plans that share the Project's one environment and fleet. */
 export function ScenarioPanel() {
-  const scenarios = useProjectStore((state) => state.scenarios);
-  const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
+  const scenarios = useProjectStore((state) => state.runtime.document.scenarios);
+  const activeScenarioId = useProjectStore((state) => state.runtime.document.activeScenarioId);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const active = scenarios.find((scenario) => scenario.id === activeScenarioId);
 
@@ -28,13 +28,13 @@ export function ScenarioPanel() {
           const isActive = scenario.id === activeScenarioId;
           return <li key={scenario.id}>
             <button type="button" aria-pressed={isActive}
-              aria-label={`${scenario.name}, scenario ${index + 1}${isActive ? ", active" : scenario.revision === 0 ? ", unsaved" : ", saved"}`}
+              aria-label={`${scenario.name}, scenario ${index + 1}${isActive ? ", active" : ""}`}
               className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-xs text-secondary hover:bg-white/5 aria-pressed:bg-accent/15 aria-pressed:text-primary"
               onClick={() => useProjectStore.getState().selectScenario(scenario.id)}>
               <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${isActive ? "bg-accent" : "border border-line-strong"}`} />
               <span className="min-w-0 flex-1 truncate" title={scenario.name}>{scenario.name}</span>
               <span aria-hidden="true" className={`shrink-0 font-mono text-[9px] font-bold tracking-wider uppercase ${isActive ? "text-accent" : "text-secondary"}`}>
-                {isActive ? "Active" : scenario.revision === 0 ? "Unsaved" : "Saved"}
+                {isActive ? "Active" : `Plan ${index + 1}`}
               </span>
             </button>
           </li>;

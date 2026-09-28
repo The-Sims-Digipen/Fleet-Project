@@ -7,53 +7,54 @@ Design for the [Fleet Transition Planner](../proposal.md): a single-user browser
 | Layer | Technology | Purpose |
 |---|---|---|
 | Browser interface | React, TypeScript, Vite, Tailwind CSS | Fleet inputs, Scenario controls, and accessible interface |
-| Application state | Zustand | Editable Project, active Scenario/year, editor state, and undo history |
-| Visualization | Three.js, React Three Fiber, Drei | Project depot and derived fleet views |
+| Application state | Zustand | One editable Project aggregate plus editor state and history |
+| Visualization | Three.js, React Three Fiber, Drei | Derived depot and vehicle views |
 | Charts | ECharts | Costs, emissions, and annual roadmaps |
-| Prototype persistence | IndexedDB | Browser-local Project and Scenario storage |
+| Prototype persistence | IndexedDB | Browser-local Project records |
 | Future backend | Fastify, Zod, PostgreSQL | Matching server-side persistence contract |
-| Verification | Vitest, Testing Library, browser checks | Calculations, controls, integration, and visual behavior |
+| Verification | Vitest, Testing Library, browser checks | Domain, state, integration, and visual behavior |
 
 ## Ownership boundaries
 
 ```mermaid
 flowchart LR
-  Operator[Fleet operator] --> UI[Product feature UI]
-  UI <--> Workspace[Project workspace]
-  Workspace <--> Domain[Project fleet and Scenario plans]
-  Domain --> Timeline[Timeline / playback]
-  Domain --> Simulation[Simulation / financial]
-  Domain --> Scene[Derived 3D fleet]
-  Workspace <--> Repo[Persistence / serialization]
+  Operator[Fleet operator] --> UI[Feature UI]
+  UI <--> Store[Project store]
+  Store <--> Project[Project domain aggregate]
+  Project --> Timeline[Timeline projection]
+  Project --> Simulation[Simulation projection]
+  Project --> Scene[3D scene projection]
+  Store <--> Repo[Project repository]
   Repo --> IDB[(IndexedDB)]
   Repo -. future adapter .-> API[Fastify API]
 ```
 
-A Project is the aggregate and persistence boundary:
+The Project is the sole editable domain and persistence boundary:
 
 ```text
 Project
-├── Physical environment / scene
-├── Authoritative fleet
+├── Environment
+│   ├── Depot
+│   └── Vehicles
 ├── Vehicle preset catalogue
-├── Shared settings / assumptions
+├── Shared analysis settings
 └── Scenarios
 ```
 
-The Project answers “what physical system am I planning?” A Scenario answers “what alternative plan am I evaluating for that system?” Scenarios own per-vehicle transition decisions and Scenario-specific charging/electricity assumptions. They do not duplicate the scene or fleet.
+The Project answers “what physical system am I planning?” A Scenario answers “what alternative plan am I evaluating for that system?” Scenarios own per-vehicle transition sequences. They reference vehicles and presets by stable ID and never duplicate the physical environment.
 
-`Project.fleet` is the authoritative collection of physical vehicle instances. Every vehicle has a stable ID, exactly one of the default depot's ten parking lots, and zero or one preset. The viewport derives its vehicle scene objects from this collection plus the active Scenario and selected year. Scene vehicle objects are never persisted independently.
+`useProjectStore` owns one `ProjectRuntime`: the canonical document, persistence metadata, editor-only state, and undo history. Feature components issue Project commands; no feature mirrors part of the document into another store. This keeps validation, undo/redo, dirty state, save/load, and rendering on the same source of truth.
 
 ## Persistence boundary
 
-Save Project captures the Project document, active Scenario ID, and ordered Scenarios in one transaction. The Project document contains scene geometry, fleet, presets, and shared analysis settings. IndexedDB schema version 3 stores only `projects` and `scenarios`; Scenario rows reference `projectId`. Expected revisions prevent stale writes. Portable format version 3 stores the same aggregate and identifies the active Scenario by its order in the portable file.
+Save Project writes one complete Project document through `ProjectRepository`. IndexedDB stores one record per Project, with optimistic revision metadata outside the document. The API adapter implements the same interface. Portable files contain the same document and create a fresh Project identity on import.
 
-The pre-release schema upgrade intentionally clears legacy multi-World data. No migration or compatibility layer is maintained.
+The document's numeric `version` is a serialization concern. It does not appear in module, type, or store names, and no compatibility projection is kept in the runtime architecture.
 
 ## Scene implementation
 
-The Project's version 3 scene document remains in the scene store while editing and is embedded in Project document version 4 at persistence boundaries. The default depot is created with every new Project and cannot be removed. Internal names such as `WorldScene` may remain as rendering implementation details; they are not persistence or lifecycle concepts.
+Depot and vehicle transforms are authoritative fields of the Project environment. `createProjectSceneObjects` is a render-only projection that combines those transforms with the active Scenario and selected year. Three.js objects, meshes, materials, selection, lighting controls, and camera state are not persisted as a second scene document.
 
-The object catalogue, Inspector, arbitrary-object creation, transform toolbar, and scene debug panels are development tooling and are hidden from production builds. Production users add vehicles through fleet management. Vehicle rendering uses the vehicle's parking-lot transform and effective preset for the selected Scenario/year.
+The model catalogue maps stable model IDs to runtime factories. Production users create typed vehicles through Fleet Management. Development tools may inspect and transform the typed depot and vehicles, but they do not create a separate generic-object authority.
 
 See [contracts](contracts.md), [simulation](simulation.md), [depot editor](depot-editor.md), and the [architecture decision](../adr/0001-project-owned-physical-environment.md).

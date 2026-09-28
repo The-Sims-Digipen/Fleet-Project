@@ -3,8 +3,6 @@ import type { Group } from "three";
 import { createProceduralInstance } from "../models/proceduralModel";
 import { getDefinition, type ObjectDefinition } from "../scene/catalog";
 import type { SceneObject } from "../scene/types";
-import { useResolvedModelId } from "../state/presetStore";
-import { useSceneStore } from "../state/sceneStore";
 
 class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -29,22 +27,21 @@ const renderers: Record<ObjectDefinition["kind"], ComponentType<RendererProps>> 
   procedural: ProceduralRenderer,
 };
 
-export function ModelObject({ object, isClick, selectable = true, registerRoot }: {
+export function ModelObject({ object, isClick, selected, onSelect, registerRoot }: {
   object: SceneObject;
   isClick: () => boolean;
-  selectable?: boolean;
+  selected: boolean;
+  onSelect: () => void;
   registerRoot?: (id: string, root: Group | null) => void;
 }) {
-  const selected = useSceneStore((state) => selectable && state.editor.selectedObjectId === object.id);
-  const modelId = useResolvedModelId(object);
-  const definition = getDefinition(modelId);
+  const definition = getDefinition(object.definitionId);
   const setRoot = useCallback((root: Group | null) => registerRoot?.(object.id, root), [object.id, registerRoot]);
   if (!definition) return null;
   const Renderer = renderers[definition.kind];
 
   return <group ref={registerRoot ? setRoot : undefined} {...object.transform} onClick={(event) => {
     event.stopPropagation();
-    if (selectable && isClick()) useSceneStore.getState().selectObject(object.id);
+    if (isClick()) onSelect();
   }}>
     <ObjectBoundary><Renderer object={object} definition={definition} selected={selected} /></ObjectBoundary>
   </group>;

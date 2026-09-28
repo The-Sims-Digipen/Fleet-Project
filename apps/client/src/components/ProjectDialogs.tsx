@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { validateName, type AggregateProjectSummary } from "../project/types";
+import { validateName, type ProjectSummary } from "../project/types";
 import { useAppStore } from "../state/appStore";
 import { useProjectStore } from "../state/projectStore";
 
@@ -31,7 +31,7 @@ function DiscardWarning({ dirty, projectName }: { dirty: boolean; projectName: s
 }
 
 export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismiss: () => void }) {
-  const currentName = useProjectStore((state) => state.name);
+  const currentName = useProjectStore((state) => state.runtime.document.name);
   const [name, setName] = useState("Untitled project");
   const [touched, setTouched] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -71,11 +71,11 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
   </Modal>;
 }
 
-type ListState = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: AggregateProjectSummary[] };
+type ListState = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: ProjectSummary[] };
 
 export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismiss: () => void }) {
-  const currentName = useProjectStore((state) => state.name);
-  const currentId = useProjectStore((state) => state.projectId);
+  const currentName = useProjectStore((state) => state.runtime.document.name);
+  const currentId = useProjectStore((state) => state.runtime.record ? state.runtime.document.id : null);
   const [list, setList] = useState<ListState>({ state: "loading" });
   const [openError, setOpenError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -126,7 +126,7 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 }
 
 export function DeleteScenarioDialog({ scenarioId, onDismiss }: { scenarioId: string; onDismiss: () => void }) {
-  const scenario = useProjectStore((state) => state.scenarios.find((item) => item.id === scenarioId));
+  const scenario = useProjectStore((state) => state.runtime.document.scenarios.find((item) => item.id === scenarioId));
   if (!scenario) return null;
   return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? It disappears from the in-memory project immediately; Save Project persists the removal.`} onDismiss={onDismiss}>
     <div className="flex justify-end gap-2">

@@ -1,8 +1,8 @@
 import { DEFAULT_VEHICLE_SPAWN_TRANSFORMS } from "./depotLayout";
 import { createMockPresets } from "./mockProject";
-import { createProjectV5, type ProjectDocumentV5, type ProjectVehicle } from "./projectV5";
+import { createProject, type ProjectDocument, type ProjectVehicle } from "./project";
 
-export function createProjectV5Fixture(id = "project-v5-fixture"): ProjectDocumentV5 {
+export function createProjectFixture(id = "project-fixture"): ProjectDocument {
   const vehiclePresets = createMockPresets();
   const vehicles: ProjectVehicle[] = [
     {
@@ -22,9 +22,9 @@ export function createProjectV5Fixture(id = "project-v5-fixture"): ProjectDocume
       currentHolding: { kind: "owned", currentValue: 18_000, endResidualValue: 4_000 },
     },
   ];
-  return createProjectV5({
+  return createProject({
     id,
-    name: "Version 5 fixture",
+    name: "Project fixture",
     vehiclePresets,
     vehicles,
     scenarios: [
