@@ -103,8 +103,8 @@ export const usePresetStore = create<PresetState>((set, get) => {
     cancelEdit: () => {
       const baseline = get().baseline;
       if (!baseline) return;
-      set({ baseline: null });
-      replace(baseline);
+      const selectedPresetId = baseline.some((preset) => preset.id === get().selectedPresetId) ? get().selectedPresetId : null;
+      set({ baseline: null, presets: baseline, selectedPresetId });
     },
   };
 });

@@ -98,6 +98,19 @@ describe("single-environment project state", () => {
     expect(project().runtime.history.past).toHaveLength(historyLength + 1);
   });
 
+  it("cancels compatibility Preset previews without creating Project history", () => {
+    const historyLength = project().runtime.history.past.length;
+    const presets = usePresetStore.getState();
+    const originalName = presets.presets.find((preset) => preset.id === "diesel-van")!.name;
+
+    presets.beginEdit();
+    presets.updatePreset("diesel-van", { name: "Discarded name" });
+    presets.cancelEdit();
+
+    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === "diesel-van")?.name).toBe(originalName);
+    expect(project().runtime.history.past).toHaveLength(historyLength);
+  });
+
   it("exports and imports one project environment with its scenarios", async () => {
     project().createScenario();
     const exported = project().exportProject();
