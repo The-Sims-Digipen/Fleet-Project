@@ -49,6 +49,12 @@ describe("Project simulation", () => {
     expect(scenario.annual.map(({ emissionsKgCo2e }) => emissionsKgCo2e)).toEqual([1_000, 1_000, 1_000, 1_000]);
     expect(scenario.totals.tco).toBe(12_800);
     expect(scenario.totals.savings).toBe(-2_800);
+    expect(scenario.totals.costDifference).toBe(2_800);
+    expect(scenario.totals.costPerKm).toBe(0.32);
+    expect(scenario.totals.costPerVehicle).toBe(12_800);
+    expect(scenario.totals.fuelDisplacedLitres).toBe(4_000);
+    expect(scenario.totals.emissionsReductionKgCo2e).toBe(4_000);
+    expect(scenario.totals.emissionsReductionPercentage).toBe(50);
     expect(scenario.totals.totalFuelLitres).toBe(0);
     expect(scenario.totals.totalElectricityKWh).toBe(8_000);
     expect(scenario.paybackYear).toBeNull();
@@ -99,6 +105,8 @@ describe("Project simulation", () => {
       [0, 2_000],
     ]);
     expect(scenario.annual.map(({ transitionCount }) => transitionCount)).toEqual([0, 0, 1, 0]);
+    expect(scenario.totals.emissionsReductionKgCo2e).toBe(-2_000);
+    expect(scenario.totals.emissionsReductionPercentage).toBeNull();
   });
 
   it("starts from the holding of the last transition before the analysis window", () => {
@@ -127,6 +135,27 @@ describe("Project simulation", () => {
     expect(scenario.annual.map(({ leaseExitFees }) => leaseExitFees)).toEqual([0, 250]);
     expect(scenario.annual.map(({ transitionCount }) => transitionCount)).toEqual([0, 1]);
     expect(scenario.annual[1].replacementCapex).toBe(0);
+  });
+
+  it("uses the actual pre-window acquisition year when valuing a later disposal", () => {
+    const document = workedTransitionProject();
+    const vehicle = document.environment.vehicles[0];
+    const electric = document.vehiclePresets.find((preset) => preset.id === "electric-van")!;
+    const hybrid = document.vehiclePresets.find((preset) => preset.id === "hybrid-van")!;
+    document.analysis.startYear = 2028;
+    document.analysis.yearCount = 3;
+    document.vehiclePresets = document.vehiclePresets.map((preset) => preset.id === electric.id
+      ? { ...preset, purchaseCost: 12_000, acquisition: { kind: "owned" as const, endResidualValue: 2_000 } }
+      : preset);
+    document.scenarios[0].vehiclePlans[vehicle.id].transitions = [
+      { year: 2026, targetPresetId: electric.id },
+      { year: 2029, targetPresetId: hybrid.id },
+    ];
+
+    const scenario = simulateProject(normalizeProject(document)).scenarios["plan-a"];
+
+    expect(scenario.annual[1].disposalCredits).toBe(6_000);
+    expect(scenario.annual[1].transitionCount).toBe(1);
   });
 
   it("does not label payback as initial parity when a lease exit fee creates an upfront premium", () => {

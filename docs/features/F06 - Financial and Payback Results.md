@@ -20,6 +20,7 @@ Users need clear, traceable financial feedback to understand the cost impact of 
 - Display real output from T05 rather than mock chart arrays or fixed KPI values.
 - Show baseline and active-scenario cost series over the analysis period.
 - Show relevant M1 KPI values such as TCO, savings and payback/breakeven.
+- Show scenario-minus-baseline cost difference, fleet cost per km and per vehicle, fuel displaced, and emissions-reduction percentage when baseline emissions are nonzero. Preserve negative cost and emissions results with clear signs, and label zero-denominator values as unavailable.
 - Handle `payback not reached` explicitly.
 - Use consistent units, legends and formatting.
 - Support selected-year indicators where appropriate without recalculating financial logic inside the UI layer.

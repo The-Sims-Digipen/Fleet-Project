@@ -21,6 +21,7 @@ export function CostAnalysis() {
   const simulation = useMemo(() => simulateProject(document), [document]);
   const scenario = simulation.scenarios[document.activeScenarioId];
   const formatCurrency = (value: number) => `${document.analysis.currency} ${value.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatOptionalCurrency = (value: number | null) => value === null ? "—" : formatCurrency(value);
   const annual = scenario?.annual.find((row) => row.year === selectedYear);
   const tcoLabel = document.analysis.discountRate > 0 ? "Present value TCO" : "TCO";
 
@@ -53,13 +54,18 @@ export function CostAnalysis() {
   return <CollapsibleSection title="Cost & emissions" description="Derived from Project Vehicles, Presets, Scenario transitions, and shared Analysis Settings." defaultOpen>
     {!scenario ? <p role="status" className="text-xs text-secondary">No Scenario results are available for this Project.</p> : <>
       <div className="grid grid-cols-2 gap-3">
-        <Metric label={tcoLabel} value={formatCurrency(scenario.totals.tco)} detail={`${scenario.scenarioName} · discounted Project costs`} />
-        <Metric label="Savings vs baseline" value={formatCurrency(scenario.totals.savings ?? 0)} detail="Positive values mean the plan costs less." />
+        <Metric label={tcoLabel} value={formatCurrency(scenario.totals.tco)} detail={`${scenario.scenarioName} · ${document.analysis.discountRate > 0 ? "discounted " : ""}Project costs`} />
+        <Metric label="Savings vs baseline" value={formatOptionalCurrency(scenario.totals.savings)} detail="Positive values mean the plan costs less." />
+        <Metric label="Scenario − baseline cost difference" value={formatOptionalCurrency(scenario.totals.costDifference)} detail="Positive values mean the Scenario costs more." />
         <Metric label="Payback year" value={scenario.paybackYear === null ? "Not reached" : String(scenario.paybackYear)} detail={scenario.paybackStatus === "initial-parity" ? "No upfront premium; cash savings stay nonnegative." : scenario.paybackStatus === "reached" ? "Cumulative cash savings remain nonnegative." : "Cash savings do not remain nonnegative through the analysis period."} />
         <Metric label="Transition CAPEX" value={formatCurrency(scenario.totals.transitionCapex)} detail="Owned vehicle acquisitions for planned transitions." />
+        <Metric label="Fleet cost / km" value={formatOptionalCurrency(scenario.totals.costPerKm)} detail="Scenario TCO divided by total fleet kilometres." />
+        <Metric label="Mean fleet cost / vehicle" value={formatOptionalCurrency(scenario.totals.costPerVehicle)} detail="Scenario TCO divided by fleet size; excludes shared charger costs." />
         <Metric label="Fuel used" value={`${number.format(scenario.totals.totalFuelLitres)} L`} detail={`Baseline: ${number.format(simulation.baseline.totals.totalFuelLitres)} L`} />
+        <Metric label="Fuel displaced" value={`${number.format(scenario.totals.fuelDisplacedLitres)} L`} detail="Baseline minus Scenario fuel use; negative means more fuel is used." />
         <Metric label="Electricity used" value={`${number.format(scenario.totals.totalElectricityKWh)} kWh`} detail={`Baseline: ${number.format(simulation.baseline.totals.totalElectricityKWh)} kWh`} />
         <Metric label="Emissions" value={`${number.format(scenario.totals.emissionsKgCo2e)} kg CO₂e`} detail={`${number.format(scenario.totals.emissionsReductionKgCo2e ?? 0)} kg reduction vs baseline`} />
+        <Metric label="Emissions reduction" value={scenario.totals.emissionsReductionPercentage === null ? "N/A" : `${number.format(scenario.totals.emissionsReductionPercentage)}%`} detail={`${number.format(scenario.totals.emissionsReductionKgCo2e ?? 0)} kg vs baseline; negative means emissions increased.`} />
         <Metric label={`${selectedYear} net cash cost`} value={formatCurrency(annual?.netCashCost ?? 0)} detail={`${annual?.transitionCount ?? 0} transition${annual?.transitionCount === 1 ? "" : "s"} in this year.`} />
       </div>
 

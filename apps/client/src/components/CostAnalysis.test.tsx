@@ -22,4 +22,19 @@ describe("Derived cost analysis", () => {
     expect(screen.getByText("Transition CAPEX").parentElement).toHaveTextContent("SGD 45,000.00");
     expect(screen.getByRole("img", { name: "Cumulative cost comparison for Plan A" })).toBeInTheDocument();
   });
+
+  it("shows derived comparison KPIs and preserves negative emissions reduction", () => {
+    const store = useProjectStore.getState();
+    store.updateAnalysis({ fuelEmissionsKgCo2ePerLitre: 1, electricityEmissionsKgCo2ePerKWh: 10 });
+    store.replaceVehicleTransitions("plan-a", "UNIT-01", [
+      { year: store.runtime.document.analysis.startYear, targetPresetId: "electric-van" },
+    ]);
+    render(<CostAnalysis />);
+
+    expect(screen.getByText("Scenario − baseline cost difference").parentElement).toHaveTextContent("SGD");
+    expect(screen.getByText("Fleet cost / km").parentElement).toHaveTextContent("SGD");
+    expect(screen.getByText("Mean fleet cost / vehicle").parentElement).toHaveTextContent("SGD");
+    expect(screen.getByText("Fuel displaced").parentElement).toHaveTextContent("L");
+    expect(screen.getByText("Emissions reduction").parentElement).toHaveTextContent(/-\d.*%/);
+  });
 });

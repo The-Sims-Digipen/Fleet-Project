@@ -44,7 +44,10 @@ export type SimulationTotals = {
   costPerKm: number | null;
   costPerVehicle: number | null;
   savings: number | null;
+  costDifference: number | null;
+  fuelDisplacedLitres: number;
   emissionsReductionKgCo2e: number | null;
+  emissionsReductionPercentage: number | null;
 };
 
 export type SimulationSeries = {
@@ -138,7 +141,9 @@ function calculateSeries(document: ProjectDocument, scenarioId: string | null, y
       && firstTransitionYear <= replacementYear;
     const transitionBeforeWindow = transitions.filter((transition) => transition.year < analysis.startYear).at(-1);
     const initialPreset = transitionBeforeWindow ? presetById.get(transitionBeforeWindow.targetPresetId) : undefined;
-    let holding = initialPreset ? acquiredHolding(initialPreset, 0) : initialHolding(vehicle);
+    let holding = initialPreset && transitionBeforeWindow
+      ? acquiredHolding(initialPreset, transitionBeforeWindow.year - analysis.startYear)
+      : initialHolding(vehicle);
 
     years.forEach((year, index) => {
       const row = annual[index];
@@ -240,7 +245,10 @@ function calculateSeries(document: ProjectDocument, scenarioId: string | null, y
       costPerKm: totalDistanceKm === 0 ? null : tco / totalDistanceKm,
       costPerVehicle: document.environment.vehicles.length === 0 ? null : tco / document.environment.vehicles.length,
       savings: null,
+      costDifference: null,
+      fuelDisplacedLitres: 0,
       emissionsReductionKgCo2e: null,
+      emissionsReductionPercentage: null,
     },
   };
 }
@@ -267,7 +275,12 @@ export function simulateProject(document: ProjectDocument): ProjectSimulation {
   const scenarios = Object.fromEntries(document.scenarios.map((scenario) => {
     const result = calculateSeries(document, scenario.id, years);
     result.totals.savings = baseline.totals.tco - result.totals.tco;
+    result.totals.costDifference = result.totals.tco - baseline.totals.tco;
+    result.totals.fuelDisplacedLitres = baseline.totals.totalFuelLitres - result.totals.totalFuelLitres;
     result.totals.emissionsReductionKgCo2e = baseline.totals.emissionsKgCo2e - result.totals.emissionsKgCo2e;
+    result.totals.emissionsReductionPercentage = baseline.totals.emissionsKgCo2e === 0
+      ? null
+      : result.totals.emissionsReductionKgCo2e / baseline.totals.emissionsKgCo2e * 100;
     const reached = payback(baseline, result);
     return [scenario.id, {
       ...result,
