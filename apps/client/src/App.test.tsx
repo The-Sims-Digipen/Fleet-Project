@@ -74,7 +74,7 @@ describe("inspector architecture", () => {
   });
   it("groups manual simulation inputs and creates an annual cost table", async () => {
     const user = userEvent.setup();
-    state().addObject("van", "diesel-van", "Diesel Delivery Van");
+    state().addObject("van", "diesel-van", "Diesel Delivery Van");  
     const linkedVehicleId = state().editor.selectedObjectId!;
     render(<App />);
     expect(screen.getByRole("heading", { name: "Diesel assumptions" })).toBeInTheDocument();
