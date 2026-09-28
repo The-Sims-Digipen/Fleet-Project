@@ -9,7 +9,7 @@ Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 us
 
 ## User capability
 
-Users can create, open, save and reopen projects; manage reusable Worlds; create, rename, duplicate, remove and switch Scenarios; and retain project/scenario data after reloading the application.
+Users can create, open, save and reopen Projects; create, rename, duplicate, remove and switch Scenarios; and retain the Project environment, fleet, presets, assumptions and Scenario data after reloading.
 
 ## User need
 
@@ -17,19 +17,19 @@ Users need a structured workspace for exploring transition plans without losing 
 
 ## Workspace semantics
 
-- A Project contains one or more reusable Worlds and the Scenarios linked to those Worlds.
-- World and Scenario editing is in-memory first.
-- Switching Worlds or Scenarios must not discard unsaved workspace state.
+- A Project represents exactly one physical planning environment and owns its Scenarios.
+- Project and Scenario editing is in-memory first.
+- Switching Scenarios must not discard unsaved Project state.
 - Duplicating a Scenario copies its planning inputs without sharing mutable scenario state.
-- Every World must retain at least one Scenario.
-- Removing a World removes its linked Scenarios from the in-memory project workspace and is persisted only on Save Project.
+- Every Project must retain at least one Scenario.
+- New Projects automatically contain the default depot and parking lots.
 - Save Project is the persistence boundary and writes a consistent workspace snapshot through T01.
 
 ## M1 scope
 
 - New/Open/Save Project.
-- Create/switch/rename/duplicate/remove World and Scenario where supported by the current workspace design.
-- Maintain valid active Project/World/Scenario selections.
+- Create/switch/rename/duplicate/remove Scenarios.
+- Maintain valid active Project/Scenario selections.
 - Preserve dirty/unsaved state until Save Project.
 - Reopen a saved project with its workspace relationships intact.
 
@@ -43,4 +43,4 @@ F03 must not access IndexedDB directly; storage is owned by T01.
 
 ## M1 evidence
 
-Create/switch/duplicate scenarios, make different transition edits, save the project, reload/reopen it, and verify the same valid workspace and scenario-specific state is restored.
+Create/switch/duplicate Scenarios over one Project fleet, make different transition edits, save the Project, reload/reopen it, and verify the one environment and Scenario-specific state are restored.

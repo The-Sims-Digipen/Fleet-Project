@@ -49,7 +49,7 @@ export type ScenarioComparisonResult = {
 
 export type ComparisonScenario = { id: string; name: string; vehiclePlans: PlanRecord };
 
-const presetById = (presets: readonly VehiclePreset[], id: string) => presets.find((preset) => preset.id === id);
+const presetById = (presets: readonly VehiclePreset[], id: string | null) => presets.find((preset) => preset.id === id);
 const presetIdsOf = (presets: readonly VehiclePreset[]) => new Set(presets.map((preset) => preset.id));
 
 export function effectivePresetForYear(

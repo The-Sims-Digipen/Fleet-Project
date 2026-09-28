@@ -6,7 +6,8 @@ import { createMockAnalysis, createMockFleet, createMockPresets } from "./mockPr
 const valid = (): FleetVehicle => ({
   id: "UNIT-99",
   name: "Test Vehicle",
-  currentPresetId: "diesel-van",
+  presetId: "diesel-van",
+  parkingLotId: "parking-lot-01",
   annualKm: 28_000,
   typicalDailyKm: 112,
   operatingDays: 250,
@@ -30,11 +31,12 @@ describe("fleet vehicle validation", () => {
     expect(normalized.currentHolding).toEqual({ kind: "owned", currentValue: 18_000, endResidualValue: 4_000 });
   });
 
-  it("requires the current preset to resolve inside the same project", () => {
-    expect(normalizeFleetVehicle({ ...valid(), currentPresetId: "missing" }, presetIds)).toBeUndefined();
+  it("allows a generic vehicle or requires a selected preset to resolve inside the same project", () => {
+    expect(normalizeFleetVehicle({ ...valid(), presetId: null }, presetIds)).toBeDefined();
+    expect(normalizeFleetVehicle({ ...valid(), presetId: "missing" }, presetIds)).toBeUndefined();
     // Without a catalogue of ids the reference cannot be checked, only its shape.
-    expect(normalizeFleetVehicle({ ...valid(), currentPresetId: "missing" })).toBeDefined();
-    expect(normalizeFleetVehicle({ ...valid(), currentPresetId: "" }, presetIds)).toBeUndefined();
+    expect(normalizeFleetVehicle({ ...valid(), presetId: "missing" })).toBeDefined();
+    expect(normalizeFleetVehicle({ ...valid(), presetId: "" }, presetIds)).toBeUndefined();
   });
 
   it("rejects malformed records and ids that would reach Object.prototype", () => {
@@ -125,7 +127,7 @@ describe("fleet construction", () => {
   });
 
   it("creates a valid neutral vehicle and never repeats an existing name", () => {
-    const vehicle = createFleetVehicle("new-id", "New Vehicle", "diesel-van");
+    const vehicle = createFleetVehicle("new-id", "New Vehicle", "parking-lot-01", "diesel-van");
     expect(normalizeFleetVehicle(vehicle, presetIds)).toBeDefined();
     const existing = [{ ...valid(), name: "New Vehicle" }, { ...valid(), name: "New Vehicle 2" }];
     expect(uniqueVehicleName("New Vehicle", existing)).toBe("New Vehicle 3");

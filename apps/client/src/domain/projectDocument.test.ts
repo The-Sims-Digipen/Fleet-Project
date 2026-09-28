@@ -1,52 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { normalizeProjectDocument, normalizeScenarioDocument } from "../project/serialization";
-import { createMockAnalysis, createMockPresets } from "./mockProject";
-import { createProjectDocument } from "./projectDocument";
-import { createScenarioDocument, defaultScenarioAssumptions } from "./scenario";
+import { createDefaultProjectScene } from "../scene/defaultProjectScene";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "./mockProject";
+import { createProjectDocument, toM1ProjectDocument } from "./projectDocument";
+import { createScenarioDocument, defaultScenarioAssumptions, toM1ScenarioDocument } from "./scenario";
 
-/**
- * T03 writes project documents; `project/serialization.ts` reads them. These
- * tests cover the writer and the seam between the two, so a change on either
- * side that makes written documents unreadable fails here.
- */
-
-describe("project document writer", () => {
-  it("writes the inputs every depot shares, and nothing else", () => {
-    const presets = createMockPresets();
-    const analysis = createMockAnalysis();
-    const document = createProjectDocument(presets, analysis);
-
+describe("project document round-trip", () => {
+  it("writes version 4 with the Project-owned environment and reads it back", () => {
+    const document = createProjectDocument(createMockPresets(), createMockFleet(), createMockAnalysis(), createDefaultProjectScene());
     expect(document.version).toBe(4);
-    expect(document.vehiclePresets).toHaveLength(presets.length);
-    expect(document.analysis).toEqual(analysis);
-    // Vehicles belong to the depot they stand in, so they are not project data.
-    expect(document).not.toHaveProperty("fleetVehicles");
+    expect(document.scene.objects[0].id).toBe("default-project-depot");
+    expect(toM1ProjectDocument(JSON.parse(JSON.stringify(document)))).toEqual(document);
   });
 
   it("copies inputs so later store edits cannot reach a written document", () => {
     const presets = createMockPresets();
-    const document = createProjectDocument(presets, createMockAnalysis());
+    const fleet = createMockFleet();
+    const scene = createDefaultProjectScene();
+    const document = createProjectDocument(presets, fleet, createMockAnalysis(), scene);
     presets[0].name = "Mutated";
+    fleet[0].annualKm = 1;
+    scene.light = 1;
     expect(document.vehiclePresets[0].name).not.toBe("Mutated");
+    expect(document.fleetVehicles[0].annualKm).not.toBe(1);
+    expect(document.scene.light).not.toBe(1);
+  });
+
+  it("rejects legacy project documents rather than migrating old World data", () => {
+    expect(() => toM1ProjectDocument({ version: 3 })).toThrow(/unsupported/i);
+    expect(() => toM1ProjectDocument(null)).toThrow(/invalid/i);
   });
 });
 
-describe("writer and reader agree", () => {
-  it("round-trips a written document through the serializer unchanged", () => {
-    const document = createProjectDocument(createMockPresets(), createMockAnalysis());
-    const stored = JSON.parse(JSON.stringify(document));
-    expect(normalizeProjectDocument(stored)).toEqual(document);
+describe("scenario documents", () => {
+  it("still normalizes the supported scenario payload independently of the Project scene", () => {
+    const upgraded = toM1ScenarioDocument({ version: 1, vehiclePlans: { "UNIT-01": { transitionYear: 2028, targetPresetId: "electric-van" } } });
+    expect(upgraded).toEqual({
+      version: 2,
+      vehiclePlans: { "UNIT-01": { transitionYear: 2028, targetPresetId: "electric-van" } },
+      assumptions: defaultScenarioAssumptions,
+    });
   });
 
-  it("round-trips a created scenario document unchanged", () => {
-    const document = createScenarioDocument({ "UNIT-01": { transitionYear: 2029, targetPresetId: "electric-van" } });
-    const stored = JSON.parse(JSON.stringify(document));
-    expect(normalizeScenarioDocument(stored)).toEqual(document);
-    expect(document.assumptions).toEqual(defaultScenarioAssumptions);
-  });
-});
-
-describe("scenario constructors", () => {
   it("deep-copies plans so a created document never shares state with its source", () => {
     const plans = { "UNIT-01": { transitionYear: 2028 } };
     const document = createScenarioDocument(plans);

@@ -1,148 +1,140 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createMemoryProjectRepository } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
-import { currentFleet, placeVehicleFromPreset, updateFleetVehicle, useFleetStore } from "../state/fleetStore";
+import { useFleetStore } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "../state/projectStore";
 import { createDocument, createEditorState, useSceneStore } from "../state/sceneStore";
 import { effectiveVehicleState } from "./effectiveState";
 import { currentSimulationInput, deleteFleetVehicle, deleteVehiclePreset, presetDeletionImpact, vehicleDeletionImpact } from "./fleetCommands";
-import { createMockAnalysis, createMockPresets } from "./mockProject";
+import { createMockAnalysis, createMockFleet, createMockPresets } from "./mockProject";
 
 const project = useProjectStore.getState;
-const scene = useSceneStore.getState;
+const fleet = useFleetStore.getState;
 const presets = usePresetStore.getState;
 
 const activeScenario = () => project().scenarios.find((scenario) => scenario.id === project().activeScenarioId)!;
 const planFor = (scenarioId: string, vehicleId: string) =>
-  project().worlds.flatMap((world) => world.scenarios).find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans[vehicleId];
-const presetByName = (name: string) => presets().presets.find((preset) => preset.name === name)!;
-const place = (name = "Diesel Delivery Van") => placeVehicleFromPreset(presetByName(name))!;
+  project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans[vehicleId];
 
 beforeEach(() => {
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   const document = createDocument();
-  const inputs = { presets: createMockPresets(), analysis: createMockAnalysis() };
+  const inputs = { presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() };
   presets().replacePresets(inputs.presets);
-  useFleetStore.getState().updateAnalysis(inputs.analysis);
+  fleet().updateAnalysis(inputs.analysis);
+  fleet().replaceFleet(inputs.fleet);
   useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
   useProjectStore.setState(createProjectFields("Fleet commands test", document, 0, inputs));
 });
 
-describe("placing vehicles", () => {
-  it("instantiates a preset as a vehicle standing in the depot", () => {
-    expect(currentFleet()).toEqual([]);
-    const id = place();
-
-    expect(currentFleet()).toHaveLength(1);
-    expect(currentFleet()[0]).toMatchObject({ id, currentPresetId: "diesel-van", name: "Diesel Delivery Van" });
-    // The vehicle and the 3D object are the same thing, not two records.
-    expect(scene().document.objects.some((object) => object.id === id)).toBe(true);
+describe("fleet CRUD", () => {
+  it("adds a generic vehicle with a stable id and an available parking lot", () => {
+    const before = fleet().vehicles.length;
+    const id = fleet().createVehicle()!;
+    expect(id).toBeTruthy();
+    expect(fleet().vehicles).toHaveLength(before + 1);
+    const created = fleet().vehicles.find((vehicle) => vehicle.id === id)!;
+    expect(created.presetId).toBeNull();
+    expect(created.parkingLotId).toBeTruthy();
+    // A second vehicle must not reuse the first one's id or name.
+    const other = fleet().createVehicle()!;
+    expect(other).not.toBe(id);
+    expect(fleet().vehicles.find((vehicle) => vehicle.id === other)!.name).not.toBe(created.name);
   });
 
-  it("gives each placement its own id and keeps them clear of each other", () => {
-    const first = place();
-    const second = place("Electric Delivery Van");
-    expect(second).not.toBe(first);
-    expect(currentFleet()).toHaveLength(2);
-    const [a, b] = scene().document.objects;
-    expect(a.transform.position[0]).not.toBe(b.transform.position[0]);
+  it("duplicates a vehicle as an independent record with its own id and name", () => {
+    const source = fleet().vehicles[0];
+    const copyId = fleet().duplicateVehicle(source.id)!;
+    const copy = fleet().vehicles.find((vehicle) => vehicle.id === copyId)!;
+    expect(copyId).not.toBe(source.id);
+    expect(copy.name).not.toBe(source.name);
+    expect(copy).toMatchObject({ annualKm: source.annualKm, presetId: source.presetId });
+    expect(copy.parkingLotId).not.toBe(source.parkingLotId);
+
+    // Editing the copy leaves the original untouched.
+    fleet().updateVehicle(copyId, { annualKm: 12_345 });
+    expect(fleet().vehicles.find((vehicle) => vehicle.id === source.id)!.annualKm).toBe(source.annualKm);
+    expect(fleet().duplicateVehicle("missing")).toBeNull();
   });
 
-  it("does not treat plain scenery as a vehicle", () => {
-    scene().addObject("van");
-    expect(currentFleet()).toEqual([]);
-  });
-
-  it("is undoable, because placing a vehicle is a scene edit", () => {
-    place();
-    expect(currentFleet()).toHaveLength(1);
-    scene().undo();
-    expect(currentFleet()).toEqual([]);
-    scene().redo();
-    expect(currentFleet()).toHaveLength(1);
-  });
-});
-
-describe("editing a vehicle", () => {
   it("applies valid edits and rejects invalid ones without losing the last good value", () => {
-    const id = place();
-    updateFleetVehicle(id, { annualKm: 31_000 });
-    expect(currentFleet()[0].annualKm).toBe(31_000);
+    const target = fleet().vehicles[0];
+    fleet().updateVehicle(target.id, { annualKm: 31_000, name: "Renamed Van" });
+    expect(fleet().vehicles[0]).toMatchObject({ annualKm: 31_000, name: "Renamed Van" });
 
-    for (const patch of [{ annualKm: -1 }, { utilisation: 2 }, { operatingDays: 400 }, { depotDwellHours: 25 }]) {
-      updateFleetVehicle(id, patch);
+    for (const patch of [{ annualKm: -1 }, { utilisation: 2 }, { name: "" }, { presetId: "missing" }, { operatingDays: 400 }]) {
+      fleet().updateVehicle(target.id, patch);
     }
-    expect(currentFleet()[0].annualKm).toBe(31_000);
-  });
+    expect(fleet().vehicles[0]).toMatchObject({ annualKm: 31_000, name: "Renamed Van" });
 
-  it("repoints the vehicle at another preset, which also changes what is rendered", () => {
-    const id = place();
-    updateFleetVehicle(id, { currentPresetId: "electric-van" });
-    expect(currentFleet()[0].currentPresetId).toBe("electric-van");
-    expect(scene().document.objects.find((object) => object.id === id)?.presetId).toBe("electric-van");
-
-    updateFleetVehicle(id, { currentPresetId: "missing-preset" });
-    expect(currentFleet()[0].currentPresetId).toBe("electric-van");
+    // Ids are immutable: a patch cannot repoint a record.
+    fleet().updateVehicle(target.id, { id: "hijacked" });
+    expect(fleet().vehicles[0].id).toBe(target.id);
   });
 
   it("refuses a replacement year outside the analysis period", () => {
-    const id = place();
-    updateFleetVehicle(id, { replacementYear: 2030 });
-    expect(currentFleet()[0].replacementYear).toBe(2030);
-    updateFleetVehicle(id, { replacementYear: 2099 });
-    expect(currentFleet()[0].replacementYear).toBe(2030);
+    const target = fleet().vehicles[0];
+    fleet().updateVehicle(target.id, { replacementYear: 2030 });
+    expect(fleet().vehicles[0].replacementYear).toBe(2030);
+    fleet().updateVehicle(target.id, { replacementYear: 2099 });
+    expect(fleet().vehicles[0].replacementYear).toBe(2030);
+  });
+
+  it("restores the baseline on cancel and keeps changes on commit", () => {
+    const target = fleet().vehicles[0];
+    fleet().beginEdit();
+    fleet().updateVehicle(target.id, { annualKm: 999 });
+    expect(fleet().vehicles[0].annualKm).toBe(999);
+    fleet().cancelEdit();
+    expect(fleet().vehicles[0].annualKm).toBe(target.annualKm);
+
+    fleet().beginEdit();
+    fleet().updateVehicle(target.id, { annualKm: 777 });
+    fleet().commitEdit();
+    fleet().cancelEdit();
+    expect(fleet().vehicles[0].annualKm).toBe(777);
   });
 });
 
-describe("deleting a vehicle", () => {
+describe("deleting a fleet vehicle", () => {
   it("lists the scenario plans that would be removed with it", () => {
-    const id = place();
     const scenarioId = activeScenario().id;
-    project().updateScenarioVehiclePlan(scenarioId, id, { transitionYear: 2028, targetPresetId: "electric-van" });
-    expect(vehicleDeletionImpact(id)).toEqual([
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2028, targetPresetId: "electric-van" });
+    expect(vehicleDeletionImpact("UNIT-01")).toEqual([
       { scenarioId, scenarioName: activeScenario().name, plan: { transitionYear: 2028, targetPresetId: "electric-van" } },
     ]);
+    expect(vehicleDeletionImpact("UNIT-02")).toEqual([]);
   });
 
-  it("removes the object, the vehicle and its plans as one edit", () => {
-    const id = place();
+  it("removes the vehicle and every scenario plan keyed by it as one edit", () => {
     const first = activeScenario().id;
     project().createScenario();
     const second = activeScenario().id;
-    project().updateScenarioVehiclePlan(first, id, { transitionYear: 2028, targetPresetId: "electric-van" });
-    project().updateScenarioVehiclePlan(second, id, { transitionYear: 2031, targetPresetId: "electric-van" });
+    project().updateScenarioVehiclePlan(first, "UNIT-01", { transitionYear: 2028, targetPresetId: "electric-van" });
+    project().updateScenarioVehiclePlan(second, "UNIT-01", { transitionYear: 2031, targetPresetId: "electric-van" });
+    project().updateScenarioVehiclePlan(second, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
 
-    deleteFleetVehicle(id);
+    deleteFleetVehicle("UNIT-01");
 
-    expect(currentFleet()).toEqual([]);
-    expect(scene().document.objects.some((object) => object.id === id)).toBe(false);
-    expect(planFor(first, id)).toBeUndefined();
-    expect(planFor(second, id)).toBeUndefined();
-  });
-
-  it("restores the vehicle on undo", () => {
-    const id = place();
-    deleteFleetVehicle(id);
-    expect(currentFleet()).toEqual([]);
-    scene().undo();
-    expect(currentFleet().map((vehicle) => vehicle.id)).toEqual([id]);
+    expect(fleet().vehicles.some((vehicle) => vehicle.id === "UNIT-01")).toBe(false);
+    expect(planFor(first, "UNIT-01")).toBeUndefined();
+    expect(planFor(second, "UNIT-01")).toBeUndefined();
+    // Plans for other vehicles are untouched.
+    expect(planFor(second, "UNIT-02")).toEqual({ transitionYear: 2030, targetPresetId: "electric-box-truck" });
   });
 });
 
 describe("deleting a vehicle preset", () => {
-  it("is blocked while a vehicle in this depot still uses it", () => {
-    place();
+  it("is blocked while the fleet or a scenario still points at it", () => {
     const blocked = deleteVehiclePreset("diesel-van");
     expect(blocked.ok).toBe(false);
     expect(presets().presets.some((preset) => preset.id === "diesel-van")).toBe(true);
     if (!blocked.ok) expect(blocked.references.some((reference) => reference.kind === "fleet-current")).toBe(true);
-  });
 
-  it("is blocked while a scenario still targets it", () => {
-    const id = place();
-    project().updateScenarioVehiclePlan(activeScenario().id, id, { targetPresetId: "electric-box-truck" });
-    expect(presetDeletionImpact("electric-box-truck").some((reference) => reference.kind === "scenario-target")).toBe(true);
+    project().updateScenarioVehiclePlan(activeScenario().id, "UNIT-01", { targetPresetId: "electric-box-truck" });
+    const targeted = presetDeletionImpact("electric-box-truck");
+    expect(targeted.some((reference) => reference.kind === "scenario-target")).toBe(true);
     expect(deleteVehiclePreset("electric-box-truck").ok).toBe(false);
   });
 
@@ -155,134 +147,104 @@ describe("deleting a vehicle preset", () => {
   });
 });
 
-describe("depots keep their own vehicles", () => {
-  it("shows a vehicle only in the depot it was placed in", async () => {
-    const depotA = project().worldId;
-    const id = place();
-    expect(currentFleet().map((vehicle) => vehicle.id)).toEqual([id]);
-
-    project().newWorld();
-    expect(project().worldId).not.toBe(depotA);
-    // Presets are shared by every depot; the vehicles are not.
-    expect(currentFleet()).toEqual([]);
-    expect(presets().presets.length).toBeGreaterThan(0);
-
-    await project().switchWorld(depotA);
-    expect(currentFleet().map((vehicle) => vehicle.id)).toEqual([id]);
-  });
-
-  it("leaves another depot's scenarios alone when a vehicle is deleted", async () => {
-    const depotA = project().worldId;
-    const idA = place();
-    const scenarioA = activeScenario().id;
-    project().updateScenarioVehiclePlan(scenarioA, idA, { transitionYear: 2029, targetPresetId: "electric-van" });
-
-    project().newWorld();
-    const idB = place();
-    const scenarioB = activeScenario().id;
-    project().updateScenarioVehiclePlan(scenarioB, idB, { transitionYear: 2030, targetPresetId: "electric-van" });
-
-    deleteFleetVehicle(idB);
-
-    expect(planFor(scenarioB, idB)).toBeUndefined();
-    // Depot A's plan is untouched, which a project-wide fleet could not promise.
-    expect(planFor(scenarioA, idA)).toEqual({ transitionYear: 2029, targetPresetId: "electric-van" });
-    await project().switchWorld(depotA);
-    expect(currentFleet().map((vehicle) => vehicle.id)).toEqual([idA]);
-  });
-});
-
-describe("M1 evidence: two scenarios over one depot", () => {
-  it("changes effective state by scenario and year without mutating the vehicle or the other plan", () => {
-    const id = place();
+describe("M1 evidence: two scenarios over one fleet", () => {
+  it("changes effective state by scenario and year without mutating the fleet or the other plan", () => {
     const gradual = activeScenario().id;
     project().createScenario();
     const fast = activeScenario().id;
+    expect(fast).not.toBe(gradual);
 
-    project().updateScenarioVehiclePlan(gradual, id, { transitionYear: 2031, targetPresetId: "electric-van" });
-    project().updateScenarioVehiclePlan(fast, id, { transitionYear: 2027, targetPresetId: "electric-box-truck" });
+    project().updateScenarioVehiclePlan(gradual, "UNIT-01", { transitionYear: 2031, targetPresetId: "electric-van" });
+    project().updateScenarioVehiclePlan(fast, "UNIT-01", { transitionYear: 2027, targetPresetId: "electric-box-truck" });
 
     const presetIds = new Set(presets().presets.map((preset) => preset.id));
-    const vehicle = currentFleet()[0];
-    const stateIn = (scenarioId: string, year: number) => effectiveVehicleState(vehicle, planFor(scenarioId, id), presetIds, year);
+    const vehicle = fleet().vehicles.find((item) => item.id === "UNIT-01")!;
+    const stateIn = (scenarioId: string, year: number) =>
+      effectiveVehicleState(vehicle, planFor(scenarioId, "UNIT-01"), presetIds, year);
 
+    // Same vehicle, same year, different scenario: different effective preset.
     expect(stateIn(gradual, 2028).presetId).toBe("diesel-van");
     expect(stateIn(fast, 2028).presetId).toBe("electric-box-truck");
+    // Same scenario, later year: the planned change has taken effect.
     expect(stateIn(gradual, 2031)).toMatchObject({ presetId: "electric-van", transitioned: true });
 
-    expect(currentFleet()[0].currentPresetId).toBe("diesel-van");
-    expect(planFor(gradual, id)).toEqual({ transitionYear: 2031, targetPresetId: "electric-van" });
-    expect(planFor(fast, id)).toEqual({ transitionYear: 2027, targetPresetId: "electric-box-truck" });
+    // Neither plan touched the shared fleet record or the other scenario.
+    expect(fleet().vehicles.find((item) => item.id === "UNIT-01")!.presetId).toBe("diesel-van");
+    expect(planFor(gradual, "UNIT-01")).toEqual({ transitionYear: 2031, targetPresetId: "electric-van" });
+    expect(planFor(fast, "UNIT-01")).toEqual({ transitionYear: 2027, targetPresetId: "electric-box-truck" });
   });
 
   it("duplicating a scenario deep-copies its plans so edits stay isolated", () => {
-    const id = place();
     const original = activeScenario().id;
-    project().updateScenarioVehiclePlan(original, id, { transitionYear: 2030, targetPresetId: "electric-van" });
+    project().updateScenarioVehiclePlan(original, "UNIT-01", { transitionYear: 2030, targetPresetId: "electric-van" });
     project().duplicateScenario(original);
     const copy = activeScenario().id;
 
-    project().updateScenarioVehiclePlan(copy, id, { transitionYear: 2026 });
-    expect(planFor(copy, id)).toEqual({ transitionYear: 2026, targetPresetId: "electric-van" });
-    expect(planFor(original, id)).toEqual({ transitionYear: 2030, targetPresetId: "electric-van" });
+    project().updateScenarioVehiclePlan(copy, "UNIT-01", { transitionYear: 2026 });
+    expect(planFor(copy, "UNIT-01")).toEqual({ transitionYear: 2026, targetPresetId: "electric-van" });
+    expect(planFor(original, "UNIT-01")).toEqual({ transitionYear: 2030, targetPresetId: "electric-van" });
   });
 
   it("refuses a plan naming an unknown vehicle, preset or out-of-period year", () => {
-    const id = place();
     const scenarioId = activeScenario().id;
     project().updateScenarioVehiclePlan(scenarioId, "GHOST", { transitionYear: 2030 });
     expect(planFor(scenarioId, "GHOST")).toBeUndefined();
 
-    project().updateScenarioVehiclePlan(scenarioId, id, { targetPresetId: "missing-preset" });
-    expect(planFor(scenarioId, id)).toBeUndefined();
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { targetPresetId: "missing-preset" });
+    expect(planFor(scenarioId, "UNIT-01")).toBeUndefined();
 
-    project().updateScenarioVehiclePlan(scenarioId, id, { transitionYear: 2099 });
-    expect(planFor(scenarioId, id)).toBeUndefined();
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2099 });
+    expect(planFor(scenarioId, "UNIT-01")).toBeUndefined();
   });
 });
 
 describe("save and reopen", () => {
-  it("restores a depot's vehicles and plans with stable references", async () => {
-    const id = place();
-    updateFleetVehicle(id, { annualKm: 33_000 });
+  it("restores fleet edits, new vehicles and scenario plans with stable references", async () => {
     const scenarioId = activeScenario().id;
-    project().updateScenarioVehiclePlan(scenarioId, id, { transitionYear: 2029, targetPresetId: "electric-van" });
+    fleet().updateVehicle("UNIT-01", { annualKm: 33_000, name: "Renamed Van" });
+    const addedId = fleet().createVehicle()!;
+    fleet().updateVehicle(addedId, { annualKm: 12_000, presetId: "electric-van" });
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2029, targetPresetId: "electric-van" });
 
     await project().saveProject();
     const projectId = project().projectId!;
-    useSceneStore.setState({ document: createDocument() });
+    // Clear the stores so anything restored has to have come from storage.
+    fleet().replaceFleet([]);
     await project().openProject(projectId);
 
-    expect(currentFleet()).toHaveLength(1);
-    expect(currentFleet()[0]).toMatchObject({ id, annualKm: 33_000, currentPresetId: "diesel-van" });
-    const restored = project().scenarios.find((scenario) => scenario.id === scenarioId)!;
-    expect(restored.document.vehiclePlans[id]).toEqual({ transitionYear: 2029, targetPresetId: "electric-van" });
+    expect(fleet().vehicles.find((vehicle) => vehicle.id === "UNIT-01")).toMatchObject({ annualKm: 33_000, name: "Renamed Van" });
+    expect(fleet().vehicles.find((vehicle) => vehicle.id === addedId)).toMatchObject({ annualKm: 12_000, presetId: "electric-van" });
+    expect(fleet().analysis).toEqual(createMockAnalysis());
+
+    // Every restored reference still resolves inside the reopened project.
+    const presetIds = new Set(presets().presets.map((preset) => preset.id));
+    for (const vehicle of fleet().vehicles) expect(vehicle.presetId === null || presetIds.has(vehicle.presetId)).toBe(true);
+    const restoredPlan = project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans["UNIT-01"];
+    expect(restoredPlan).toEqual({ transitionYear: 2029, targetPresetId: "electric-van" });
   });
 
   it("drops a deleted vehicle and its plans permanently, not just in memory", async () => {
-    const id = place();
     const scenarioId = activeScenario().id;
-    project().updateScenarioVehiclePlan(scenarioId, id, { transitionYear: 2030, targetPresetId: "electric-van" });
-    deleteFleetVehicle(id);
+    project().updateScenarioVehiclePlan(scenarioId, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
+    deleteFleetVehicle("UNIT-02");
 
     await project().saveProject();
     await project().openProject(project().projectId!);
 
-    expect(currentFleet()).toEqual([]);
-    expect(project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans[id]).toBeUndefined();
+    expect(fleet().vehicles.some((vehicle) => vehicle.id === "UNIT-02")).toBe(false);
+    expect(project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans["UNIT-02"]).toBeUndefined();
   });
 });
 
 describe("authoritative simulation input", () => {
-  it("pairs the project's shared inputs with the active depot's vehicles", () => {
-    const id = place();
+  it("assembles the project and active scenario T05 consumes", () => {
     const input = currentSimulationInput()!;
     expect(input.project.version).toBe(4);
     expect(input.scenario.version).toBe(2);
-    expect(input.fleetVehicles.map((vehicle) => vehicle.id)).toEqual([id]);
-    expect(input.project.analysis).toEqual(useFleetStore.getState().analysis);
+    expect(input.project.fleetVehicles).toHaveLength(fleet().vehicles.length);
+    expect(input.project.analysis).toEqual(fleet().analysis);
     // The snapshot is a copy: mutating it cannot reach the stores.
-    input.fleetVehicles[0].annualKm = 1;
-    expect(currentFleet()[0].annualKm).not.toBe(1);
+    input.project.fleetVehicles[0].annualKm = 1;
+    expect(fleet().vehicles[0].annualKm).not.toBe(1);
   });
 });

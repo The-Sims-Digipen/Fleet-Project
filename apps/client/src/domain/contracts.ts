@@ -1,4 +1,5 @@
 import type { OwnershipTerms, VehiclePreset } from "../vehicles/types";
+import type { SceneDocument } from "../scene/types";
 
 /**
  * Canonical, serializable M1 domain contracts.
@@ -14,6 +15,10 @@ export const M1_SCENARIO_DOCUMENT_VERSION = 2 as const;
 
 export type { OwnershipTerms };
 
+export type VehicleId = string;
+export type VehiclePresetId = string;
+export type ParkingLotId = string;
+
 /**
  * The M1 calculation contract's preset. `VehiclePreset` in `vehicles/types.ts`
  * carries these fields directly, so there is one preset shape and one validator
@@ -25,14 +30,14 @@ export type CurrentVehicleHolding =
   | { kind: "owned"; currentValue: number; endResidualValue: number }
   | { kind: "leased"; annualPayment: number; exitFee: number };
 
-/**
- * Planning data carried by a vehicle placed in a depot.
- *
- * This is the half of a fleet vehicle that is not already on its scene object:
- * identity, display name and current preset come from the object itself. It is
- * stored on the object, so a depot's vehicles are exactly what stands in it.
- */
-export type VehicleData = {
+/** Shared project fleet data. Transition decisions do not belong here. */
+export type FleetVehicle = {
+  id: VehicleId;
+  name: string;
+  /** A reusable configuration. Null keeps the stable vehicle as a generic placeholder. */
+  presetId: VehiclePresetId | null;
+  /** Every persistent vehicle occupies exactly one position in the default depot. */
+  parkingLotId: ParkingLotId;
   annualKm: number;
   typicalDailyKm: number;
   operatingDays: number;
@@ -43,16 +48,6 @@ export type VehicleData = {
   externalChargingAccess: boolean;
   replacementYear: number | null;
   currentHolding: CurrentVehicleHolding;
-};
-
-/**
- * One vehicle in a depot, assembled from its placed object. Transition
- * decisions are scenario-owned and do not belong here.
- */
-export type FleetVehicle = VehicleData & {
-  id: string;
-  name: string;
-  currentPresetId: string;
 };
 
 /** Common assumptions shared by every scenario in a project. */
@@ -82,14 +77,11 @@ export type ScenarioVehiclePlan = {
   targetPresetId?: string;
 };
 
-/**
- * Project-owned inputs. Vehicle presets are shared by every depot in the
- * project; the vehicles themselves belong to the depot they stand in and travel
- * with its world document.
- */
 export type M1ProjectDocument = {
   version: typeof M1_PROJECT_DOCUMENT_VERSION;
+  scene: SceneDocument;
   vehiclePresets: M1VehiclePreset[];
+  fleetVehicles: FleetVehicle[];
   analysis: AnalysisSettings;
 };
 
@@ -101,7 +93,7 @@ export type M1ScenarioDocument = {
 
 export type EffectiveVehicleState = {
   vehicleId: string;
-  presetId: string;
+  presetId: string | null;
   transitioned: boolean;
   transitionYear: number | null;
 };
@@ -110,7 +102,7 @@ export type VehicleTransitionEvent = {
   kind: "vehicle-transition";
   year: number;
   vehicleId: string;
-  fromPresetId: string;
+  fromPresetId: string | null;
   toPresetId: string;
 };
 
@@ -162,8 +154,6 @@ export type SimulationResult = {
 
 export type SimulationInput = {
   project: M1ProjectDocument;
-  /** The depot's vehicles, derived from the world the scenario is bound to. */
-  fleetVehicles: FleetVehicle[];
   scenario: M1ScenarioDocument;
 };
 

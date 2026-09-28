@@ -16,7 +16,7 @@ Status: implemented foundation. This document records the current direction for 
 ## Current implementation
 
 - The initial catalog definition is `van`, backed by `createVanModel()` in `apps/client/src/models/van.ts`.
-- World Objects provides compact list selection and modal creation. Create/delete/reset and appearance changes integrate with snapshot undo history.
+- The development-only World Objects panel provides compact list selection and modal creation. Create/delete/reset and appearance changes integrate with snapshot undo history; production fleet vehicles are created through fleet management.
 - File import, external model URLs, GLB/glTF loading, runtime asset caches, animation, and ECS are outside the chosen architecture.
 
 ## Verification expectations

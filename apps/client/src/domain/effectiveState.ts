@@ -4,6 +4,7 @@ import {
   type EffectiveVehicleState,
   type FleetVehicle,
   type M1ProjectDocument,
+  type M1ScenarioDocument,
   type ScenarioVehiclePlan,
   type SimulationInput,
   type VehicleTransitionEvent,
@@ -40,7 +41,7 @@ export function resolveVehiclePlan(plan: ScenarioVehiclePlan | undefined, preset
 
 /** A plan only changes anything when it has both parts and names a different preset. */
 export function planChangesPreset(vehicle: FleetVehicle, plan: ResolvedVehiclePlan): boolean {
-  return plan.transitionYear !== null && plan.targetPresetId !== null && plan.targetPresetId !== vehicle.currentPresetId;
+  return plan.transitionYear !== null && plan.targetPresetId !== null && plan.targetPresetId !== vehicle.presetId;
 }
 
 export function effectiveVehicleState(vehicle: FleetVehicle, plan: ScenarioVehiclePlan | undefined, presetIds: ReadonlySet<string>, year: number): EffectiveVehicleState {
@@ -49,7 +50,7 @@ export function effectiveVehicleState(vehicle: FleetVehicle, plan: ScenarioVehic
   const transitioned = changes && year >= (resolved.transitionYear as number);
   return {
     vehicleId: vehicle.id,
-    presetId: transitioned ? (resolved.targetPresetId as string) : vehicle.currentPresetId,
+    presetId: transitioned ? (resolved.targetPresetId as string) : vehicle.presetId,
     transitioned,
     transitionYear: changes ? resolved.transitionYear : null,
   };
@@ -72,26 +73,26 @@ export function transitionEvents(vehicles: readonly FleetVehicle[], plans: PlanR
     if (!planChangesPreset(vehicle, resolved)) continue;
     const year = resolved.transitionYear as number;
     if (year < settings.startYear || year > endYear) continue;
-    events.push({ kind: "vehicle-transition", year, vehicleId: vehicle.id, fromPresetId: vehicle.currentPresetId, toPresetId: resolved.targetPresetId as string });
+    events.push({ kind: "vehicle-transition", year, vehicleId: vehicle.id, fromPresetId: vehicle.presetId, toPresetId: resolved.targetPresetId as string });
   }
   // Stable ordering keeps rendered event lists and snapshots deterministic.
   return events.sort((a, b) => a.year - b.year || a.vehicleId.localeCompare(b.vehicleId));
 }
 
-/** Document-level wrappers for callers holding a whole simulation input. */
+/** Document-level wrappers for callers that already hold a whole project/scenario pair. */
 export function effectiveFleetStateFor(input: SimulationInput, year: number): EffectiveVehicleState[] {
-  return effectiveFleetState(input.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), year);
+  return effectiveFleetState(input.project.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), year);
 }
 
 export function transitionEventsFor(input: SimulationInput): VehicleTransitionEvent[] {
-  return transitionEvents(input.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), input.project.analysis);
+  return transitionEvents(input.project.fleetVehicles, input.scenario.vehiclePlans, presetIdsOf(input.project), input.project.analysis);
 }
 
-export function effectivePresetFor(input: SimulationInput, vehicleId: string, year: number) {
-  const vehicle = input.fleetVehicles.find((item) => item.id === vehicleId);
+export function effectivePresetFor(project: M1ProjectDocument, scenario: M1ScenarioDocument, vehicleId: string, year: number) {
+  const vehicle = project.fleetVehicles.find((item) => item.id === vehicleId);
   if (!vehicle) return undefined;
-  const state = effectiveVehicleState(vehicle, input.scenario.vehiclePlans[vehicleId], presetIdsOf(input.project), year);
-  return input.project.vehiclePresets.find((preset) => preset.id === state.presetId);
+  const state = effectiveVehicleState(vehicle, scenario.vehiclePlans[vehicleId], presetIdsOf(project), year);
+  return project.vehiclePresets.find((preset) => preset.id === state.presetId);
 }
 
 export { presetIdsOf };

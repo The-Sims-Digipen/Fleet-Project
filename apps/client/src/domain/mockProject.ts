@@ -51,37 +51,37 @@ const presetSeed: VehiclePreset[] = [
 // seed cannot be read as two disagreeing statements about the same vehicle.
 const fleetSeed: FleetVehicle[] = [
   {
-    id: "UNIT-01", name: "City Delivery Van", currentPresetId: "diesel-van",
+    id: "UNIT-01", name: "City Delivery Van", presetId: "diesel-van", parkingLotId: "parking-lot-01",
     annualKm: 28_000, typicalDailyKm: 112, operatingDays: 250, utilisation: 0.85,
     routePattern: "predictable", returnsToDepot: true, depotDwellHours: 12, externalChargingAccess: true,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 18_000, endResidualValue: 4_000 },
   },
   {
-    id: "UNIT-02", name: "Regional Hauler", currentPresetId: "diesel-box-truck",
+    id: "UNIT-02", name: "Regional Hauler", presetId: "diesel-box-truck", parkingLotId: "parking-lot-02",
     annualKm: 54_000, typicalDailyKm: 216, operatingDays: 250, utilisation: 0.95,
     routePattern: "variable", returnsToDepot: true, depotDwellHours: 8, externalChargingAccess: false,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 34_000, endResidualValue: 7_000 },
   },
   {
-    id: "UNIT-03", name: "Urban Courier", currentPresetId: "electric-van",
+    id: "UNIT-03", name: "Urban Courier", presetId: "electric-van", parkingLotId: "parking-lot-03",
     annualKm: 19_000, typicalDailyKm: 76, operatingDays: 250, utilisation: 0.6,
     routePattern: "predictable", returnsToDepot: true, depotDwellHours: 14, externalChargingAccess: true,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 27_000, endResidualValue: 8_000 },
   },
   {
-    id: "UNIT-04", name: "Service Support", currentPresetId: "hybrid-van",
+    id: "UNIT-04", name: "Service Support", presetId: "hybrid-van", parkingLotId: "parking-lot-04",
     annualKm: 32_000, typicalDailyKm: 128, operatingDays: 250, utilisation: 0.8,
     routePattern: "variable", returnsToDepot: true, depotDwellHours: 10, externalChargingAccess: true,
     replacementYear: null, currentHolding: { kind: "leased", annualPayment: 7_200, exitFee: 1_500 },
   },
   {
-    id: "UNIT-05", name: "Depot Shuttle", currentPresetId: "diesel-van",
+    id: "UNIT-05", name: "Depot Shuttle", presetId: "diesel-van", parkingLotId: "parking-lot-05",
     annualKm: 24_000, typicalDailyKm: 96, operatingDays: 250, utilisation: 0.7,
     routePattern: "predictable", returnsToDepot: true, depotDwellHours: 13, externalChargingAccess: false,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 15_000, endResidualValue: 3_500 },
   },
   {
-    id: "UNIT-06", name: "Long-haul Supply", currentPresetId: "diesel-box-truck",
+    id: "UNIT-06", name: "Long-haul Supply", presetId: "diesel-box-truck", parkingLotId: "parking-lot-06",
     annualKm: 61_000, typicalDailyKm: 244, operatingDays: 250, utilisation: 1,
     routePattern: "variable", returnsToDepot: false, depotDwellHours: 4, externalChargingAccess: false,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 41_000, endResidualValue: 9_000 },

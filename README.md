@@ -1,6 +1,6 @@
 # Fleet Transition Planner
 
-A browser-based fleet electrification planning prototype with an interactive Three.js depot editor, reusable vehicle presets, and browser-local Project / World / Scenario persistence.
+A browser-based fleet electrification planning prototype with an interactive Three.js depot, reusable vehicle presets, and browser-local Project / Scenario persistence.
 
 Project documentation is indexed in [docs/README.md](docs/README.md).
 
@@ -38,38 +38,42 @@ pnpm dev
 
 No PostgreSQL, Neon account, database migration, or `DATABASE_URL` is required for project persistence. Projects are saved to IndexedDB in the browser profile running the client.
 
-The Fastify server is still started by the root `pnpm dev` command because the project may use it for later features. The current Project / World / Scenario save flow works even if only the client is running:
+The Fastify server is still started by the root `pnpm dev` command because the project may use it for later features. The current Project / Scenario save flow works even if only the client is running:
 
 ```bash
 pnpm dev:client
 ```
 
+Reusable UI components live in `packages/ui`. Run the canonical component catalogue and usage documentation with:
+
+```bash
+pnpm dev:ui
+```
+
+The catalogue is implemented by `apps/ui-docs`; there is no separate showcase application.
+
 ## Project persistence
 
-Browser storage keeps four logical collections:
+Browser storage keeps two logical collections:
 
 ```text
 projects
-worlds
 scenarios
-projectScenarios
 ```
 
-- **World** owns persistent 3D objects, transforms, appearance, and scene settings.
-- **Scenario** is saved separately but is permanently bound to one `worldId`.
-- **Project** holds an in-memory collection of Worlds; each World has its own world-bound Scenarios.
-- World/Scenario edits stay in memory while you switch between them.
-- **Save Project** atomically writes the Project, every in-memory World, every Scenario, and their links to IndexedDB.
-- The repository rejects Scenarios that reference a World outside the saved Project snapshot and uses revision checks to detect stale saves from another tab.
+- **Project** owns one physical environment, its fleet, presets, shared assumptions, and its Scenarios.
+- **Scenario** is saved separately and references its Project; it does not duplicate the scene or fleet.
+- **Save Project** atomically writes the Project and every in-memory Scenario to IndexedDB.
+- The repository validates fleet/Scenario references and uses revision checks to detect stale saves from another tab.
 - Camera state, current selection, gizmo mode, undo history, and calculated results are not persisted.
 
 Browser storage belongs to one browser profile/device. It is not automatically shared with teammates.
 
 ## Import / export
 
-Use **Export** in the project header to download the current workspace as a `.fleetproject` file. Export includes project data, every in-memory 3D World, vehicle presets, and all World-bound Scenarios, including unsaved edits.
+Use **Export** in the project header to download the current workspace as a `.fleetproject` file. Export includes the complete Project environment, fleet, vehicle presets, and all Scenarios, including unsaved edits.
 
-Use **Import** to open a `.fleetproject` file. Import creates an independent local copy with fresh IDs, so it will not overwrite an existing local project/world even when the same file is imported more than once.
+Use **Import** to open a `.fleetproject` file. Import creates an independent local copy with fresh Project and Scenario IDs, so it will not overwrite an existing local Project even when the same file is imported more than once.
 
 This is the intended way to move prototype projects between teammates or browsers before cloud persistence is introduced.
 

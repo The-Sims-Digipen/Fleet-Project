@@ -1,4 +1,5 @@
 import { analysisEndYear, type AnalysisSettings, type CurrentVehicleHolding, type FleetVehicle } from "./contracts";
+import { isParkingLotId } from "./depotLayout";
 import { maxNameLength } from "../vehicles/types";
 
 /**
@@ -45,15 +46,17 @@ export const copyFleetVehicle = (vehicle: FleetVehicle): FleetVehicle => ({ ...v
 
 /**
  * Validates an untrusted record, returning a fresh vehicle or `undefined`.
- * Supply `knownPresetIds` to also reject a vehicle whose current preset is
- * missing from the same project.
+ * Supply `knownPresetIds` to also reject a configured vehicle whose preset is
+ * missing from the same project. An unconfigured vehicle is valid and renders
+ * with the generic vehicle model.
  */
 export function normalizeFleetVehicle(value: unknown, knownPresetIds?: ReadonlySet<string>): FleetVehicle | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return;
   const draft = value as Record<string, unknown>;
   if (!isText(draft.id) || reservedIds.has(draft.id)) return;
   if (!isText(draft.name)) return;
-  if (!isText(draft.currentPresetId) || (knownPresetIds && !knownPresetIds.has(draft.currentPresetId))) return;
+  if (draft.presetId !== null && (!isText(draft.presetId) || (knownPresetIds && !knownPresetIds.has(draft.presetId)))) return;
+  if (!isParkingLotId(draft.parkingLotId)) return;
   if (!isAmount(draft.annualKm) || !isAmount(draft.typicalDailyKm)) return;
   if (!isCount(draft.operatingDays, maxOperatingDays)) return;
   if (!isShare(draft.utilisation)) return;
@@ -68,7 +71,8 @@ export function normalizeFleetVehicle(value: unknown, knownPresetIds?: ReadonlyS
   return {
     id: draft.id,
     name: draft.name.trim(),
-    currentPresetId: draft.currentPresetId,
+    presetId: draft.presetId as string | null,
+    parkingLotId: draft.parkingLotId,
     annualKm: draft.annualKm,
     typicalDailyKm: draft.typicalDailyKm,
     operatingDays: draft.operatingDays,
@@ -119,11 +123,12 @@ export function uniqueVehicleName(base: string, vehicles: readonly FleetVehicle[
  * A new vehicle with neutral planning values. The caller supplies the id so
  * tests stay deterministic and the store keeps sole ownership of id minting.
  */
-export function createFleetVehicle(id: string, name: string, currentPresetId: string): FleetVehicle {
+export function createFleetVehicle(id: string, name: string, parkingLotId: string, presetId: string | null = null): FleetVehicle {
   return {
     id,
     name,
-    currentPresetId,
+    presetId,
+    parkingLotId,
     annualKm: 0,
     typicalDailyKm: 0,
     operatingDays: 250,

@@ -8,7 +8,6 @@ import {
   PersistenceConflictError,
   PersistenceNotFoundError,
   type PersistenceRepository,
-  WorldCompatibilityError,
 } from "./persistence/repository.js";
 import { createWorkspaceSchema, updateWorkspaceSchema } from "./persistence/schemas.js";
 
@@ -26,7 +25,6 @@ function validationError(error: ZodError): ApiError {
 function sendError(reply: { code(statusCode: number): { send(payload: ApiError): unknown } }, error: unknown) {
   if (error instanceof PersistenceNotFoundError) return reply.code(404).send({ code: "NOT_FOUND", message: error.message });
   if (error instanceof PersistenceConflictError) return reply.code(409).send({ code: "REVISION_CONFLICT", message: error.message });
-  if (error instanceof WorldCompatibilityError) return reply.code(409).send({ code: "WORLD_MISMATCH", message: error.message });
   if (error instanceof ZodError) return reply.code(400).send(validationError(error));
   throw error;
 }
@@ -95,10 +93,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
     return requireRepository().updateWorkspace(input);
   });
-
-  app.get("/api/v1/worlds", async () => requireRepository().listWorlds());
-  app.get<{ Params: { id: string } }>("/api/v1/worlds/:id", async (request) => requireRepository().getWorld(request.params.id));
-  app.get<{ Params: { id: string } }>("/api/v1/worlds/:id/scenarios", async (request) => requireRepository().listScenariosByWorld(request.params.id));
 
   return app;
 }
