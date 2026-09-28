@@ -158,6 +158,14 @@ function documentFromCompatibilityProjections(runtime: ProjectRuntime): ProjectD
   });
 }
 
+function validDocumentFromCompatibilityProjections(runtime: ProjectRuntime): ProjectDocumentV5 | undefined {
+  try {
+    return documentFromCompatibilityProjections(runtime);
+  } catch {
+    return undefined;
+  }
+}
+
 function loadCompatibilityViews(document: ProjectDocumentV5, revision: number): void {
   const legacy = legacyProjectView(document, revision);
   updateCompatibilityProjections(() => {
@@ -362,12 +370,14 @@ useFleetStore.subscribe((current, previous) => {
     return;
   }
   if (current.vehicles !== previous.vehicles || current.analysis !== previous.analysis) {
-    const merged = documentFromCompatibilityProjections(project.runtime);
-    applyCompatibilityCommand({
-      type: "replace-fleet-data",
-      vehicles: merged.environment.vehicles,
-      analysis: merged.analysis,
-    }, current.baseline !== null);
+    const merged = validDocumentFromCompatibilityProjections(project.runtime);
+    if (merged) {
+      applyCompatibilityCommand({
+        type: "replace-fleet-data",
+        vehicles: merged.environment.vehicles,
+        analysis: merged.analysis,
+      }, current.baseline !== null);
+    }
   }
   if (endedEdit) useProjectStore.getState().commitEdit();
 });
@@ -383,8 +393,8 @@ usePresetStore.subscribe((current, previous) => {
     return;
   }
   if (current.presets !== previous.presets) {
-    const merged = documentFromCompatibilityProjections(project.runtime);
-    applyCompatibilityCommand({ type: "replace-vehicle-presets", presets: merged.vehiclePresets }, current.baseline !== null);
+    const merged = validDocumentFromCompatibilityProjections(project.runtime);
+    if (merged) applyCompatibilityCommand({ type: "replace-vehicle-presets", presets: merged.vehiclePresets }, current.baseline !== null);
   }
   if (endedEdit) useProjectStore.getState().commitEdit();
 });
@@ -401,8 +411,8 @@ useSceneStore.subscribe((current, previous) => {
     return;
   }
   if (current.document !== previous.document) {
-    const merged = documentFromCompatibilityProjections(project.runtime);
-    applyCompatibilityCommand({ type: "set-depot-transform", transform: merged.environment.depot.transform }, current.history.baseline !== null);
+    const merged = validDocumentFromCompatibilityProjections(project.runtime);
+    if (merged) applyCompatibilityCommand({ type: "set-depot-transform", transform: merged.environment.depot.transform }, current.history.baseline !== null);
   }
   if (endedEdit) useProjectStore.getState().commitEdit();
   if (current.editor !== previous.editor) {
