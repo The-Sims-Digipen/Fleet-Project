@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). Until a real feasibility engine is scheduled, F08 remains explicitly provisional; any future functional values must consume the canonical project/scenario state rather than introducing a separate charging model inside the panel.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F08 is deferred from the M1 Project contract and UI. When scheduled, its values must consume the canonical Project/Scenario state rather than introducing a separate charging model inside the panel.
 
 ## User capability
 
@@ -17,7 +17,7 @@ Financially attractive plans may still be operationally constrained by charging 
 
 ## Current scope
 
-The UI may continue to show the intended information hierarchy in M1, but the full charging/power feasibility engine is not part of the M1 MUST contract.
+M1 shows a short later-scope note only. It does not persist charging assumptions or present placeholder demand, capacity, or feasibility results.
 
 Future functional scope includes:
 
@@ -35,4 +35,4 @@ The functional version depends on the fleet/scenario state and simulation output
 
 ## M1 evidence
 
-If included in the M1 build, the panel should use the shared design system and clearly communicate its provisional/indicative status rather than presenting mock values as calculated results.
+The M1 UI must not present mock values as calculated results. A later implementation must use the shared design system and clearly label indicative feasibility.

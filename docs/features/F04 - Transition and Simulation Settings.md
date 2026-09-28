@@ -5,11 +5,11 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F04 commits common `AnalysisSettings` to the project and `ScenarioAssumptions`/`ScenarioVehiclePlan` changes to the active scenario through their owning actions; component-local state is for invalid or uncommitted drafts only.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F04 commits shared Analysis Settings to the Project and Vehicle transition plans to the active Scenario through Project commands; component-local state is for invalid or uncommitted drafts only.
 
 ## User capability
 
-Users can choose a replacement/target vehicle preset, transition year and the economic assumptions used by the active scenario calculation.
+Users can choose target vehicle presets and transition years, then set the shared assumptions used by every Scenario calculation.
 
 ## User need
 
@@ -19,12 +19,12 @@ Transition decisions and assumptions must be explicit and editable so users can 
 
 - Select a target preset for a fleet vehicle.
 - Select or clear its transition year.
-- Edit the M1 financial assumptions consumed by the simulation model, such as fuel/electricity prices and the analysis period where applicable.
+- Edit the shared analysis period, discount rate, fuel price, one electricity price, and fuel/grid emissions factors.
 - Validate numeric inputs and preserve the last valid authoritative value when a draft is invalid.
-- Recalculate dependent results when committed inputs change.
-- Keep scenario-owned transition inputs isolated between scenarios.
+- Recalculate the baseline and every Scenario when a shared assumption changes.
+- Keep each Scenario's Vehicle transition timeline isolated from the other Scenarios.
 
-Charging strategy and full power feasibility settings are later scope unless required by an approved M1 change.
+Charging strategy, depot charging share, charger availability, and separate depot/external tariffs are later scope and do not appear in the M1 Project contract or UI.
 
 ## Technical dependencies
 
@@ -36,4 +36,4 @@ Charging strategy and full power feasibility settings are later scope unless req
 
 ## M1 evidence
 
-Change a target preset, transition year or economic assumption and show that the same committed input is reflected in the scenario state, selected-year behavior and financial results.
+Change a target preset, transition year, or shared assumption and show that the committed Project input is reflected in the canonical effective Vehicle state and derived results for every Scenario.

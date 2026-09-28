@@ -199,7 +199,6 @@ function scenarios(
   value: unknown,
   vehicleIds: ReadonlySet<string>,
   presetIds: ReadonlySet<string>,
-  analysis: ProjectAnalysisSettings,
 ): ProjectScenario[] {
   if (!Array.isArray(value) || value.length === 0) fail("project.scenarios", "must contain at least one Scenario.");
   const normalized = value.map((entry, scenarioIndex): ProjectScenario => {
@@ -215,10 +214,6 @@ function scenarios(
         const transitionPath = `${path}.vehiclePlans.${vehicleId}.transitions[${transitionIndex}]`;
         const transition = record(transitionValue, transitionPath);
         if (typeof transition.year !== "number" || !Number.isInteger(transition.year)) fail(`${transitionPath}.year`, "must be an integer.");
-        const endYear = analysis.startYear + analysis.yearCount - 1;
-        if (transition.year < analysis.startYear || transition.year > endYear) {
-          fail(`${transitionPath}.year`, `must be within the analysis period ${analysis.startYear}-${endYear}.`);
-        }
         const targetPresetId = identifier(transition.targetPresetId, `${transitionPath}.targetPresetId`);
         if (!presetIds.has(targetPresetId)) fail(`${transitionPath}.targetPresetId`, `does not resolve to Preset “${targetPresetId}”.`);
         return { year: transition.year, targetPresetId };
@@ -253,7 +248,7 @@ export function normalizeProject(value: unknown): ProjectDocument {
   const vehicles = environment.vehicles.map((entry, index) => projectVehicle(entry, presetIds, `project.environment.vehicles[${index}]`));
   unique(vehicles.map((vehicle) => vehicle.id), "project.environment.vehicles");
   const analysis = requiredAnalysis(source.analysis);
-  const normalizedScenarios = scenarios(source.scenarios, new Set(vehicles.map((vehicle) => vehicle.id)), presetIds, analysis);
+  const normalizedScenarios = scenarios(source.scenarios, new Set(vehicles.map((vehicle) => vehicle.id)), presetIds);
   const activeScenarioId = identifier(source.activeScenarioId, "project.activeScenarioId");
   if (!normalizedScenarios.some((scenario) => scenario.id === activeScenarioId)) fail("project.activeScenarioId", "must resolve to a Scenario in this Project.");
   return {
@@ -300,6 +295,41 @@ export type VehiclePlanReference = {
   vehicleId: string;
 };
 
+export type VehiclePresetReference = { kind: "baseline" | "transition"; label: string };
+
+/** Lists the authoritative Project fields that prevent a Preset from being deleted. */
+export function vehiclePresetReferences(document: ProjectDocument, presetId: string): VehiclePresetReference[] {
+  const vehicles = new Map(document.environment.vehicles.map((vehicle) => [vehicle.id, vehicle]));
+  const references: VehiclePresetReference[] = [];
+  for (const vehicle of document.environment.vehicles) {
+    if (vehicle.baselinePresetId === presetId) references.push({ kind: "baseline", label: `Baseline for ${vehicle.name} (${vehicle.id})` });
+  }
+  for (const scenario of document.scenarios) {
+    for (const [vehicleId, plan] of Object.entries(scenario.vehiclePlans)) {
+      const vehicle = vehicles.get(vehicleId);
+      for (const transition of plan.transitions) {
+        if (transition.targetPresetId === presetId) {
+          references.push({
+            kind: "transition",
+            label: `Transition for ${vehicle?.name ?? vehicleId} (${vehicleId}) in ${scenario.name}, ${transition.year}`,
+          });
+        }
+      }
+    }
+  }
+  return references;
+}
+
+export function deleteVehiclePreset(document: ProjectDocument, presetId: string): ProjectDocument {
+  const preset = document.vehiclePresets.find((entry) => entry.id === presetId);
+  if (!preset) return document;
+  const references = vehiclePresetReferences(document, presetId);
+  if (references.length) {
+    throw new Error(`Cannot delete Preset “${preset.name}”; it is still used by: ${references.map((reference) => reference.label).join("; ")}.`);
+  }
+  return normalizeProject({ ...document, vehiclePresets: document.vehiclePresets.filter((entry) => entry.id !== presetId) });
+}
+
 export function addVehicleTransition(
   document: ProjectDocument,
   reference: VehiclePlanReference,
@@ -323,15 +353,15 @@ export function addVehicleTransition(
 
 export function effectivePresetIdFor(
   document: ProjectDocument,
-  scenarioId: string,
+  scenarioId: string | null,
   vehicleId: string,
   year: number,
 ): string | null | undefined {
   const vehicle = document.environment.vehicles.find((entry) => entry.id === vehicleId);
-  const scenario = document.scenarios.find((entry) => entry.id === scenarioId);
-  if (!vehicle || !scenario) return undefined;
+  const scenario = scenarioId === null ? undefined : document.scenarios.find((entry) => entry.id === scenarioId);
+  if (!vehicle || (scenarioId !== null && !scenario)) return undefined;
   let presetId = vehicle.baselinePresetId;
-  for (const transition of scenario.vehiclePlans[vehicleId]?.transitions ?? []) {
+  for (const transition of scenario?.vehiclePlans[vehicleId]?.transitions ?? []) {
     if (transition.year > year) break;
     presetId = transition.targetPresetId;
   }

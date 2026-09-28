@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { vehicleModelEntries } from "../scene/catalog";
+import { vehiclePresetReferences } from "../domain/project";
 import { useProjectStore } from "../state/projectStore";
 import { ownershipKinds, propulsions, type PresetNumericField, type Propulsion, type VehiclePreset } from "../vehicles/types";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -62,11 +63,7 @@ export function VehiclePresets() {
 
   const [notice, setNotice] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
-  const presetReferences = (presetId: string) => [
-    ...document.environment.vehicles.filter((vehicle) => vehicle.baselinePresetId === presetId).map((vehicle) => `Current preset for ${vehicle.name}`),
-    ...document.scenarios.flatMap((scenario) => Object.entries(scenario.vehiclePlans).flatMap(([vehicleId, plan]) =>
-      plan.transitions.some((transition) => transition.targetPresetId === presetId) ? [`Transition for ${vehicleId} in ${scenario.name}`] : [])),
-  ];
+  const presetReferences = (presetId: string) => vehiclePresetReferences(document, presetId).map((reference) => reference.label);
   const blockedBy = confirming ? presetReferences(confirming) : [];
 
   const requestDelete = () => {

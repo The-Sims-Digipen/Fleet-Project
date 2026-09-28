@@ -5,6 +5,7 @@ import { createMockPresets } from "../domain/mockProject";
 import {
   copyProject,
   createProject,
+  vehiclePresetReferences,
   type ProjectAnalysisSettings,
   type ProjectDocument,
   type ProjectScenario,
@@ -168,12 +169,6 @@ function newPreset(document: ProjectDocument): VehiclePreset {
   };
 }
 
-function presetIsReferenced(document: ProjectDocument, presetId: string): boolean {
-  return document.environment.vehicles.some((vehicle) => vehicle.baselinePresetId === presetId)
-    || document.scenarios.some((scenario) => Object.values(scenario.vehiclePlans).some((plan) =>
-      plan.transitions.some((transition) => transition.targetPresetId === presetId)));
-}
-
 export const useProjectStore = create<ProjectState>((set, get) => {
   const setRuntime = (runtime: ProjectRuntime, session = get().session) => set({ runtime, session });
   const applyRuntime = (runtime: ProjectRuntime) => setRuntime(runtime);
@@ -314,7 +309,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     },
     updatePreset: (id, patch) => safelyApply({ type: "update-vehicle-preset", presetId: id, patch }),
     deletePreset: (id) => {
-      if (presetIsReferenced(get().runtime.document, id)) return false;
+      const document = get().runtime.document;
+      if (!document.vehiclePresets.some((preset) => preset.id === id) || vehiclePresetReferences(document, id).length) return false;
       safelyApply({ type: "delete-vehicle-preset", presetId: id });
       return true;
     },

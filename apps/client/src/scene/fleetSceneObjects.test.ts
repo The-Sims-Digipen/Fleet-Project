@@ -24,4 +24,14 @@ describe("Project scene projection", () => {
     expect(createProjectSceneObjects(project, 2029)[1].appearance.tint).not.toBe("#39ff14");
     expect(createProjectSceneObjects(project, 2030)[1]).toMatchObject({ presetId: "electric-van", appearance: { tint: "#39ff14" } });
   });
+
+  it("keeps a generic Vehicle renderable when its baseline Preset is null", () => {
+    const project = createProjectFixture();
+    project.environment.vehicles[0].baselinePresetId = null;
+
+    const objects = createProjectSceneObjects(project, project.analysis.startYear);
+
+    expect(objects).toHaveLength(2);
+    expect(objects[1]).toMatchObject({ id: "UNIT-01", transform: project.environment.vehicles[0].transform, appearance: { tint: "#87928f" } });
+  });
 });

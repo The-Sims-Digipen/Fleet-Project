@@ -1,6 +1,7 @@
 import {
   addVehicleTransition,
   copyProject,
+  deleteVehiclePreset,
   normalizeProject,
   removeVehicleTransition,
   replaceVehicleTransitions,
@@ -199,7 +200,7 @@ export function applyProjectCommand(document: ProjectDocument, command: ProjectC
           : preset),
       });
     case "delete-vehicle-preset":
-      return normalizeProject({ ...document, vehiclePresets: document.vehiclePresets.filter((preset) => preset.id !== command.presetId) });
+      return deleteVehiclePreset(document, command.presetId);
     case "update-analysis":
       return normalizeProject({ ...document, analysis: { ...document.analysis, ...structuredClone(command.patch) } });
     case "set-depot-transform":

@@ -12,10 +12,11 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 test("slider and event markers select the Project editor year", () => {
+  useProjectStore.getState().replaceVehicleTransitions("plan-a", "UNIT-01", [{ year: 2029, targetPresetId: "electric-van" }]);
   render(<TimelineControl />);
   fireEvent.change(screen.getByRole("slider", { name: "Selected year" }), { target: { value: "2030" } });
   expect(useProjectStore.getState().runtime.editor.selectedYear).toBe(2030);
-  fireEvent.click(screen.getByRole("button", { name: "2029: Depot charger installation" }));
+  fireEvent.click(screen.getByRole("button", { name: "2029: 1 vehicle changes" }));
   expect(useProjectStore.getState().runtime.editor.selectedYear).toBe(2029);
 });
 

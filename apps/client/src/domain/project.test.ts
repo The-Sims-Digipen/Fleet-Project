@@ -54,7 +54,7 @@ describe("Project document", () => {
     expect(normalizeProject(JSON.parse(JSON.stringify(document)))).toEqual(document);
   });
 
-  it("adds transitions in ascending order within the analysis period", () => {
+  it("adds transitions in ascending order even outside the analysis period", () => {
     const presets = createMockPresets();
     const document = createProject({
       id: "project-1",
@@ -66,12 +66,12 @@ describe("Project document", () => {
     });
 
     const reference = { scenarioId: "scenario-1", vehicleId: "vehicle-1" };
-    const later = addVehicleTransition(document, reference, { year: 2034, targetPresetId: presets[1].id });
+    const later = addVehicleTransition(document, reference, { year: 2040, targetPresetId: presets[1].id });
     const earlier = addVehicleTransition(later, reference, { year: 2027, targetPresetId: presets[2].id });
 
     expect(earlier.scenarios[0].vehiclePlans["vehicle-1"].transitions).toEqual([
       { year: 2027, targetPresetId: presets[2].id },
-      { year: 2034, targetPresetId: presets[1].id },
+      { year: 2040, targetPresetId: presets[1].id },
     ]);
     expect(document.scenarios[0].vehiclePlans).toEqual({});
   });
@@ -135,7 +135,8 @@ describe("Project document", () => {
     expect(() => normalizeProject({ ...valid, scenarios: [] })).toThrow(/at least one Scenario/i);
     expect(() => normalizeProject({ ...valid, environment: { ...valid.environment, vehicles: [...valid.environment.vehicles, valid.environment.vehicles[0]] } })).toThrow(/duplicate identifiers/i);
     expect(() => normalizeProject({ ...valid, vehiclePresets: [...valid.vehiclePresets, valid.vehiclePresets[0]] })).toThrow(/duplicate identifiers/i);
-    expect(() => addVehicleTransition(valid, { scenarioId: "scenario-1", vehicleId: "vehicle-1" }, { year: 2040, targetPresetId: presets[1].id })).toThrow(/analysis period/i);
+    expect(addVehicleTransition(valid, { scenarioId: "scenario-1", vehicleId: "vehicle-1" }, { year: 2040, targetPresetId: presets[1].id })
+      .scenarios[0].vehiclePlans["vehicle-1"].transitions).toEqual([{ year: 2040, targetPresetId: presets[1].id }]);
     expect(() => normalizeProject({
       ...valid,
       scenarios: [{ ...valid.scenarios[0], vehiclePlans: { missing: { transitions: [] } } }],
