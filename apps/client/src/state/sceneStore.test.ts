@@ -117,18 +117,18 @@ describe("scene document and history", () => {
     expect(state().document.light).toBe(10);
   });
   it("keeps gizmo settings outside document history and preserves them across selection", () => {
-    state().setInteractionMode("normal");
+    state().setInteractionMode("inspect");
     state().setTransformMode("rotate");
     state().setTransformSpace("local");
     state().setSnapEnabled(false);
     state().selectObject(null);
-    expect(state().editor).toEqual({ selectedObjectId: null, interactionMode: "normal", transformMode: "rotate", transformSpace: "local", snapEnabled: false });
+    expect(state().editor).toEqual({ selectedObjectId: null, interactionMode: "inspect", transformMode: "rotate", transformSpace: "local", snapEnabled: false });
     expect(state().history.past).toHaveLength(0);
     state().undo();
     expect(state().editor.transformMode).toBe("rotate");
     expect(state().editor.transformSpace).toBe("local");
     expect(state().editor.snapEnabled).toBe(false);
-    expect(state().editor.interactionMode).toBe("normal");
+    expect(state().editor.interactionMode).toBe("inspect");
   });
 
   it("groups full gizmo transforms into one undo step and rejects invalid scale", () => {

@@ -6,7 +6,7 @@ import { copyTransform, type Appearance, type SceneDocument, type SceneObject, t
 
 export type TransformMode = "translate" | "rotate" | "scale";
 export type TransformSpace = "world" | "local";
-export type EditorInteractionMode = "normal" | "gizmo";
+export type EditorInteractionMode = "inspect" | "gizmo";
 export type EditorState = {
   selectedObjectId: string | null;
   interactionMode: EditorInteractionMode;
@@ -86,7 +86,7 @@ export const useSceneStore = create<SceneState>((set, get) => {
     },
     setInteractionMode: (mode) => {
       get().commitEdit();
-      if (["normal", "gizmo"].includes(mode)) patchEditor({ interactionMode: mode });
+      if (["inspect", "gizmo"].includes(mode)) patchEditor({ interactionMode: mode });
     },
     setTransformMode: (mode) => {
       get().commitEdit();

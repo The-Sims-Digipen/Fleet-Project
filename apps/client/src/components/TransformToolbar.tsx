@@ -50,8 +50,8 @@ export function TransformToolbar() {
         {item.label}<span className="ml-1.5 font-mono text-[10px] opacity-60">{item.shortcut}</span>
       </button>)}
     </div>
-    <button type="button" aria-label={`Interaction mode: ${gizmoEnabled ? "Gizmo" : "Normal"}`} className={buttonClass} aria-pressed={gizmoEnabled} title={`Switch to ${gizmoEnabled ? "normal" : "gizmo"} mode`} onClick={() => setInteractionMode(gizmoEnabled ? "normal" : "gizmo")}>
-      {gizmoEnabled ? "Gizmo" : "Normal"}
+    <button type="button" aria-label={`Interaction mode: ${gizmoEnabled ? "Gizmo" : "Inspect"}`} className={buttonClass} aria-pressed={gizmoEnabled} title={`Switch to ${gizmoEnabled ? "inspect" : "gizmo"} mode`} onClick={() => setInteractionMode(gizmoEnabled ? "inspect" : "gizmo")}>
+      {gizmoEnabled ? "Gizmo" : "Inspect"}
     </button>
     <button type="button" aria-label={`Transform space: ${space === "world" ? "World" : "Local"}`} className={buttonClass} disabled={!selected || !gizmoEnabled} aria-pressed={space === "local"} title="Toggle transform space (Q)" onClick={() => setSpace(space === "world" ? "local" : "world")}>
       {space === "world" ? "World" : "Local"}<span className="ml-1.5 font-mono text-[10px] opacity-60">Q</span>
