@@ -8,12 +8,69 @@ import { usePresetStore } from "../state/presetStore";
 import { useProjectStore } from "../state/projectStore";
 import { useTimelineStore } from "../state/timelineStore";
 import { CollapsibleSection } from "./CollapsibleSection";
+import { NumberControl, SelectControl, TextControl } from "./controls";
 
 const distanceFormatter = new Intl.NumberFormat("en-SG");
 
 const actionClass = "min-h-8 rounded border border-line-strong px-2.5 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
 const fieldClass = "min-h-9 w-full min-w-0 rounded border border-line-strong bg-panel px-2 text-xs font-medium text-primary focus:border-accent disabled:cursor-default disabled:opacity-50";
 const labelClass = "grid gap-1 text-[11px] font-semibold text-secondary";
+
+const edit = {
+  beginEdit: () => useFleetStore.getState().beginEdit(),
+  commitEdit: () => useFleetStore.getState().commitEdit(),
+  cancelEdit: () => useFleetStore.getState().cancelEdit(),
+};
+
+function VehicleFields({ vehicleId }: { vehicleId: string }) {
+  const vehicle = useFleetStore((state) => state.vehicles.find((item) => item.id === vehicleId));
+  const analysis = useFleetStore((state) => state.analysis);
+  const updateVehicle = useFleetStore((state) => state.updateVehicle);
+  if (!vehicle) return null;
+
+  const update = (patch: Parameters<typeof updateVehicle>[1]) => updateVehicle(vehicle.id, patch);
+  return <div className="grid gap-3 rounded border border-line bg-panel/50 p-3">
+    <TextControl label="Vehicle name" value={vehicle.name} edit={edit} onChange={(name) => update({ name })} />
+    <div className="grid grid-cols-2 gap-3">
+      <NumberControl label="Annual distance (km)" value={vehicle.annualKm} min={0} step={100} edit={edit} onChange={(annualKm) => update({ annualKm })} />
+      <NumberControl label="Typical daily distance (km)" value={vehicle.typicalDailyKm} min={0} step={1} edit={edit} onChange={(typicalDailyKm) => update({ typicalDailyKm })} />
+      <NumberControl label="Operating days / year (max 366)" value={vehicle.operatingDays} min={0} step={1} edit={edit} onChange={(operatingDays) => update({ operatingDays })} />
+      <NumberControl label="Utilisation (0-1)" value={vehicle.utilisation} min={0} step={0.05} edit={edit} onChange={(utilisation) => update({ utilisation })} />
+      <NumberControl label="Depot dwell (hours, max 24)" value={vehicle.depotDwellHours} min={0} step={0.5} edit={edit} onChange={(depotDwellHours) => update({ depotDwellHours })} />
+      <SelectControl label="Replacement year" value={vehicle.replacementYear === null ? "" : String(vehicle.replacementYear)}
+        options={[{ value: "", label: "Not planned" }, ...analysisYears(analysis).map((year) => ({ value: String(year), label: String(year) }))]}
+        onChange={(value) => { edit.commitEdit(); update({ replacementYear: value ? Number(value) : null }); }} />
+    </div>
+    <SelectControl label="Route pattern" value={vehicle.routePattern}
+      options={[{ value: "predictable", label: "Predictable" }, { value: "variable", label: "Variable" }]}
+      onChange={(routePattern) => { edit.commitEdit(); update({ routePattern }); }} />
+    <div className="grid gap-2 text-xs text-secondary">
+      <label className="flex min-h-9 items-center gap-2"><input type="checkbox" className="size-4 accent-accent" checked={vehicle.returnsToDepot}
+        onChange={(event) => { edit.commitEdit(); update({ returnsToDepot: event.target.checked }); }} />Returns to depot</label>
+      <label className="flex min-h-9 items-center gap-2"><input type="checkbox" className="size-4 accent-accent" checked={vehicle.externalChargingAccess}
+        onChange={(event) => { edit.commitEdit(); update({ externalChargingAccess: event.target.checked }); }} />Has external charging access</label>
+    </div>
+    <div className="grid gap-3 border-t border-line pt-3">
+      <SelectControl label="Current ownership" value={vehicle.currentHolding.kind}
+        options={[{ value: "owned", label: "Owned" }, { value: "leased", label: "Leased" }]}
+        onChange={(kind) => {
+          edit.commitEdit();
+          update({ currentHolding: kind === "owned" ? { kind, currentValue: 0, endResidualValue: 0 } : { kind, annualPayment: 0, exitFee: 0 } });
+        }} />
+      {vehicle.currentHolding.kind === "owned" ? <div className="grid grid-cols-2 gap-3">
+        <NumberControl label="Current value" value={vehicle.currentHolding.currentValue} min={0} step={100} edit={edit}
+          onChange={(currentValue) => update({ currentHolding: { kind: "owned", currentValue, endResidualValue: vehicle.currentHolding.kind === "owned" ? vehicle.currentHolding.endResidualValue : 0 } })} />
+        <NumberControl label="End residual value" value={vehicle.currentHolding.endResidualValue} min={0} step={100} edit={edit}
+          onChange={(endResidualValue) => update({ currentHolding: { kind: "owned", currentValue: vehicle.currentHolding.kind === "owned" ? vehicle.currentHolding.currentValue : 0, endResidualValue } })} />
+      </div> : <div className="grid grid-cols-2 gap-3">
+        <NumberControl label="Annual lease payment" value={vehicle.currentHolding.annualPayment} min={0} step={100} edit={edit}
+          onChange={(annualPayment) => update({ currentHolding: { kind: "leased", annualPayment, exitFee: vehicle.currentHolding.kind === "leased" ? vehicle.currentHolding.exitFee : 0 } })} />
+        <NumberControl label="Lease exit fee" value={vehicle.currentHolding.exitFee} min={0} step={100} edit={edit}
+          onChange={(exitFee) => update({ currentHolding: { kind: "leased", annualPayment: vehicle.currentHolding.kind === "leased" ? vehicle.currentHolding.annualPayment : 0, exitFee } })} />
+      </div>}
+    </div>
+  </div>;
+}
 
 export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview }: {
   onVisualize: () => void;
@@ -43,7 +100,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
     setNotice(`Deleted ${name}.`);
   };
 
-  return <CollapsibleSection title="Fleet Management" defaultOpen description="Shared fleet inputs plus transition decisions for the active scenario. Target preset and transition year are stored per scenario.">
+  return <CollapsibleSection title="Fleet Management" defaultOpen description="Shared fleet inputs plus transition decisions for the active scenario. Target preset and transition year are stored per scenario." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded-lg border border-line-strong bg-control">
       <div className="flex items-center justify-between border-b border-line-strong px-3 py-2">
         <span className="text-xs font-semibold text-primary">Vehicles · {scenario?.name ?? "No scenario"}</span>
@@ -91,6 +148,7 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
               Annual distance (km) <span className="font-normal text-secondary">· shared</span>
               <input id={`fleet-distance-${vehicle.id}`} aria-label={`Annual distance for ${vehicle.id}`} type="number" min={0} step={100} className={fieldClass}
                 value={vehicle.annualKm}
+                onFocus={(event) => { if (vehicle.annualKm === 0) event.currentTarget.select(); }}
                 onChange={(event) => updateVehicle(vehicle.id, { annualKm: Number(event.target.value) })} />
             </label>
             <div className="flex justify-between gap-2 text-xs text-secondary">
@@ -125,6 +183,10 @@ export function FleetManagementPanel({ onVisualize, previewOpen, onClosePreview 
                 {years.map((year) => <option key={year} value={year}>{year}</option>)}
               </select>
             </label>
+            <details>
+              <summary className="cursor-pointer py-1 text-xs font-semibold text-secondary hover:text-primary">Edit vehicle information</summary>
+              <div className="pt-2"><VehicleFields vehicleId={vehicle.id} /></div>
+            </details>
             <button type="button" className={`${actionClass} justify-self-start`} aria-label={`Delete ${vehicle.id}`}
               onClick={() => { setNotice(null); setConfirmingId(vehicle.id); }}>Delete</button>
           </li>;
