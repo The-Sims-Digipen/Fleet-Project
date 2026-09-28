@@ -1,3 +1,8 @@
+/**
+ * @file engine.ts
+ * @description Provides the public deterministic SimulationInput-to-SimulationResult engine.
+ */
+
 import type {
     SimulationInput,
     SimulationResult,

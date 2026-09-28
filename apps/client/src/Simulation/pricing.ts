@@ -1,3 +1,8 @@
+/**
+ * @file pricing.ts
+ * @description Calculates the scenario-weighted electricity price.
+ */
+
 import type { ScenarioAssumptions } from "../domain/contracts";
 
 /**

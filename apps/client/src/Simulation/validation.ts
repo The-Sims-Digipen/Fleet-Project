@@ -1,3 +1,8 @@
+/**
+ * @file validation.ts
+ * @description Validates project, fleet, preset, and scenario inputs before simulation.
+ */
+
 import type {
     AnalysisSettings,
     FleetVehicle,

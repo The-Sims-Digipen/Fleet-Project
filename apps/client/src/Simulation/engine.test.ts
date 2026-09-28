@@ -1,3 +1,8 @@
+/**
+ * @file engine.test.ts
+ * @description Verifies simulation energy, financial, validation, and integration behaviour.
+ */
+
 import { describe, expect, it } from "vitest";
 import { sim01Project, sim01Scenario, sim01Expected } from "../domain/m1Fixture";
 import { calculateAnnualEnergy } from "./engine";

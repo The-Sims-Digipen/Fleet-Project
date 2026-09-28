@@ -1,3 +1,8 @@
+/**
+ * @file financial.ts
+ * @description Calculates fleet totals, disposal values, residual credits, savings, and payback.
+ */
+
 import type {
     AnalysisSettings,
     AnnualComparisonResult,

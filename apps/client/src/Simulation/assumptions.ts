@@ -1,3 +1,8 @@
+/**
+ * @file assumptions.ts
+ * @description Defines and validates editable economic and energy assumptions.
+ */
+
 export type EconomicAssumptions = {
     fuelPricePerLitre: number;
     electricityPricePerKwh: number;

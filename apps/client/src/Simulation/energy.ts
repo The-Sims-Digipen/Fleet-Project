@@ -1,3 +1,8 @@
+/**
+ * @file energy.ts
+ * @description Calculates annual vehicle energy use, operating cost, and emissions.
+ */
+
 import type { M1VehiclePreset } from "../domain/contracts";
 
 //Resultant strcut

@@ -1,3 +1,8 @@
+/**
+ * @file annualPlans.ts
+ * @description Calculates baseline and scenario annual results for individual vehicles.
+ */
+
 import type {
     AnalysisSettings,
     AnnualPlanResult,
