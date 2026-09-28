@@ -63,7 +63,7 @@ scenarios
 
 - **Project** owns one physical environment, its fleet, presets, shared assumptions, and its Scenarios.
 - **Scenario** is saved separately and references its Project; it does not duplicate the scene or fleet.
-- **Save Project** atomically writes the Project and every in-memory Scenario to IndexedDB.
+- **Save Project** atomically writes the Project, its active Scenario selection, and every in-memory Scenario to IndexedDB.
 - The repository validates fleet/Scenario references and uses revision checks to detect stale saves from another tab.
 - Camera state, current selection, gizmo mode, undo history, and calculated results are not persisted.
 

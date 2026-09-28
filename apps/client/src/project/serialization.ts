@@ -187,11 +187,16 @@ export function normalizeWorkspaceSaveInput(input: WorkspaceSaveInput): Workspac
     if (expectedRevision < 0) fail(`scenarios[${index}].expectedRevision`, "must be nonnegative.");
     return { id: id(scenario.id, `scenarios[${index}].id`), name: text(scenario.name, `scenarios[${index}].name`), expectedRevision, document };
   });
+  const activeScenarioId = input.project.activeScenarioId === undefined ? undefined : id(input.project.activeScenarioId, "project.activeScenarioId");
+  if (activeScenarioId && !scenarios.some((scenario) => scenario.id === activeScenarioId)) {
+    fail("project.activeScenarioId", "must resolve to a Scenario in this Project.");
+  }
   if (input.project.expectedRevision !== undefined && integer(input.project.expectedRevision, "project.expectedRevision") < 0) fail("project.expectedRevision", "must be nonnegative.");
   return {
     project: {
       id: input.project.id,
       name: text(input.project.name, "project.name"),
+      ...(activeScenarioId === undefined ? {} : { activeScenarioId }),
       ...(input.project.expectedRevision === undefined ? {} : { expectedRevision: input.project.expectedRevision }),
       document: project,
     },
@@ -204,10 +209,23 @@ export function normalizeWorkspaceRecord(workspace: WorkspaceRecord): WorkspaceR
   const projectDocument = normalizeProjectDocument(workspace.project.document);
   if (!Array.isArray(workspace.scenarios) || !workspace.scenarios.length) fail("scenarios", "must contain at least one scenario.");
   unique(workspace.scenarios.map((scenario, index) => id(scenario.id, `scenarios[${index}].id`)), "scenarios");
+  const scenarios = [...workspace.scenarios]
+    .sort((a, b) => a.position - b.position)
+    .map((scenario, index) => normalizeScenarioRecord(scenario, projectDocument, projectId, index));
+  const requestedActiveScenarioId = workspace.project.activeScenarioId === undefined
+    ? undefined
+    : id(workspace.project.activeScenarioId, "project.activeScenarioId");
+  const activeScenarioId = scenarios.some((scenario) => scenario.id === requestedActiveScenarioId)
+    ? requestedActiveScenarioId
+    : undefined;
   return {
-    project: { ...clone(workspace.project), id: projectId, name: text(workspace.project.name, "project.name"), document: projectDocument },
-    scenarios: [...workspace.scenarios]
-      .sort((a, b) => a.position - b.position)
-      .map((scenario, index) => normalizeScenarioRecord(scenario, projectDocument, projectId, index)),
+    project: {
+      ...clone(workspace.project),
+      id: projectId,
+      name: text(workspace.project.name, "project.name"),
+      activeScenarioId,
+      document: projectDocument,
+    },
+    scenarios,
   };
 }

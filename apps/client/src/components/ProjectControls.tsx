@@ -34,8 +34,15 @@ export function ProjectControls() {
     setImporting(true);
     setFileError(null);
     try {
-      const parsed = parsePortableProject(JSON.parse(await file.text()));
-      await useProjectStore.getState().importProject(parsed);
+      const text = await file.text();
+      let data: unknown;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // A raw SyntaxError names a byte offset, which tells the reader nothing about the file.
+        throw new Error("This file is not a readable project file. Choose a .fleetproject file exported from this app.");
+      }
+      await useProjectStore.getState().importProject(parsePortableProject(data));
     } catch (error) {
       setFileError(error instanceof Error ? error.message : "The project file could not be imported.");
     } finally {

@@ -6,7 +6,7 @@ A Project is one physical planning environment. It owns its scene, authoritative
 
 | Entity | Principal data | Relationship / purpose |
 |---|---|---|
-| Project | ID, name, revision, scene, fleet, presets, shared analysis settings | Aggregate and atomic persistence boundary |
+| Project | ID, name, revision, active Scenario ID, scene, fleet, presets, shared analysis settings | Aggregate and atomic persistence boundary |
 | Fleet vehicle | Stable ID, optional preset ID, parking lot ID, operational inputs | One physical vehicle instance owned by the Project |
 | Vehicle preset | Stable ID, model/type, powertrain, energy, cost, efficiency | Reusable configuration referenced by multiple vehicles |
 | Scenario | ID, Project ID, order, revision, transition plans and assumptions | Alternative plan over the Project baseline |
@@ -51,6 +51,8 @@ erDiagram
 | `scenarios` | key `id`, index `projectId` | Ordered Scenario records |
 
 A failed transaction exposes no partial save. The PostgreSQL schema mirrors this relationship. Its destructive `0001_single_environment_projects.sql` migration deliberately drops pre-release multi-World tables and data.
+
+The Project record persists the active Scenario ID. Loading falls back to the first ordered Scenario if that optional value is absent or no longer resolves. Because the selection is persisted, switching Scenarios contributes to the dirty-state snapshot.
 
 ## Portable project file
 

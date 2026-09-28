@@ -22,6 +22,8 @@ export type WorkspaceScenario = Scenario;
 export type ProjectRecord = {
   id: string;
   name: string;
+  /** The last selected Scenario. Missing or stale values fall back to the first Scenario. */
+  activeScenarioId?: string;
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -32,7 +34,7 @@ export type WorkspaceRecord = { project: ProjectRecord; scenarios: Scenario[] };
 export type ProjectSummary = Pick<ProjectRecord, "id" | "name" | "revision" | "updatedAt"> & { scenarioCount: number };
 
 export type WorkspaceSaveInput = {
-  project: { id: string; name: string; expectedRevision?: number; document: ProjectDocument };
+  project: { id: string; name: string; activeScenarioId?: string; expectedRevision?: number; document: ProjectDocument };
   scenarios: { id: string; name: string; expectedRevision: number; document: ScenarioDocument }[];
 };
 

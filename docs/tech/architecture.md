@@ -46,7 +46,7 @@ The Project answers “what physical system am I planning?” A Scenario answers
 
 ## Persistence boundary
 
-Save Project captures the Project document and its ordered Scenarios in one transaction. The Project document contains scene geometry, fleet, presets, and shared analysis settings. IndexedDB schema version 3 stores only `projects` and `scenarios`; Scenario rows reference `projectId`. Expected revisions prevent stale writes. Portable format version 3 stores the same aggregate.
+Save Project captures the Project document, active Scenario ID, and ordered Scenarios in one transaction. The Project document contains scene geometry, fleet, presets, and shared analysis settings. IndexedDB schema version 3 stores only `projects` and `scenarios`; Scenario rows reference `projectId`. Expected revisions prevent stale writes. Portable format version 3 stores the same aggregate and identifies the active Scenario by its order in the portable file.
 
 The pre-release schema upgrade intentionally clears legacy multi-World data. No migration or compatibility layer is maintained.
 

@@ -23,6 +23,7 @@ export type ScenarioRecord = {
 export type ProjectRecord = {
   id: string;
   name: string;
+  activeScenarioId?: string;
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -46,6 +47,7 @@ type ReadDatabase = Pick<Database, "select">;
 const toProject = (row: typeof projects.$inferSelect): ProjectRecord => ({
   id: row.id,
   name: row.name,
+  activeScenarioId: row.activeScenarioId ?? undefined,
   revision: row.revision,
   createdAt: iso(row.createdAt),
   updatedAt: iso(row.updatedAt),
@@ -105,6 +107,7 @@ export function createPersistenceRepository(db: Database): PersistenceRepository
       const [project] = await tx.insert(projects).values({
         id: input.project.id,
         name: input.project.name,
+        activeScenarioId: input.project.activeScenarioId ?? null,
         revision: 1,
         schemaVersion: input.project.document.version,
         document: input.project.document,
@@ -148,6 +151,7 @@ export function createPersistenceRepository(db: Database): PersistenceRepository
 
       const [project] = await tx.update(projects).set({
         name: input.project.name,
+        activeScenarioId: input.project.activeScenarioId ?? null,
         document: input.project.document,
         schemaVersion: input.project.document.version,
         revision: currentProject.revision + 1,

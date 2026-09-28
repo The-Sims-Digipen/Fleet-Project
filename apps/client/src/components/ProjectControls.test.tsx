@@ -80,4 +80,16 @@ describe("project and scenario controls", () => {
     expect(screen.getAllByLabelText("Project name")[0]).toHaveValue("Second depot");
     expect(useSceneStore.getState().document.objects.some((object) => object.id === DEFAULT_DEPOT_OBJECT_ID)).toBe(true);
   });
+
+  it("reports unreadable imports in plain language", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.upload(
+      screen.getByLabelText("Choose project file"),
+      new File(["not-json"], "broken.fleetproject", { type: "application/json" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("not a readable project file");
+  });
 });

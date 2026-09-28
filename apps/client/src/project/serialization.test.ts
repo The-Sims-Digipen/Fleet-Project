@@ -31,6 +31,13 @@ describe("single-environment project serialization", () => {
     })).toThrow(/fleet vehicle/i);
   });
 
+  it("requires a saved active Scenario to belong to the same Project", () => {
+    expect(() => normalizeWorkspaceSaveInput({
+      project: { id: "project", name: "Study", activeScenarioId: "missing", document: sim01Project },
+      scenarios: [{ id: "scenario", name: "Plan", expectedRevision: 0, document: sim01Scenario }],
+    })).toThrow(/activeScenarioId.*Scenario/i);
+  });
+
   it("rejects projects without the default depot", () => {
     expect(() => normalizeProjectDocument({ ...sim01Project, scene: { ...sim01Project.scene, objects: [] } })).toThrow(/default depot/i);
   });

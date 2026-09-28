@@ -20,6 +20,8 @@ Users need a structured workspace for exploring transition plans without losing 
 - A Project represents exactly one physical planning environment and owns its Scenarios.
 - Project and Scenario editing is in-memory first.
 - Switching Scenarios must not discard unsaved Project state.
+- Save and reopen restores the active Scenario; if it no longer exists, the first ordered Scenario becomes active.
+- Switching the active Scenario is an unsaved Project change because that selection is persisted.
 - Duplicating a Scenario copies its planning inputs without sharing mutable scenario state.
 - Every Project must retain at least one Scenario.
 - New Projects automatically contain the default depot and parking lots.
@@ -43,4 +45,4 @@ F03 must not access IndexedDB directly; storage is owned by T01.
 
 ## M1 evidence
 
-Create/switch/duplicate Scenarios over one Project fleet, make different transition edits, save the Project, reload/reopen it, and verify the one environment and Scenario-specific state are restored.
+Create/switch/duplicate Scenarios over one Project fleet, make different transition edits, save the Project, reload/reopen it, and verify the one environment, active Scenario, and Scenario-specific state are restored.

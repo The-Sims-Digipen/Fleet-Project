@@ -74,12 +74,14 @@ export function createMemoryProjectRepository(seed: WorkspaceRecord[] = []): Pro
     const project: ProjectRecord = existing ? {
       ...existing.project,
       name: input.project.name,
+      activeScenarioId: input.project.activeScenarioId,
       revision: existing.project.revision + 1,
       updatedAt: timestamp,
       document: clone(input.project.document),
     } : {
       id: input.project.id,
       name: input.project.name,
+      activeScenarioId: input.project.activeScenarioId,
       revision: 1,
       createdAt: timestamp,
       updatedAt: timestamp,

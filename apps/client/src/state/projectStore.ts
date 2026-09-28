@@ -66,11 +66,12 @@ function scenarioName(scenarios: readonly WorkspaceScenario[]) {
 
 type ProjectInputs = { presets: VehiclePreset[]; fleet: FleetVehicle[]; analysis: AnalysisSettings };
 
-function serializeSnapshot(name: string, scene: SceneDocument, scenarios: readonly WorkspaceScenario[], inputs: ProjectInputs) {
+function serializeSnapshot(name: string, scene: SceneDocument, scenarios: readonly WorkspaceScenario[], activeScenarioId: string, inputs: ProjectInputs) {
   return JSON.stringify({
     name,
     scene,
     scenarios: scenarios.map(({ id, name: scenarioNameValue, document }) => ({ id, name: scenarioNameValue, document })),
+    activeScenarioId,
     presets: inputs.presets,
     fleet: inputs.fleet,
     analysis: inputs.analysis,
@@ -87,7 +88,7 @@ export function createProjectFields(name = "Untitled project", scene: SceneDocum
     name,
     scenarios,
     activeScenarioId: scenarios[0].id,
-    baseline: serializeSnapshot(name, scene, scenarios, inputs),
+    baseline: serializeSnapshot(name, scene, scenarios, scenarios[0].id, inputs),
     saveStatus: { state: "idle" },
     session,
   };
@@ -106,18 +107,18 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     fleet().replaceFleet(document.fleetVehicles);
   };
 
-  const loadWorkspace = (record: WorkspaceRecord, preferredScenarioIndex = 0) => {
+  const loadWorkspace = (record: WorkspaceRecord) => {
     const document = toM1ProjectDocument(record.project.document);
     const scenarios = clone(record.scenarios);
     if (!scenarios.length) throw new Error("A project needs at least one scenario.");
-    const activeScenario = scenarios[Math.min(preferredScenarioIndex, scenarios.length - 1)];
+    const activeScenario = scenarios.find((scenario) => scenario.id === record.project.activeScenarioId) ?? scenarios[0];
     set({
       projectId: record.project.id,
       revision: record.project.revision,
       name: record.project.name,
       scenarios,
       activeScenarioId: activeScenario.id,
-      baseline: serializeSnapshot(record.project.name, document.scene, scenarios, {
+      baseline: serializeSnapshot(record.project.name, document.scene, scenarios, activeScenario.id, {
         presets: document.vehiclePresets,
         fleet: document.fleetVehicles,
         analysis: document.analysis,
@@ -160,6 +161,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         project: {
           id: projectId,
           name: state.name,
+          activeScenarioId: state.activeScenarioId,
           document: createProjectDocument(capturedInputs.presets, capturedInputs.fleet, capturedInputs.analysis, capturedScene),
         },
         scenarios: state.scenarios.map((scenario) => ({
@@ -169,7 +171,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           document: clone(scenario.document),
         })),
       };
-      const capturedBaseline = serializeSnapshot(state.name, capturedScene, state.scenarios, capturedInputs);
+      const capturedBaseline = serializeSnapshot(state.name, capturedScene, state.scenarios, state.activeScenarioId, capturedInputs);
       const session = state.session;
       const preferredScenarioId = state.activeScenarioId;
       set({ saveStatus: { state: "saving" } });
@@ -179,7 +181,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           ? await repository.updateWorkspace({ ...base, project: { ...base.project, expectedRevision: state.revision } })
           : await repository.createWorkspace(base);
         if (get().session !== session) return;
-        const activeScenario = record.scenarios.find((scenario) => scenario.id === preferredScenarioId) ?? record.scenarios[0];
+        const activeScenario = record.scenarios.find((scenario) => scenario.id === record.project.activeScenarioId)
+          ?? record.scenarios.find((scenario) => scenario.id === preferredScenarioId)
+          ?? record.scenarios[0];
         if (!activeScenario) throw new Error("The saved project has no scenarios.");
         set({
           projectId: record.project.id,
@@ -272,11 +276,19 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     importProject: async (file) => {
       const projectId = crypto.randomUUID();
+      const scenarios = file.scenarios.map((scenario) => ({
+        id: crypto.randomUUID(),
+        name: scenario.name,
+        expectedRevision: 0,
+        document: clone(scenario.document),
+      }));
+      const activeScenarioId = scenarios[file.activeScenarioIndex]?.id;
+      if (!activeScenarioId) throw new Error("The imported project has no active Scenario.");
       const record = await repository.createWorkspace({
-        project: { id: projectId, name: file.project.name, document: clone(file.project.document) },
-        scenarios: file.scenarios.map((scenario) => ({ id: crypto.randomUUID(), name: scenario.name, expectedRevision: 0, document: clone(scenario.document) })),
+        project: { id: projectId, name: file.project.name, activeScenarioId, document: clone(file.project.document) },
+        scenarios,
       });
-      loadWorkspace(record, file.activeScenarioIndex);
+      loadWorkspace(record);
     },
   };
 });
@@ -288,7 +300,8 @@ export function useProjectDirty() {
   const analysis = useFleetStore((state) => state.analysis);
   const name = useProjectStore((state) => state.name);
   const scenarios = useProjectStore((state) => state.scenarios);
+  const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
   const baseline = useProjectStore((state) => state.baseline);
-  return useMemo(() => serializeSnapshot(name, scene, scenarios, { presets, fleet, analysis }) !== baseline,
-    [name, scene, scenarios, presets, fleet, analysis, baseline]);
+  return useMemo(() => serializeSnapshot(name, scene, scenarios, activeScenarioId, { presets, fleet, analysis }) !== baseline,
+    [name, scene, scenarios, activeScenarioId, presets, fleet, analysis, baseline]);
 }

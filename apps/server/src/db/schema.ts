@@ -3,6 +3,7 @@ import { integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-
 export const projects = pgTable("projects", {
   id: uuid("id").primaryKey(),
   name: text("name").notNull(),
+  activeScenarioId: uuid("active_scenario_id"),
   revision: integer("revision").notNull(),
   schemaVersion: integer("schema_version").notNull(),
   document: jsonb("document").notNull(),

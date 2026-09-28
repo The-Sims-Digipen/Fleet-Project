@@ -131,7 +131,7 @@ export const scenarioDocumentSchema = z.object({
   }),
 });
 
-const projectDraft = z.object({ id: uuid, name, document: projectDocumentSchema });
+const projectDraft = z.object({ id: uuid, name, activeScenarioId: uuid.optional(), document: projectDocumentSchema });
 const scenarioDraft = z.object({ id: uuid, name, expectedRevision: z.number().int().nonnegative(), document: scenarioDocumentSchema });
 const workspaceBase = z.object({ project: projectDraft, scenarios: z.array(scenarioDraft).min(1) });
 
@@ -140,6 +140,9 @@ function validateReferences(input: z.infer<typeof workspaceBase>, context: z.Ref
   const presetIds = new Set(input.project.document.vehiclePresets.map((preset) => preset.id));
   const start = input.project.document.analysis.startYear;
   const end = start + input.project.document.analysis.yearCount - 1;
+  if (input.project.activeScenarioId && !input.scenarios.some((scenario) => scenario.id === input.project.activeScenarioId)) {
+    context.addIssue({ code: "custom", message: "The active Scenario must resolve inside this Project.", path: ["project", "activeScenarioId"] });
+  }
   input.scenarios.forEach((scenario, scenarioIndex) => {
     Object.entries(scenario.document.vehiclePlans).forEach(([vehicleId, plan]) => {
       if (!vehicleIds.has(vehicleId)) context.addIssue({ code: "custom", message: "Scenario vehicle must resolve inside this Project.", path: ["scenarios", scenarioIndex, "document", "vehiclePlans", vehicleId] });

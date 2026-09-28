@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS "worlds" CASCADE;
 CREATE TABLE "projects" (
   "id" uuid PRIMARY KEY NOT NULL,
   "name" text NOT NULL,
+  "active_scenario_id" uuid,
   "revision" integer NOT NULL,
   "schema_version" integer NOT NULL,
   "document" jsonb NOT NULL,
