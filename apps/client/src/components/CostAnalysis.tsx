@@ -21,7 +21,7 @@ export function CostAnalysis() {
   const simulation = useMemo(() => simulateProject(document), [document]);
   const scenario = simulation.scenarios[document.activeScenarioId];
   const formatCurrency = (value: number) => `${document.analysis.currency} ${value.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const formatOptionalCurrency = (value: number | null) => value === null ? "—" : formatCurrency(value);
+  const formatOptionalCurrency = (value: number | null) => value === null ? "Unavailable" : formatCurrency(value);
   const annual = scenario?.annual.find((row) => row.year === selectedYear);
   const tcoLabel = document.analysis.discountRate > 0 ? "Present value TCO" : "TCO";
 

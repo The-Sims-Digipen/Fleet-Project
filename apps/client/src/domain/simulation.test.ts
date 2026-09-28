@@ -158,6 +158,28 @@ describe("Project simulation", () => {
     expect(scenario.annual[1].transitionCount).toBe(1);
   });
 
+  it("starts from a baseline replacement acquired before the analysis window", () => {
+    const document = workedTransitionProject();
+    const vehicle = document.environment.vehicles[0];
+    document.analysis.startYear = 2028;
+    document.analysis.yearCount = 3;
+    document.environment.vehicles[0] = {
+      ...vehicle,
+      replacementYear: 2026,
+      currentHolding: { kind: "owned", currentValue: 6_000, endResidualValue: 0 },
+    };
+    document.scenarios[0].vehiclePlans[vehicle.id].transitions = [
+      { year: 2029, targetPresetId: "electric-van" },
+    ];
+
+    const simulation = simulateProject(normalizeProject(document));
+    const scenario = simulation.scenarios["plan-a"];
+
+    expect(simulation.baseline.totals.terminalCredit).toBe(6_000);
+    expect(simulation.baseline.totals.vehicleAcquisitionCapex).toBe(0);
+    expect(scenario.annual[1].disposalCredits).toBe(16_400);
+  });
+
   it("does not label payback as initial parity when a lease exit fee creates an upfront premium", () => {
     const document = workedTransitionProject();
     const vehicle = document.environment.vehicles[0];

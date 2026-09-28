@@ -37,4 +37,12 @@ describe("Derived cost analysis", () => {
     expect(screen.getByText("Fuel displaced").parentElement).toHaveTextContent("L");
     expect(screen.getByText("Emissions reduction").parentElement).toHaveTextContent(/-\d.*%/);
   });
+
+  it("labels fleet cost ratios unavailable when their denominators are zero", () => {
+    useProjectStore.getState().deleteVehicle("UNIT-01");
+    render(<CostAnalysis />);
+
+    expect(screen.getByText("Fleet cost / km").parentElement).toHaveTextContent("Unavailable");
+    expect(screen.getByText("Mean fleet cost / vehicle").parentElement).toHaveTextContent("Unavailable");
+  });
 });

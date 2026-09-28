@@ -140,9 +140,17 @@ function calculateSeries(document: ProjectDocument, scenarioId: string | null, y
       && firstTransitionYear !== undefined
       && firstTransitionYear <= replacementYear;
     const transitionBeforeWindow = transitions.filter((transition) => transition.year < analysis.startYear).at(-1);
-    const initialPreset = transitionBeforeWindow ? presetById.get(transitionBeforeWindow.targetPresetId) : undefined;
-    let holding = initialPreset && transitionBeforeWindow
-      ? acquiredHolding(initialPreset, transitionBeforeWindow.year - analysis.startYear)
+    const replacementBeforeWindow = replacementYear !== null
+      && replacementYear < analysis.startYear
+      && !replacementIsSuperseded
+      ? replacementYear
+      : undefined;
+    const preWindowPresetId = transitionBeforeWindow?.targetPresetId
+      ?? (replacementBeforeWindow === undefined ? null : vehicle.baselinePresetId);
+    const preWindowAcquisitionYear = transitionBeforeWindow?.year ?? replacementBeforeWindow;
+    const initialPreset = preWindowPresetId ? presetById.get(preWindowPresetId) : undefined;
+    let holding = initialPreset && preWindowAcquisitionYear !== undefined
+      ? acquiredHolding(initialPreset, preWindowAcquisitionYear - analysis.startYear)
       : initialHolding(vehicle);
 
     years.forEach((year, index) => {
