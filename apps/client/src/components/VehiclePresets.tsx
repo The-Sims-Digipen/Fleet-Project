@@ -73,7 +73,7 @@ export function VehiclePresets() {
     if (!selectedId || !preset) return;
     setNotice(null);
     const references = presetDeletionImpact(selectedId);
-    if (references.length || instanceCount) setConfirming(selectedId);
+    if (references.length || (import.meta.env.DEV && instanceCount)) setConfirming(selectedId);
     else removeSelected();
   };
 
@@ -82,7 +82,7 @@ export function VehiclePresets() {
     // Routed through T03 so the reference guard applies however deletion starts.
     const result = deleteVehiclePreset(selectedId);
     setConfirming(result.ok ? null : selectedId);
-    if (result.ok) setNotice(instanceCount ? `Preset deleted. ${instanceCount} placed ${instanceCount === 1 ? "object keeps" : "objects keep"} its geometry.` : null);
+    if (result.ok) setNotice(import.meta.env.DEV && instanceCount ? `Preset deleted. ${instanceCount} placed ${instanceCount === 1 ? "object keeps" : "objects keep"} its geometry.` : null);
   };
 
   return <CollapsibleSection title="Vehicle Presets" defaultOpen description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
@@ -169,10 +169,12 @@ export function VehiclePresets() {
         </p>
       </FieldGroup>
 
-      <button type="button" className={wideActionClass} onClick={() => { edit.commitEdit(); useSceneStore.getState().addObject(preset.modelId, preset.id, preset.name); }}>
-        Add to Scene
-      </button>
-      <p className="text-xs text-secondary">{instanceCount} placed {instanceCount === 1 ? "object uses" : "objects use"} this preset. Presets are project data and are not covered by scene undo.</p>
+      {import.meta.env.DEV && <>
+        <button type="button" className={wideActionClass} onClick={() => { edit.commitEdit(); useSceneStore.getState().addObject(preset.modelId, preset.id, preset.name); }}>
+          Add to Scene
+        </button>
+        <p className="text-xs text-secondary">{instanceCount} placed {instanceCount === 1 ? "object uses" : "objects use"} this preset. This is development-only scene tooling; client fleet vehicles are added in Fleet Management.</p>
+      </>}
     </div> : <p className="mt-4 text-[0.76rem] leading-relaxed text-secondary">No preset selected. Choose one above to edit its attributes.</p>}
   </CollapsibleSection>;
 }

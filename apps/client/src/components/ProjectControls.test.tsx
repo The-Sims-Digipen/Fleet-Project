@@ -5,12 +5,14 @@ import App from "../App";
 import { createMemoryProjectRepository } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
 import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
+import { DEFAULT_DEPOT_OBJECT_ID } from "../scene/defaultProjectScene";
 import { useFleetStore } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { createProjectFields, setProjectRepository, useProjectStore } from "../state/projectStore";
 import { createDocument, createEditorState, useSceneStore } from "../state/sceneStore";
 
 vi.mock("./WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
+
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
@@ -38,108 +40,44 @@ describe("project and scenario controls", () => {
     expect(useProjectStore.getState().revision).toBe(1);
   });
 
-  it("creates, selects, renames, and removes scenarios without changing the world", async () => {
+  it("creates, renames, and removes scenarios without duplicating the environment", async () => {
     const user = userEvent.setup();
     render(<App />);
-    const world = useSceneStore.getState().document;
-    const list = screen.getByRole("list", { name: "Scenarios for selected world" });
+    const scene = useSceneStore.getState().document;
+    const list = screen.getByRole("list", { name: "Project scenarios" });
     await user.click(screen.getByRole("button", { name: "New scenario" }));
     expect(within(list).getByRole("button", { name: "Plan B, scenario 2, active" })).toHaveAttribute("aria-pressed", "true");
     const scenarioName = screen.getByLabelText("Active scenario name");
     await user.clear(scenarioName);
     await user.type(scenarioName, "Fast plan{Enter}");
-    expect(useSceneStore.getState().document).toBe(world);
+    expect(useSceneStore.getState().document).toBe(scene);
     await user.click(screen.getByRole("button", { name: "Remove scenario" }));
     await user.click(screen.getByRole("button", { name: "Remove Scenario" }));
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
   });
 
-
-  it("renames and duplicates the active world from the world list", async () => {
-    const user = userEvent.setup();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<App />);
-
-    const worldName = screen.getByLabelText("Active world name");
-    await user.clear(worldName);
-    await user.type(worldName, "Main depot{Enter}");
-    expect(useProjectStore.getState().worldName).toBe("Main depot");
-
-    const sourceId = useProjectStore.getState().worldId;
-    await user.click(screen.getByRole("button", { name: "Duplicate world" }));
-    expect(useProjectStore.getState().worldId).not.toBe(sourceId);
-    expect(useProjectStore.getState().worldName).toBe("Main depot copy");
-    expect(useProjectStore.getState().scenarios).toHaveLength(1);
-    expect(screen.getByLabelText("Active world name")).toHaveValue("Main depot copy");
-  });
-
-  it("removes the active world from the in-memory workspace", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const firstWorldId = useProjectStore.getState().worldId;
-    await user.click(screen.getByRole("button", { name: "New world" }));
-    expect(useProjectStore.getState().worlds).toHaveLength(2);
-
-    await user.click(screen.getByRole("button", { name: "Remove world" }));
-    const dialog = screen.getByRole("dialog", { name: "Remove World" });
-    await user.click(within(dialog).getByRole("button", { name: "Remove World" }));
-
-    expect(useProjectStore.getState().worlds).toHaveLength(1);
-    expect(useProjectStore.getState().worldId).toBe(firstWorldId);
-  });
-
-  it("creates a fresh world from the world list", async () => {
-    const user = userEvent.setup();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<App />);
-    const sourceId = useProjectStore.getState().worldId;
-
-    await user.click(screen.getByRole("button", { name: "New world" }));
-
-    expect(useProjectStore.getState().worldId).not.toBe(sourceId);
-    expect(useProjectStore.getState().worldName).toBe("New world");
-    expect(useProjectStore.getState().scenarios).toHaveLength(1);
-    expect(screen.getByLabelText("Active world name")).toHaveValue("New world");
-  });
-
-  it("opens a persisted sample workspace", async () => {
+  it("opens a persisted project with its scene, fleet, and scenarios", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Open project" }));
     const dialog = screen.getByRole("dialog", { name: "Open Project" });
     await user.click(await within(dialog).findByRole("button", { name: "Open Sample depot transition" }));
     expect(screen.getByLabelText("Project name")).toHaveValue("Sample depot transition");
-    expect(useSceneStore.getState().document.objects).toHaveLength(4);
+    expect(useSceneStore.getState().document.objects.some((object) => object.id === DEFAULT_DEPOT_OBJECT_ID)).toBe(true);
+    expect(useProjectStore.getState().scenarios).toHaveLength(2);
   });
 
-  it("can start a new project from a saved world", async () => {
+  it("creates a fresh project with the default depot and no world picker", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "New project" }));
     const dialog = screen.getByRole("dialog", { name: "New Project" });
-    await vi.waitFor(() => expect(within(dialog).getByLabelText("3D world").querySelectorAll("option").length).toBeGreaterThan(1));
+    expect(within(dialog).queryByLabelText("3D world")).not.toBeInTheDocument();
     const input = within(dialog).getByLabelText("Project name");
     await user.clear(input);
     await user.type(input, "Second depot");
-    await user.selectOptions(within(dialog).getByLabelText("3D world"), createSampleProjects()[0].worlds[0].id);
     await user.click(within(dialog).getByRole("button", { name: "Create Project" }));
     expect(screen.getAllByLabelText("Project name")[0]).toHaveValue("Second depot");
-    expect(useSceneStore.getState().document.objects).toHaveLength(4);
+    expect(useSceneStore.getState().document.objects.some((object) => object.id === DEFAULT_DEPOT_OBJECT_ID)).toBe(true);
   });
-  it("keeps newly created worlds visible while switching between them", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    const firstWorldId = useProjectStore.getState().worldId;
-    await user.click(screen.getByRole("button", { name: "New world" }));
-    const secondWorldId = useProjectStore.getState().worldId;
-    expect(secondWorldId).not.toBe(firstWorldId);
-
-    const worldList = screen.getByRole("list", { name: "Worlds" });
-    const firstWorld = within(worldList).getByRole("button", { name: /Untitled project world, world 1/ });
-    await user.click(firstWorld);
-    await vi.waitFor(() => expect(useProjectStore.getState().worldId).toBe(firstWorldId));
-    expect(within(worldList).getAllByRole("listitem")).toHaveLength(2);
-  });
-
 });

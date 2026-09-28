@@ -31,7 +31,7 @@ export type VehiclePlanReference = {
 export function findPresetReferences(presetId: string, vehicles: readonly FleetVehicle[], scenarios: readonly ScenarioPlans[]): PresetReference[] {
   const references: PresetReference[] = [];
   for (const vehicle of vehicles) {
-    if (vehicle.currentPresetId === presetId) references.push({ kind: "fleet-current", vehicleId: vehicle.id, vehicleName: vehicle.name });
+    if (vehicle.presetId === presetId) references.push({ kind: "fleet-current", vehicleId: vehicle.id, vehicleName: vehicle.name });
   }
   for (const scenario of scenarios) {
     for (const [vehicleId, plan] of Object.entries(scenario.vehiclePlans)) {
@@ -81,7 +81,7 @@ export function findReferenceIssues(project: M1ProjectDocument, scenarios: reado
   for (const vehicle of project.fleetVehicles) {
     if (vehicleIds.has(vehicle.id)) issues.push(`Vehicle id "${vehicle.id}" is used more than once.`);
     vehicleIds.add(vehicle.id);
-    if (!presetIds.has(vehicle.currentPresetId)) issues.push(`${vehicle.id} references missing preset "${vehicle.currentPresetId}".`);
+    if (vehicle.presetId && !presetIds.has(vehicle.presetId)) issues.push(`${vehicle.id} references missing preset "${vehicle.presetId}".`);
     if (!isYearInPeriod(project.analysis, vehicle.replacementYear)) {
       issues.push(`${vehicle.id} has a replacement year outside ${project.analysis.startYear}-${analysisEndYear(project.analysis)}.`);
     }

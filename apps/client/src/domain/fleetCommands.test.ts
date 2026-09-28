@@ -15,7 +15,7 @@ const presets = usePresetStore.getState;
 
 const activeScenario = () => project().scenarios.find((scenario) => scenario.id === project().activeScenarioId)!;
 const planFor = (scenarioId: string, vehicleId: string) =>
-  project().worlds.flatMap((world) => world.scenarios).find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans[vehicleId];
+  project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans[vehicleId];
 
 beforeEach(() => {
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
@@ -29,13 +29,14 @@ beforeEach(() => {
 });
 
 describe("fleet CRUD", () => {
-  it("adds a vehicle with a stable unique id and a resolvable preset", () => {
+  it("adds a generic vehicle with a stable id and an available parking lot", () => {
     const before = fleet().vehicles.length;
     const id = fleet().createVehicle()!;
     expect(id).toBeTruthy();
     expect(fleet().vehicles).toHaveLength(before + 1);
     const created = fleet().vehicles.find((vehicle) => vehicle.id === id)!;
-    expect(presets().presets.some((preset) => preset.id === created.currentPresetId)).toBe(true);
+    expect(created.presetId).toBeNull();
+    expect(created.parkingLotId).toBeTruthy();
     // A second vehicle must not reuse the first one's id or name.
     const other = fleet().createVehicle()!;
     expect(other).not.toBe(id);
@@ -48,7 +49,8 @@ describe("fleet CRUD", () => {
     const copy = fleet().vehicles.find((vehicle) => vehicle.id === copyId)!;
     expect(copyId).not.toBe(source.id);
     expect(copy.name).not.toBe(source.name);
-    expect(copy).toMatchObject({ annualKm: source.annualKm, currentPresetId: source.currentPresetId });
+    expect(copy).toMatchObject({ annualKm: source.annualKm, presetId: source.presetId });
+    expect(copy.parkingLotId).not.toBe(source.parkingLotId);
 
     // Editing the copy leaves the original untouched.
     fleet().updateVehicle(copyId, { annualKm: 12_345 });
@@ -61,7 +63,7 @@ describe("fleet CRUD", () => {
     fleet().updateVehicle(target.id, { annualKm: 31_000, name: "Renamed Van" });
     expect(fleet().vehicles[0]).toMatchObject({ annualKm: 31_000, name: "Renamed Van" });
 
-    for (const patch of [{ annualKm: -1 }, { utilisation: 2 }, { name: "" }, { currentPresetId: "missing" }, { operatingDays: 400 }]) {
+    for (const patch of [{ annualKm: -1 }, { utilisation: 2 }, { name: "" }, { presetId: "missing" }, { operatingDays: 400 }]) {
       fleet().updateVehicle(target.id, patch);
     }
     expect(fleet().vehicles[0]).toMatchObject({ annualKm: 31_000, name: "Renamed Van" });
@@ -167,7 +169,7 @@ describe("M1 evidence: two scenarios over one fleet", () => {
     expect(stateIn(gradual, 2031)).toMatchObject({ presetId: "electric-van", transitioned: true });
 
     // Neither plan touched the shared fleet record or the other scenario.
-    expect(fleet().vehicles.find((item) => item.id === "UNIT-01")!.currentPresetId).toBe("diesel-van");
+    expect(fleet().vehicles.find((item) => item.id === "UNIT-01")!.presetId).toBe("diesel-van");
     expect(planFor(gradual, "UNIT-01")).toEqual({ transitionYear: 2031, targetPresetId: "electric-van" });
     expect(planFor(fast, "UNIT-01")).toEqual({ transitionYear: 2027, targetPresetId: "electric-box-truck" });
   });
@@ -201,7 +203,7 @@ describe("save and reopen", () => {
     const scenarioId = activeScenario().id;
     fleet().updateVehicle("UNIT-01", { annualKm: 33_000, name: "Renamed Van" });
     const addedId = fleet().createVehicle()!;
-    fleet().updateVehicle(addedId, { annualKm: 12_000, currentPresetId: "electric-van" });
+    fleet().updateVehicle(addedId, { annualKm: 12_000, presetId: "electric-van" });
     project().updateScenarioVehiclePlan(scenarioId, "UNIT-01", { transitionYear: 2029, targetPresetId: "electric-van" });
 
     await project().saveProject();
@@ -211,12 +213,12 @@ describe("save and reopen", () => {
     await project().openProject(projectId);
 
     expect(fleet().vehicles.find((vehicle) => vehicle.id === "UNIT-01")).toMatchObject({ annualKm: 33_000, name: "Renamed Van" });
-    expect(fleet().vehicles.find((vehicle) => vehicle.id === addedId)).toMatchObject({ annualKm: 12_000, currentPresetId: "electric-van" });
+    expect(fleet().vehicles.find((vehicle) => vehicle.id === addedId)).toMatchObject({ annualKm: 12_000, presetId: "electric-van" });
     expect(fleet().analysis).toEqual(createMockAnalysis());
 
     // Every restored reference still resolves inside the reopened project.
     const presetIds = new Set(presets().presets.map((preset) => preset.id));
-    for (const vehicle of fleet().vehicles) expect(presetIds.has(vehicle.currentPresetId)).toBe(true);
+    for (const vehicle of fleet().vehicles) expect(vehicle.presetId === null || presetIds.has(vehicle.presetId)).toBe(true);
     const restoredPlan = project().scenarios.find((scenario) => scenario.id === scenarioId)!.document.vehiclePlans["UNIT-01"];
     expect(restoredPlan).toEqual({ transitionYear: 2029, targetPresetId: "electric-van" });
   });
@@ -237,7 +239,7 @@ describe("save and reopen", () => {
 describe("authoritative simulation input", () => {
   it("assembles the project and active scenario T05 consumes", () => {
     const input = currentSimulationInput()!;
-    expect(input.project.version).toBe(3);
+    expect(input.project.version).toBe(4);
     expect(input.scenario.version).toBe(2);
     expect(input.project.fleetVehicles).toHaveLength(fleet().vehicles.length);
     expect(input.project.analysis).toEqual(fleet().analysis);

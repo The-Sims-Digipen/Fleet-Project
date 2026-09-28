@@ -41,7 +41,7 @@ export function resolveVehiclePlan(plan: ScenarioVehiclePlan | undefined, preset
 
 /** A plan only changes anything when it has both parts and names a different preset. */
 export function planChangesPreset(vehicle: FleetVehicle, plan: ResolvedVehiclePlan): boolean {
-  return plan.transitionYear !== null && plan.targetPresetId !== null && plan.targetPresetId !== vehicle.currentPresetId;
+  return plan.transitionYear !== null && plan.targetPresetId !== null && plan.targetPresetId !== vehicle.presetId;
 }
 
 export function effectiveVehicleState(vehicle: FleetVehicle, plan: ScenarioVehiclePlan | undefined, presetIds: ReadonlySet<string>, year: number): EffectiveVehicleState {
@@ -50,7 +50,7 @@ export function effectiveVehicleState(vehicle: FleetVehicle, plan: ScenarioVehic
   const transitioned = changes && year >= (resolved.transitionYear as number);
   return {
     vehicleId: vehicle.id,
-    presetId: transitioned ? (resolved.targetPresetId as string) : vehicle.currentPresetId,
+    presetId: transitioned ? (resolved.targetPresetId as string) : vehicle.presetId,
     transitioned,
     transitionYear: changes ? resolved.transitionYear : null,
   };
@@ -73,7 +73,7 @@ export function transitionEvents(vehicles: readonly FleetVehicle[], plans: PlanR
     if (!planChangesPreset(vehicle, resolved)) continue;
     const year = resolved.transitionYear as number;
     if (year < settings.startYear || year > endYear) continue;
-    events.push({ kind: "vehicle-transition", year, vehicleId: vehicle.id, fromPresetId: vehicle.currentPresetId, toPresetId: resolved.targetPresetId as string });
+    events.push({ kind: "vehicle-transition", year, vehicleId: vehicle.id, fromPresetId: vehicle.presetId, toPresetId: resolved.targetPresetId as string });
   }
   // Stable ordering keeps rendered event lists and snapshots deterministic.
   return events.sort((a, b) => a.year - b.year || a.vehicleId.localeCompare(b.vehicleId));

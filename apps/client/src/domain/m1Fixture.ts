@@ -1,11 +1,13 @@
 import type { M1ProjectDocument, M1ScenarioDocument } from "./contracts";
+import { createDefaultProjectScene } from "../scene/defaultProjectScene";
 
 /**
  * Shared SIM01 handoff fixture. T01, T03, T04, T05 and T07 tests should reuse
  * this data instead of inventing subtly different sample assumptions.
  */
 export const sim01Project: M1ProjectDocument = {
-  version: 3,
+  version: 4,
+  scene: createDefaultProjectScene(),
   vehiclePresets: [
     {
       id: "sim01-diesel",
@@ -44,7 +46,8 @@ export const sim01Project: M1ProjectDocument = {
     {
       id: "SIM01-VEHICLE",
       name: "SIM01 vehicle",
-      currentPresetId: "sim01-diesel",
+      presetId: "sim01-diesel",
+      parkingLotId: "parking-lot-01",
       annualKm: 10_000,
       typicalDailyKm: 100,
       operatingDays: 100,

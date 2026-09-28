@@ -12,7 +12,7 @@ const vehicles = createMockFleet();
 describe("scenario comparison preview", () => {
   it("keeps a vehicle on its current preset when the scenario plans nothing", () => {
     const vehicle = vehicles[0];
-    expect(effectivePresetForYear(scenario("A"), vehicle, presets, 2035)?.id).toBe(vehicle.currentPresetId);
+    expect(effectivePresetForYear(scenario("A"), vehicle, presets, 2035)?.id).toBe(vehicle.presetId);
   });
 
   it("follows the shared transition rule around the transition year", () => {

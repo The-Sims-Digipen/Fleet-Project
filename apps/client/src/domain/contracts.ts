@@ -1,4 +1,5 @@
 import type { OwnershipTerms, VehiclePreset } from "../vehicles/types";
+import type { SceneDocument } from "../scene/types";
 
 /**
  * Canonical, serializable M1 domain contracts.
@@ -9,10 +10,14 @@ import type { OwnershipTerms, VehiclePreset } from "../vehicles/types";
  */
 
 export const ANNUAL_MODEL_VERSION = "annual-v1" as const;
-export const M1_PROJECT_DOCUMENT_VERSION = 3 as const;
+export const M1_PROJECT_DOCUMENT_VERSION = 4 as const;
 export const M1_SCENARIO_DOCUMENT_VERSION = 2 as const;
 
 export type { OwnershipTerms };
+
+export type VehicleId = string;
+export type VehiclePresetId = string;
+export type ParkingLotId = string;
 
 /**
  * The M1 calculation contract's preset. `VehiclePreset` in `vehicles/types.ts`
@@ -27,9 +32,12 @@ export type CurrentVehicleHolding =
 
 /** Shared project fleet data. Transition decisions do not belong here. */
 export type FleetVehicle = {
-  id: string;
+  id: VehicleId;
   name: string;
-  currentPresetId: string;
+  /** A reusable configuration. Null keeps the stable vehicle as a generic placeholder. */
+  presetId: VehiclePresetId | null;
+  /** Every persistent vehicle occupies exactly one position in the default depot. */
+  parkingLotId: ParkingLotId;
   annualKm: number;
   typicalDailyKm: number;
   operatingDays: number;
@@ -71,6 +79,7 @@ export type ScenarioVehiclePlan = {
 
 export type M1ProjectDocument = {
   version: typeof M1_PROJECT_DOCUMENT_VERSION;
+  scene: SceneDocument;
   vehiclePresets: M1VehiclePreset[];
   fleetVehicles: FleetVehicle[];
   analysis: AnalysisSettings;
@@ -84,7 +93,7 @@ export type M1ScenarioDocument = {
 
 export type EffectiveVehicleState = {
   vehicleId: string;
-  presetId: string;
+  presetId: string | null;
   transitioned: boolean;
   transitionYear: number | null;
 };
@@ -93,7 +102,7 @@ export type VehicleTransitionEvent = {
   kind: "vehicle-transition";
   year: number;
   vehicleId: string;
-  fromPresetId: string;
+  fromPresetId: string | null;
   toPresetId: string;
 };
 

@@ -1,7 +1,7 @@
 import { useSceneStore } from "../state/sceneStore";
 import type { MaterialPreset, Vector3 } from "../scene/types";
 import { WorldObjects } from "./WorldObjects";
-import { WorldScenarioPanel } from "./WorldScenarioPanel";
+import { ScenarioPanel } from "./ScenarioPanel";
 import { getDefinition } from "../scene/catalog";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorControl, RangeControl, SelectControl, Vector3Control } from "./controls";
@@ -75,23 +75,18 @@ function DebugModule() {
   </CollapsibleSection>;
 }
 
-export function Sidebar({ onResetCamera, onVisualizeFleet, fleetPreviewOpen, onCloseFleetPreview }: {
-  onResetCamera: () => void;
-  onVisualizeFleet: () => void;
-  fleetPreviewOpen: boolean;
-  onCloseFleetPreview: () => void;
-}) {
+export function Sidebar({ onResetCamera }: { onResetCamera: () => void }) {
   return <aside className="col-start-3 row-start-1 flex min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain bg-panel p-7 *:shrink-0 max-[900px]:col-start-1 max-[900px]:row-start-3 max-[560px]:px-5 max-[560px]:py-6" id="controls" aria-labelledby="controls-title" tabIndex={-1}>
-    <WorldScenarioPanel />
-    <FleetManagementPanel onVisualize={onVisualizeFleet} previewOpen={fleetPreviewOpen} onClosePreview={onCloseFleetPreview} />
+    <ScenarioPanel />
+    <FleetManagementPanel />
     <TimelineControl />
     <VehiclePresets />
-    <WorldObjects />
+    {import.meta.env.DEV && <WorldObjects />}
     <SimulationSettings />
-    <Inspector />
+    {import.meta.env.DEV && <Inspector />}
     <PowerFeasibility />
-    <SceneModule onResetCamera={onResetCamera} />
+    {import.meta.env.DEV && <SceneModule onResetCamera={onResetCamera} />}
     <CostAnalysis />
-    <DebugModule />
+    {import.meta.env.DEV && <DebugModule />}
   </aside>;
 }

@@ -4,6 +4,7 @@ import { findPresetReferences, findVehiclePlanReferences, type PresetReference, 
 import { useFleetStore } from "../state/fleetStore";
 import { usePresetStore } from "../state/presetStore";
 import { useProjectStore } from "../state/projectStore";
+import { useSceneStore } from "../state/sceneStore";
 
 /**
  * Domain edits that span more than one store (T03).
@@ -14,10 +15,9 @@ import { useProjectStore } from "../state/projectStore";
  * are still enforced in one place.
  */
 
-/** Every scenario in the project, across all of its worlds. */
+/** Every scenario in the current project. */
 export function projectScenarioPlans(): ScenarioPlans[] {
-  return useProjectStore.getState().worlds.flatMap((world) =>
-    world.scenarios.map((scenario) => ({ id: scenario.id, name: scenario.name, vehiclePlans: scenario.document.vehiclePlans })));
+  return useProjectStore.getState().scenarios.map((scenario) => ({ id: scenario.id, name: scenario.name, vehiclePlans: scenario.document.vehiclePlans }));
 }
 
 /** Scenario plan entries that deleting this vehicle would also remove. */
@@ -56,7 +56,7 @@ export function deleteVehiclePreset(presetId: string): PresetDeletion {
 /** The project-owned authoritative inputs, assembled for T01, T05 and T07. */
 export function currentProjectDocument(): M1ProjectDocument {
   const fleet = useFleetStore.getState();
-  return createProjectDocument(usePresetStore.getState().presets, fleet.vehicles, fleet.analysis);
+  return createProjectDocument(usePresetStore.getState().presets, fleet.vehicles, fleet.analysis, useSceneStore.getState().document);
 }
 
 export function activeScenarioDocument(): M1ScenarioDocument | undefined {
