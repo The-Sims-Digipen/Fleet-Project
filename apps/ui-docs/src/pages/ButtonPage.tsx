@@ -81,6 +81,27 @@ export function ButtonPage() {
 <Button variant="danger" disabled>Danger</Button>`}
       />
 
+      <ComponentSection
+        title="Keyboard focus states"
+        description="Use Tab and Shift+Tab through the live controls to verify the visible Blue focus indicator. The examples below keep that indicator visible for side-by-side review."
+        preview={
+          <LivePreview>
+            {(["primary", "secondary", "ghost", "danger"] as const).map((variant) => (
+              <Button
+                key={variant}
+                variant={variant}
+                className="ring-2 ring-chargedup-blue ring-offset-2 ring-offset-chargedup-white"
+              >
+                {variant.charAt(0).toUpperCase() + variant.slice(1)}
+              </Button>
+            ))}
+          </LivePreview>
+        }
+        code={`<Button className="ring-2 ring-chargedup-blue ring-offset-2">
+  Focused action
+</Button>`}
+      />
+
       <SectionHeading>Sizes</SectionHeading>
 
       <ComponentSection

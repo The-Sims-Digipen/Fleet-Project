@@ -44,6 +44,14 @@ The Fastify server is still started by the root `pnpm dev` command because the p
 pnpm dev:client
 ```
 
+Reusable UI components live in `packages/ui`. Run the canonical component catalogue and usage documentation with:
+
+```bash
+pnpm dev:ui
+```
+
+The catalogue is implemented by `apps/ui-docs`; there is no separate showcase application.
+
 ## Project persistence
 
 Browser storage keeps two logical collections:
