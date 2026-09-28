@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { create } from "zustand";
 
-import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
+import type { AnalysisSettings, FleetVehicle, ScenarioAssumptions } from "../domain/contracts";
 import { isYearInPeriod } from "../domain/fleet";
 import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
 import { createProjectDocument, toM1ProjectDocument } from "../domain/projectDocument";
-import { cloneScenarioDocument, createScenarioDocument, toM1ScenarioDocument } from "../domain/scenario";
+import { cloneScenarioDocument, createScenarioDocument, normalizeScenarioAssumptions, toM1ScenarioDocument } from "../domain/scenario";
 import { withoutVehiclePlan } from "../domain/references";
 import { createIndexedDbProjectRepository } from "../project/indexedDbRepository";
 import { createPortableProject, type PortableProjectFile } from "../project/portableProject";
@@ -54,6 +54,7 @@ type ProjectState = ProjectFields & {
   renameScenario: (id: string, name: string) => void;
   deleteScenario: (id: string) => void;
   updateScenarioVehiclePlan: (scenarioId: string, vehicleId: string, patch: Partial<ScenarioVehiclePlan>) => void;
+  updateScenarioAssumptions: (scenarioId: string, patch: Partial<ScenarioAssumptions>) => void;
   /** Clears one vehicle's plan entry in every scenario of every world, as one edit. */
   removeVehiclePlans: (vehicleId: string) => void;
   exportProject: () => PortableProjectFile;
@@ -424,6 +425,19 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             },
           };
         }),
+      }));
+    },
+
+    updateScenarioAssumptions: (scenarioId, patch) => {
+      const scenario = get().scenarios.find((item) => item.id === scenarioId);
+      if (!scenario) return;
+      const assumptions = normalizeScenarioAssumptions({ ...scenario.document.assumptions, ...patch });
+      if (!assumptions) return;
+      replaceActiveWorld((world) => ({
+        ...world,
+        scenarios: world.scenarios.map((item) => item.id === scenarioId
+          ? { ...item, document: { ...item.document, assumptions } }
+          : item),
       }));
     },
 

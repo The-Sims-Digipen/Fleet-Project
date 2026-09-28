@@ -105,7 +105,7 @@ export function SimulationPreview() {
     const result = simulation.result;
 
     return (
-        <section className="rounded-lg border border-line-strong bg-panel p-4">
+        <section aria-label="Live simulation results" className="rounded-lg border border-line-strong bg-panel p-4">
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
                 Live simulation engine
             </p>

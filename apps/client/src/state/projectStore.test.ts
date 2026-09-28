@@ -67,6 +67,17 @@ describe("project/world/scenario workspace", () => {
     expect(copy.document.vehiclePlans?.["UNIT-01"]).toEqual({ transitionYear: 2026, targetPresetId: "electric-van" });
   });
 
+  it("keeps scenario assumptions independent", () => {
+    const sourceId = project().activeScenarioId;
+    project().duplicateScenario(sourceId);
+    const copyId = project().activeScenarioId;
+
+    project().updateScenarioAssumptions(copyId, { externalElectricityPricePerKWh: 0.9 });
+
+    expect(project().scenarios.find((scenario) => scenario.id === sourceId)?.document.assumptions.externalElectricityPricePerKWh).not.toBe(0.9);
+    expect(project().scenarios.find((scenario) => scenario.id === copyId)?.document.assumptions.externalElectricityPricePerKWh).toBe(0.9);
+  });
+
   it("persists scenario vehicle plans through Save Project", async () => {
     const scenarioId = project().activeScenarioId;
     project().updateScenarioVehiclePlan(scenarioId, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
