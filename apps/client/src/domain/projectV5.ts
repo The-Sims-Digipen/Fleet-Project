@@ -1,4 +1,5 @@
 import type { CurrentVehicleHolding, FleetVehicle } from "./contracts";
+import { PROJECT_FLEET_CAPACITY } from "./depotLayout";
 import { normalizeAnalysisSettings, normalizeFleetVehicle } from "./fleet";
 import type { Transform } from "../scene/types";
 import { copyPreset, normalizePreset, type VehiclePreset } from "../vehicles/types";
@@ -168,6 +169,9 @@ export function normalizeProjectV5(value: unknown): ProjectDocumentV5 {
   const presetIds = new Set(vehiclePresets.map((preset) => preset.id));
   const environment = record(source.environment, "project.environment");
   if (!Array.isArray(environment.vehicles)) fail("project.environment.vehicles", "must be an array.");
+  if (environment.vehicles.length > PROJECT_FLEET_CAPACITY) {
+    fail("project.environment.vehicles", `exceeds the fleet capacity of ${PROJECT_FLEET_CAPACITY}.`);
+  }
   const vehicles = environment.vehicles.map((entry, index) => projectVehicle(entry, presetIds, `project.environment.vehicles[${index}]`));
   unique(vehicles.map((vehicle) => vehicle.id), "project.environment.vehicles");
   const normalizedScenarios = scenarios(source.scenarios, new Set(vehicles.map((vehicle) => vehicle.id)), presetIds);

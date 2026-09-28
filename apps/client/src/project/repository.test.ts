@@ -1,12 +1,20 @@
+import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
 
 import { addVehicleTransition } from "../domain/projectV5";
 import { createProjectV5Fixture } from "../domain/projectV5Fixture";
+import { createIndexedDbProjectRepository } from "./indexedDbRepository";
 import { createMemoryProjectRepository, ProjectConflictError } from "./repository";
+import type { ProjectRepository } from "./repository";
 
-describe("aggregate Project repository contract", () => {
+const adapters: Array<{ name: string; createRepository: () => ProjectRepository }> = [
+  { name: "memory", createRepository: () => createMemoryProjectRepository() },
+  { name: "IndexedDB", createRepository: () => createIndexedDbProjectRepository(`fleet-project-test-${crypto.randomUUID()}`) },
+];
+
+describe.each(adapters)("aggregate Project repository contract: $name", ({ createRepository }) => {
   it("creates, lists, loads, and updates one complete Project record", async () => {
-    const repository = createMemoryProjectRepository();
+    const repository = createRepository();
     const document = addVehicleTransition(
       createProjectV5Fixture("project-1"),
       { scenarioId: "plan-a", vehicleId: "UNIT-01" },
@@ -31,7 +39,7 @@ describe("aggregate Project repository contract", () => {
   });
 
   it("leaves the complete stored aggregate unchanged after a stale revision", async () => {
-    const repository = createMemoryProjectRepository();
+    const repository = createRepository();
     const document = createProjectV5Fixture("project-1");
     const created = await repository.createProject(document);
 
@@ -41,7 +49,7 @@ describe("aggregate Project repository contract", () => {
   });
 
   it("rejects unsupported or invalid documents without storing them", async () => {
-    const repository = createMemoryProjectRepository();
+    const repository = createRepository();
     await expect(repository.createProject({ ...createProjectV5Fixture(), version: 4 } as never)).rejects.toThrow(/unsupported Project document version/i);
     expect(await repository.listProjects()).toEqual([]);
   });

@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { create } from "zustand";
 
 import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
@@ -77,6 +76,23 @@ export type ProjectState = ProjectFields & {
 
 const mockInputs = (): ProjectInputs => ({ presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() });
 
+let compatibilityProjectionWriteDepth = 0;
+
+function updateCompatibilityProjections(update: () => void): void {
+  compatibilityProjectionWriteDepth += 1;
+  try {
+    update();
+  } finally {
+    compatibilityProjectionWriteDepth -= 1;
+  }
+}
+
+function commitCompatibilityEdits(): void {
+  useSceneStore.getState().commitEdit();
+  usePresetStore.getState().commitEdit();
+  useFleetStore.getState().commitEdit();
+}
+
 export function setProjectRepository(next: ProjectRepository) {
   setProjectRepositoryInstance(next);
   useAppStore.getState().resetRepositoryState();
@@ -130,7 +146,7 @@ export function createProjectFields(
   return projectFields(createProjectRuntime(document), session);
 }
 
-function bridgeDocument(runtime: ProjectRuntime): ProjectDocumentV5 {
+function documentFromCompatibilityProjections(runtime: ProjectRuntime): ProjectDocumentV5 {
   const scene = useSceneStore.getState();
   const presets = usePresetStore.getState();
   const fleet = useFleetStore.getState();
@@ -144,23 +160,27 @@ function bridgeDocument(runtime: ProjectRuntime): ProjectDocumentV5 {
 
 function loadCompatibilityViews(document: ProjectDocumentV5, revision: number): void {
   const legacy = legacyProjectView(document, revision);
-  useSceneStore.getState().loadDocument(legacy.scene);
-  usePresetStore.getState().replacePresets(legacy.presets);
-  useFleetStore.getState().updateAnalysis(legacy.analysis);
-  useFleetStore.getState().replaceFleet(legacy.fleet);
-  useTimelineStore.getState().setSelectedYear(document.analysis.startYear);
+  updateCompatibilityProjections(() => {
+    useSceneStore.getState().loadDocument(legacy.scene);
+    usePresetStore.getState().replacePresets(legacy.presets);
+    useFleetStore.getState().updateAnalysis(legacy.analysis);
+    useFleetStore.getState().replaceFleet(legacy.fleet);
+    useTimelineStore.getState().setSelectedYear(document.analysis.startYear);
+  });
 }
 
 function syncChangedCompatibilityViews(previous: ProjectDocumentV5, next: ProjectDocumentV5, revision: number): void {
   const before = legacyProjectView(previous, revision);
   const after = legacyProjectView(next, revision);
-  if (JSON.stringify(before.scene) !== JSON.stringify(after.scene)) useSceneStore.getState().loadDocument(after.scene);
-  if (JSON.stringify(before.presets) !== JSON.stringify(after.presets)) usePresetStore.getState().replacePresets(after.presets);
-  if (JSON.stringify(before.analysis) !== JSON.stringify(after.analysis)) useFleetStore.getState().updateAnalysis(after.analysis);
-  if (JSON.stringify(before.fleet) !== JSON.stringify(after.fleet)) useFleetStore.getState().replaceFleet(after.fleet);
-  if (before.analysis.startYear !== after.analysis.startYear || before.analysis.yearCount !== after.analysis.yearCount) {
-    useTimelineStore.getState().setSelectedYear(next.analysis.startYear);
-  }
+  updateCompatibilityProjections(() => {
+    if (JSON.stringify(before.scene) !== JSON.stringify(after.scene)) useSceneStore.getState().loadDocument(after.scene);
+    if (JSON.stringify(before.presets) !== JSON.stringify(after.presets)) usePresetStore.getState().replacePresets(after.presets);
+    if (JSON.stringify(before.analysis) !== JSON.stringify(after.analysis)) useFleetStore.getState().updateAnalysis(after.analysis);
+    if (JSON.stringify(before.fleet) !== JSON.stringify(after.fleet)) useFleetStore.getState().replaceFleet(after.fleet);
+    if (before.analysis.startYear !== after.analysis.startYear || before.analysis.yearCount !== after.analysis.yearCount) {
+      useTimelineStore.getState().setSelectedYear(next.analysis.startYear);
+    }
+  });
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => {
@@ -184,17 +204,6 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     useAppStore.getState().setRepositoryStatus({ state: "idle" });
     useAppStore.getState().setSaveStatus({ state: "idle" });
   };
-  const syncCompatibility = () => {
-    useSceneStore.getState().commitEdit();
-    usePresetStore.getState().commitEdit();
-    useFleetStore.getState().commitEdit();
-    const state = get();
-    const document = bridgeDocument(state.runtime);
-    const runtime = { ...state.runtime, document };
-    setRuntime(runtime);
-    return runtime;
-  };
-
   return {
     ...initial,
 
@@ -221,7 +230,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     saveProject: async () => {
       if (useAppStore.getState().saveStatus.state === "saving") return;
-      const capturedRuntime = syncCompatibility();
+      commitCompatibilityEdits();
+      const capturedRuntime = commitProjectEdit(get().runtime);
+      setRuntime(capturedRuntime);
       const capturedDocument = copyProjectV5(capturedRuntime.document);
       const capturedSession = get().session;
       useAppStore.getState().setSaveStatus({ state: "saving" });
@@ -300,12 +311,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       }
     },
     removeVehiclePlans: (vehicleId) => applyRuntime(executeProjectCommand(get().runtime, { type: "clear-vehicle-plans", vehicleId })),
-    deleteVehicle: (vehicleId) => {
-      const current = syncCompatibility();
-      applyRuntime(executeProjectCommand(current, { type: "delete-vehicle", vehicleId }));
-    },
+    deleteVehicle: (vehicleId) => applyRuntime(executeProjectCommand(get().runtime, { type: "delete-vehicle", vehicleId })),
 
-    exportProject: () => createPortableProject(syncCompatibility().document),
+    exportProject: () => {
+      commitCompatibilityEdits();
+      return createPortableProject(get().runtime.document);
+    },
     importProject: async (file) => {
       const document = normalizeProjectV5({ ...file.document, id: crypto.randomUUID() });
       useAppStore.getState().setRepositoryStatus({ state: "loading" });
@@ -328,23 +339,97 @@ export const useProjectStore = create<ProjectState>((set, get) => {
   };
 });
 
+function applyCompatibilityCommand(command: ProjectCommand, preview: boolean): void {
+  const state = useProjectStore.getState();
+  try {
+    const runtime = preview
+      ? previewProjectCommand(state.runtime, command)
+      : executeProjectCommand(state.runtime, command);
+    useProjectStore.setState(projectFields(runtime, state.session));
+  } catch {
+    loadCompatibilityViews(state.runtime.document, state.runtime.record?.revision ?? 0);
+  }
+}
+
+useFleetStore.subscribe((current, previous) => {
+  if (compatibilityProjectionWriteDepth) return;
+  const project = useProjectStore.getState();
+  const beganEdit = previous.baseline === null && current.baseline !== null;
+  const endedEdit = previous.baseline !== null && current.baseline === null;
+  if (beganEdit) project.beginEdit();
+  if (endedEdit && current.vehicles === previous.baseline) {
+    project.cancelEdit();
+    return;
+  }
+  if (current.vehicles !== previous.vehicles || current.analysis !== previous.analysis) {
+    const merged = documentFromCompatibilityProjections(project.runtime);
+    applyCompatibilityCommand({
+      type: "replace-fleet-data",
+      vehicles: merged.environment.vehicles,
+      analysis: merged.analysis,
+    }, current.baseline !== null);
+  }
+  if (endedEdit) useProjectStore.getState().commitEdit();
+});
+
+usePresetStore.subscribe((current, previous) => {
+  if (compatibilityProjectionWriteDepth) return;
+  const project = useProjectStore.getState();
+  const beganEdit = previous.baseline === null && current.baseline !== null;
+  const endedEdit = previous.baseline !== null && current.baseline === null;
+  if (beganEdit) project.beginEdit();
+  if (endedEdit && current.presets === previous.baseline) {
+    project.cancelEdit();
+    return;
+  }
+  if (current.presets !== previous.presets) {
+    const merged = documentFromCompatibilityProjections(project.runtime);
+    applyCompatibilityCommand({ type: "replace-vehicle-presets", presets: merged.vehiclePresets }, current.baseline !== null);
+  }
+  if (endedEdit) useProjectStore.getState().commitEdit();
+});
+
+useSceneStore.subscribe((current, previous) => {
+  if (compatibilityProjectionWriteDepth) return;
+  const project = useProjectStore.getState();
+  const previousBaseline = previous.history.baseline;
+  const beganEdit = previousBaseline === null && current.history.baseline !== null;
+  const endedEdit = previousBaseline !== null && current.history.baseline === null;
+  if (beganEdit) project.beginEdit();
+  if (endedEdit && current.document === previousBaseline) {
+    project.cancelEdit();
+    return;
+  }
+  if (current.document !== previous.document) {
+    const merged = documentFromCompatibilityProjections(project.runtime);
+    applyCompatibilityCommand({ type: "set-depot-transform", transform: merged.environment.depot.transform }, current.history.baseline !== null);
+  }
+  if (endedEdit) useProjectStore.getState().commitEdit();
+  if (current.editor !== previous.editor) {
+    const runtime = useProjectStore.getState().runtime;
+    const selectedId = current.editor.selectedObjectId;
+    const selection = selectedId === runtime.document.environment.depot.id
+      ? { kind: "depot" as const, id: selectedId }
+      : runtime.document.environment.vehicles.some((vehicle) => vehicle.id === selectedId)
+        ? { kind: "vehicle" as const, id: selectedId! }
+        : null;
+    useProjectStore.getState().updateEditor({
+      selection,
+      interactionMode: current.editor.interactionMode,
+      transformMode: current.editor.transformMode,
+      transformSpace: current.editor.transformSpace,
+      snapEnabled: current.editor.snapEnabled,
+    });
+  }
+});
+
+useTimelineStore.subscribe((current, previous) => {
+  if (!compatibilityProjectionWriteDepth && current.selectedYear !== previous.selectedYear) {
+    useProjectStore.getState().updateEditor({ selectedYear: current.selectedYear });
+  }
+});
+
 export function useProjectDirty() {
-  const scene = useSceneStore((state) => state.document);
-  const presets = usePresetStore((state) => state.presets);
-  const fleet = useFleetStore((state) => state.vehicles);
-  const analysis = useFleetStore((state) => state.analysis);
   const runtime = useProjectStore((state) => state.runtime);
-  return useMemo(() => {
-    try {
-      const document = mergeLegacyProjectData(runtime.document, {
-        scene,
-        presets,
-        fleet,
-        analysis,
-      });
-      return isProjectDirty({ ...runtime, document });
-    } catch {
-      return true;
-    }
-  }, [scene, presets, fleet, analysis, runtime]);
+  return isProjectDirty(runtime);
 }

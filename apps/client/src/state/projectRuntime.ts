@@ -6,9 +6,12 @@ import {
   replaceVehicleTransitions,
   updateVehicleTransition,
   type ProjectDocumentV5,
+  type ProjectAnalysisSettings,
+  type ProjectVehicle,
   type VehicleTransition,
 } from "../domain/projectV5";
 import type { Transform } from "../scene/types";
+import type { VehiclePreset } from "../vehicles/types";
 
 export type ProjectRecordMetadata = {
   revision: number;
@@ -55,6 +58,8 @@ export type ProjectCommand =
   | { type: "delete-scenario"; scenarioId: string }
   | { type: "clear-vehicle-plans"; vehicleId: string }
   | { type: "delete-vehicle"; vehicleId: string }
+  | { type: "replace-fleet-data"; vehicles: ProjectVehicle[]; analysis: ProjectAnalysisSettings }
+  | { type: "replace-vehicle-presets"; presets: VehiclePreset[] }
   | { type: "set-depot-transform"; transform: Transform }
   | { type: "set-vehicle-transform"; vehicleId: string; transform: Transform }
   | { type: "add-vehicle-transition"; scenarioId: string; vehicleId: string; transition: VehicleTransition }
@@ -160,6 +165,20 @@ export function applyProjectCommand(document: ProjectDocumentV5, command: Projec
           return { ...scenario, vehiclePlans };
         }),
       });
+    case "replace-fleet-data": {
+      const vehicleIds = new Set(command.vehicles.map((vehicle) => vehicle.id));
+      return normalizeProjectV5({
+        ...document,
+        environment: { ...document.environment, vehicles: structuredClone(command.vehicles) },
+        analysis: structuredClone(command.analysis),
+        scenarios: document.scenarios.map((scenario) => ({
+          ...scenario,
+          vehiclePlans: Object.fromEntries(Object.entries(scenario.vehiclePlans).filter(([vehicleId]) => vehicleIds.has(vehicleId))),
+        })),
+      });
+    }
+    case "replace-vehicle-presets":
+      return normalizeProjectV5({ ...document, vehiclePresets: structuredClone(command.presets) });
     case "set-depot-transform":
       return normalizeProjectV5({ ...document, environment: { ...document.environment, depot: { ...document.environment.depot, transform: structuredClone(command.transform) } } });
     case "set-vehicle-transform":

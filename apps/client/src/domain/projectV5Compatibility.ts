@@ -70,6 +70,7 @@ export function mergeLegacyProjectData(
 ): ProjectDocumentV5 {
   const depotObject = input.scene.objects.find((object) => object.id === DEFAULT_DEPOT_OBJECT_ID);
   const existingVehicles = new Map(document.environment.vehicles.map((vehicle) => [vehicle.id, vehicle]));
+  const vehicleIds = new Set(input.fleet.map((vehicle) => vehicle.id));
   return createProjectV5({
     id: document.id,
     name: document.name,
@@ -79,7 +80,10 @@ export function mergeLegacyProjectData(
     },
     vehicles: input.fleet.map((vehicle) => v5Vehicle(vehicle, existingVehicles.get(vehicle.id))),
     vehiclePresets: input.presets,
-    scenarios: document.scenarios,
+    scenarios: document.scenarios.map((scenario) => ({
+      ...scenario,
+      vehiclePlans: Object.fromEntries(Object.entries(scenario.vehiclePlans).filter(([vehicleId]) => vehicleIds.has(vehicleId))),
+    })),
     activeScenarioId: document.activeScenarioId,
     analysis: { ...document.analysis, ...input.analysis },
   });

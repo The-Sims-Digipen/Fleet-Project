@@ -68,6 +68,36 @@ describe("single-environment project state", () => {
     expect(useFleetStore.getState().vehicles.find((vehicle) => vehicle.id === "UNIT-01")?.annualKm).toBe(42_000);
   });
 
+  it("mirrors compatibility edits into the authoritative runtime before persistence", () => {
+    const historyLength = project().runtime.history.past.length;
+    const depotTransform = { position: [3, 0, 4] as [number, number, number], rotation: [0, 0.5, 0] as [number, number, number], scale: [1, 1, 1] as [number, number, number] };
+
+    useFleetStore.getState().updateVehicle("UNIT-01", { annualKm: 42_000 });
+    useFleetStore.getState().updateAnalysis({ fuelPricePerLitre: 3.25 });
+    usePresetStore.getState().updatePreset("diesel-van", { name: "Updated diesel van" });
+    useSceneStore.getState().updateObjectTransform(DEFAULT_DEPOT_OBJECT_ID, depotTransform);
+
+    expect(project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === "UNIT-01")?.annualKm).toBe(42_000);
+    expect(project().runtime.document.analysis.fuelPricePerLitre).toBe(3.25);
+    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === "diesel-van")?.name).toBe("Updated diesel van");
+    expect(project().runtime.document.environment.depot.transform).toEqual(depotTransform);
+    expect(project().runtime.history.past).toHaveLength(historyLength + 4);
+    expect(project().exportProject().document).toEqual(project().runtime.document);
+  });
+
+  it("groups compatibility edit previews into one Project history entry", () => {
+    const historyLength = project().runtime.history.past.length;
+    const fleet = useFleetStore.getState();
+
+    fleet.beginEdit();
+    fleet.updateVehicle("UNIT-01", { annualKm: 41_000 });
+    fleet.updateVehicle("UNIT-01", { annualKm: 42_000 });
+    fleet.commitEdit();
+
+    expect(project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === "UNIT-01")?.annualKm).toBe(42_000);
+    expect(project().runtime.history.past).toHaveLength(historyLength + 1);
+  });
+
   it("exports and imports one project environment with its scenarios", async () => {
     project().createScenario();
     const exported = project().exportProject();

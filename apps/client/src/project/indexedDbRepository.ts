@@ -29,10 +29,10 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
   });
 }
 
-function openDatabase(): Promise<IDBDatabase> {
+function openDatabase(databaseName: string): Promise<IDBDatabase> {
   if (typeof indexedDB === "undefined") return Promise.reject(new DatabaseUnavailableError());
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+    const request = indexedDB.open(databaseName, DATABASE_VERSION);
     request.onupgradeneeded = () => {
       const database = request.result;
       // Pre-release reset: version 5 replaces split Project/Scenario records.
@@ -45,10 +45,10 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-async function withDatabase<T>(operation: (database: IDBDatabase) => Promise<T>): Promise<T> {
+async function withDatabase<T>(databaseName: string, operation: (database: IDBDatabase) => Promise<T>): Promise<T> {
   let database: IDBDatabase | undefined;
   try {
-    database = await openDatabase();
+    database = await openDatabase(databaseName);
     return await operation(database);
   } catch (error) {
     if (error instanceof ProjectConflictError || error instanceof ProjectNotFoundError || error instanceof DatabaseUnavailableError) throw error;
@@ -96,9 +96,9 @@ async function writeProject(
   return normalizeProjectRecord(record);
 }
 
-export function createIndexedDbProjectRepository(): ProjectRepository {
+export function createIndexedDbProjectRepository(databaseName = DATABASE_NAME): ProjectRepository {
   return {
-    listProjects: () => withDatabase(async (database) => {
+    listProjects: () => withDatabase(databaseName, async (database) => {
       const transaction = database.transaction(STORE_PROJECTS, "readonly");
       const done = transactionDone(transaction);
       const records = await requestResult(transaction.objectStore(STORE_PROJECTS).getAll() as IDBRequest<AggregateProjectRecord[]>);
@@ -114,8 +114,8 @@ export function createIndexedDbProjectRepository(): ProjectRepository {
         };
       }).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
     }),
-    getProject: (id) => withDatabase((database) => readProject(database, id)),
-    createProject: (document) => withDatabase((database) => writeProject(database, document, "create")),
-    updateProject: (document, expectedRevision) => withDatabase((database) => writeProject(database, document, "update", expectedRevision)),
+    getProject: (id) => withDatabase(databaseName, (database) => readProject(database, id)),
+    createProject: (document) => withDatabase(databaseName, (database) => writeProject(database, document, "create")),
+    updateProject: (document, expectedRevision) => withDatabase(databaseName, (database) => writeProject(database, document, "update", expectedRevision)),
   };
 }

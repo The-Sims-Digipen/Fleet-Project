@@ -144,4 +144,18 @@ describe("Project document version 5", () => {
       scenarios: [{ ...valid.scenarios[0], vehiclePlans: { "vehicle-1": { transitions: [{ year: 2030, targetPresetId: "missing" }] } } }],
     })).toThrow(/does not resolve to Preset/i);
   });
+
+  it("rejects a fleet larger than the available spawn configuration", () => {
+    const presets = createMockPresets();
+    const template = vehicle("vehicle-template", presets[0].id);
+
+    expect(() => createProjectV5({
+      id: "project-1",
+      name: "Fleet capacity",
+      vehicles: Array.from({ length: 11 }, (_, index) => ({ ...template, id: `vehicle-${index}` })),
+      vehiclePresets: presets,
+      scenarios: [{ id: "scenario-1", name: "Plan A", vehiclePlans: {} }],
+      activeScenarioId: "scenario-1",
+    })).toThrow(/fleet.*capacity/i);
+  });
 });
