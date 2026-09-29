@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses T06 workspace actions and T01 repository operations for versioned `M1ProjectDocument`/`M1ScenarioDocument` data; UI code must not access IndexedDB or implement migrations directly.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses the Project store and aggregate `ProjectRepository` for one complete Project document; UI code must not access IndexedDB or implement migrations directly.
 
 ## User capability
 
@@ -24,8 +24,8 @@ Users need a structured workspace for exploring transition plans without losing 
 - Switching the active Scenario is an unsaved Project change because that selection is persisted.
 - Duplicating a Scenario copies its planning inputs without sharing mutable scenario state.
 - Every Project must retain at least one Scenario.
-- New Projects automatically contain the default depot and parking lots.
-- Save Project is the persistence boundary and writes a consistent workspace snapshot through T01.
+- New Projects automatically contain the default depot and ordered Vehicle spawn positions.
+- Save Project is the persistence boundary and writes one complete Project aggregate through `ProjectRepository`.
 
 ## M1 scope
 
@@ -45,4 +45,4 @@ F03 must not access IndexedDB directly; storage is owned by T01.
 
 ## M1 evidence
 
-Create/switch/duplicate Scenarios over one Project fleet, make different transition edits, save the Project, reload/reopen it, and verify the one environment, active Scenario, and Scenario-specific state are restored.
+Create/switch/duplicate Scenarios over one Project fleet, make different transition edits, save the Project, reload/reopen it, and verify the one environment, active Scenario, and Scenario-specific state are restored from the aggregate.

@@ -8,6 +8,7 @@ import {
   vehiclePresetReferences,
   type ProjectAnalysisSettings,
   type ProjectDocument,
+  type ProjectEntityReference,
   type ProjectScenario,
   type ProjectVehicle,
   type VehicleTransition,
@@ -16,7 +17,7 @@ import { createPortableProject, type PortableProjectFile } from "../project/port
 import type { ProjectRepository } from "../project/repository";
 import { getProjectRepository, setProjectRepositoryInstance } from "../project/repositoryContext";
 import { NAME_MAX_LENGTH, validateName } from "../project/types";
-import type { Transform } from "../scene/types";
+import type { Transform } from "../domain/spatial";
 import type { VehiclePreset } from "../vehicles/types";
 import { useAppStore } from "./appStore";
 import {
@@ -40,7 +41,6 @@ import {
   type ProjectCamera,
   type ProjectEditorState,
   type ProjectRuntime,
-  type WorldObjectReference,
 } from "./projectRuntime";
 
 export type ProjectStateFields = {
@@ -78,7 +78,7 @@ export type ProjectState = ProjectStateFields & {
 
   setSelectedYear: (year: number) => void;
   resetSelectedYear: () => void;
-  selectObject: (selection: WorldObjectReference | null) => void;
+  selectProjectEntity: (selection: ProjectEntityReference | null) => void;
   setInteractionMode: (mode: ProjectEditorState["interactionMode"]) => void;
   setTransformMode: (mode: ProjectEditorState["transformMode"]) => void;
   setTransformSpace: (space: ProjectEditorState["transformSpace"]) => void;
@@ -86,7 +86,7 @@ export type ProjectState = ProjectStateFields & {
   setLightIntensity: (intensity: number) => void;
   setCamera: (camera: ProjectCamera) => void;
   resetCamera: () => void;
-  updateObjectTransform: (reference: WorldObjectReference, transform: Transform) => void;
+  setProjectEntityTransform: (reference: ProjectEntityReference, transform: Transform) => void;
 
   executeCommand: (command: ProjectCommand) => void;
   beginEdit: () => void;
@@ -333,7 +333,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     setSelectedYear: (year) => get().updateEditor({ selectedYear: year }),
     resetSelectedYear: () => get().updateEditor({ selectedYear: get().runtime.document.analysis.startYear }),
-    selectObject: (selection) => get().updateEditor({ selection }),
+    selectProjectEntity: (selection) => get().updateEditor({ selection }),
     setInteractionMode: (interactionMode) => get().updateEditor({ interactionMode }),
     setTransformMode: (transformMode) => get().updateEditor({ transformMode }),
     setTransformSpace: (transformSpace) => get().updateEditor({ transformSpace }),
@@ -346,7 +346,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       camera: structuredClone(DEFAULT_PROJECT_CAMERA),
       cameraRevision: get().runtime.editor.cameraRevision + 1,
     }),
-    updateObjectTransform: (reference, transform) => safelyApply(reference.kind === "depot"
+    setProjectEntityTransform: (reference, transform) => safelyApply(reference.kind === "depot"
       ? { type: "set-depot-transform", transform }
       : { type: "set-vehicle-transform", vehicleId: reference.id, transform }),
 

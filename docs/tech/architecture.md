@@ -53,8 +53,8 @@ The document's numeric `version` is a serialization concern. It does not appear 
 
 ## Scene implementation
 
-Depot and vehicle transforms are authoritative fields of the Project environment. `createProjectSceneObjects` is a render-only projection that combines those transforms with the active Scenario and selected year. Three.js objects, meshes, materials, selection, lighting controls, and camera state are not persisted as a second scene document.
+Depot and vehicle transforms are authoritative fields of the Project environment. `createProjectWorld` is a render-only projection that combines those transforms with the active Scenario and selected year. Three.js objects, meshes, materials, selection, lighting controls, and camera state are not persisted in the Project document.
 
-The model catalogue maps stable model IDs to runtime factories. Production users create typed vehicles through Fleet Management. Development tools may inspect and transform the typed depot and vehicles, but they do not create a separate generic-object authority.
+The model catalogue maps stable model IDs to runtime factories. Production users create typed Vehicles through Fleet Management. Development tools may inspect and transform the typed Depot and Vehicles through Project commands; the catalogue does not create independently persisted scene instances.
 
 See [contracts](contracts.md), [simulation](simulation.md), [depot editor](depot-editor.md), and the [architecture decision](../adr/0001-project-owned-physical-environment.md).

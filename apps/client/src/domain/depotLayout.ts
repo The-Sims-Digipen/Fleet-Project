@@ -1,4 +1,4 @@
-import type { Transform } from "../scene/types";
+import type { Transform } from "./spatial";
 
 const positions: Array<[number, number]> = [
   [-6.4, -7], [-3.2, -7], [0, -7], [3.2, -7], [6.4, -7],

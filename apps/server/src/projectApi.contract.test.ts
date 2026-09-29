@@ -56,7 +56,6 @@ function createDatabaseDouble() {
   type Row = {
     id: string;
     name: string;
-    activeScenarioId: string | null;
     revision: number;
     schemaVersion: number;
     document: ProjectDocument;
@@ -70,21 +69,19 @@ function createDatabaseDouble() {
   type Method = (...args: unknown[]) => unknown;
   let database: Record<string, Method>;
 
-  const select = (projection?: unknown) => {
+  const select = () => {
     let table: unknown;
     let condition: unknown;
     const query: Record<string, Method> = {};
     query.from = (...args) => { table = args[0]; return query; };
-    query.leftJoin = () => query;
     query.where = (...args) => { condition = args[0]; return query; };
-    query.groupBy = () => query;
     query.orderBy = () => query;
     query.limit = () => query;
     query.then = (...args) => {
       const selectedRows = table === projects
         ? rows.filter((row) => condition === undefined || equalityConditions(condition).every(({ name, value }) =>
           (row as unknown as Record<string, unknown>)[name] === value))
-          .map((row) => projection === undefined ? structuredClone(row) : { ...structuredClone(row), legacyScenarioCount: 0 })
+          .map((row) => structuredClone(row))
         : [];
       const resolve = args[0] as (value: unknown) => unknown;
       const reject = args[1] as ((error: unknown) => unknown) | undefined;
@@ -94,7 +91,7 @@ function createDatabaseDouble() {
   };
 
   database = {
-    select: (...args) => select(args[0]),
+    select,
     insert: () => ({
       values: (...args: unknown[]) => {
         const value = args[0] as Row;

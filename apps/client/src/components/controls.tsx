@@ -1,5 +1,5 @@
 import { useId, useState, type CSSProperties } from "react";
-import type { Vector3 } from "../scene/types";
+import type { Vector3 } from "../domain/spatial";
 
 export type EditLifecycle = { beginEdit: () => void; commitEdit: () => void; cancelEdit: () => void };
 

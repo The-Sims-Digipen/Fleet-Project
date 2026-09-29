@@ -11,7 +11,7 @@ import { projectEditLifecycle } from "./projectEditLifecycle";
 const edit = projectEditLifecycle;
 
 const propulsionOptions = propulsions.map((value) => ({ value, label: `${value[0].toUpperCase()}${value.slice(1)}` }));
-const modelOptions = vehicleModelEntries.map(([value, definition]) => ({ value, label: definition.name }));
+const modelOptions = vehicleModelEntries.map(({ id: value, name: label }) => ({ value, label }));
 const ownershipOptions = ownershipKinds.map((value) => ({ value, label: value === "owned" ? "Owned" : "Leased" }));
 
 const energyFields: { field: PresetNumericField; label: string; step?: number }[] = [
@@ -147,7 +147,7 @@ export function VehiclePresets() {
         <AcquisitionFields preset={preset} onChange={(acquisition) => updatePreset(preset.id, { acquisition })} />
       </FieldGroup>
 
-      <FieldGroup title="Appearance">
+      <FieldGroup title="Rendering">
         <SelectControl label="3D model" value={preset.modelId} options={modelOptions}
           onChange={(modelId) => { edit.commitEdit(); updatePreset(preset.id, { modelId }); }} />
         <p className="text-xs text-secondary">

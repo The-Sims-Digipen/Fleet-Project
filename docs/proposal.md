@@ -20,7 +20,7 @@ Synthetic sample data provides an immediate demonstration. The current default d
 | R02 — Fleet and generic transition planning | Build user-defined vehicle presets and a heterogeneous fleet; filter/group/select vehicles; assign any target preset and transition year; produce correct annual fleet composition. |
 | R03 — Calculations | Recalculate TCO, CAPEX, OPEX, payback, energy, and emissions from explicit editable assumptions with deterministic annual/cumulative breakdowns. |
 | R04 — Charging and feasibility | Model depot/external/mixed charging, charger inventory/timing, connection capacity, dwell/readiness, and depot-space constraints. |
-| R05 — Depot environment | Start every Project with the default depot and ten parking lots; keep generic scene authoring as development tooling while future typed depot authoring remains part of the Project environment. |
+| R05 — Depot environment | Start every Project with the default depot and ten initial Vehicle positions; keep development tools focused on typed Project entities, while future typed depot authoring remains part of the Project environment. |
 | R06 — 3D digital twin | Inspect the data-driven depot, selected-year vehicle/charger state, constraint overlays, and independent comparison scenes with full viewport interaction. |
 | R07 — Explainable choices | Rank transition candidates using operational/economic/feasibility factors and show factor-level reasons and assumption impacts without automatic schedule mutation. |
 | R08 — Comparison and analytics | Compare two independent plans at the same analysis year using synchronized metrics, charts, roadmaps, feasibility, and 3D state. |

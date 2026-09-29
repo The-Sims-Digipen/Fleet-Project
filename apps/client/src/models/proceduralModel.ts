@@ -1,11 +1,4 @@
-import { Box3, Box3Helper, Color, Material, Mesh, MeshStandardMaterial, Texture, type BufferGeometry, type Group } from "three";
-import type { Appearance, MaterialPreset } from "../scene/types";
-
-const presets: Record<MaterialPreset, { roughness: number; metalness: number }> = {
-  matte: { roughness: 0.9, metalness: 0 },
-  glossy: { roughness: 0.18, metalness: 0.1 },
-  metal: { roughness: 0.3, metalness: 0.85 },
-};
+import { Box3, Box3Helper, Color, Material, Mesh, Texture, type BufferGeometry, type Group } from "three";
 
 /** Owns every render resource returned by a procedural model factory. */
 export function createProceduralInstance(factory: () => Group) {
@@ -33,12 +26,10 @@ export function createProceduralInstance(factory: () => Group) {
   return {
     group,
     outline,
-    applyAppearance(appearance: Appearance) {
+    applyTint(tint: string | null) {
       for (const [material, authored] of authoredMaterials) {
         material.copy(authored);
-        if (appearance.tint && "color" in material && material.color instanceof Color) material.color.multiply(new Color(appearance.tint));
-        if (appearance.material && material instanceof MeshStandardMaterial) Object.assign(material, presets[appearance.material]);
-        if (appearance.wireframe !== undefined && "wireframe" in material) material.wireframe = appearance.wireframe;
+        if (tint && "color" in material && material.color instanceof Color) material.color.multiply(new Color(tint));
         material.needsUpdate = true;
       }
     },

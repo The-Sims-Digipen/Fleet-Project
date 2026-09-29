@@ -7,15 +7,13 @@ import {
   replaceVehicleTransitions,
   updateVehicleTransition,
   type ProjectDocument,
+  type ProjectEntityReference,
   type ProjectAnalysisSettings,
   type ProjectVehicle,
   type VehicleTransition,
 } from "../domain/project";
-import type { Transform } from "../scene/types";
-import type { WorldObjectReference } from "../scene/projectWorld";
+import type { Transform } from "../domain/spatial";
 import type { VehiclePreset } from "../vehicles/types";
-
-export type { WorldObjectReference };
 
 export type ProjectRecordMetadata = {
   revision: number;
@@ -34,8 +32,8 @@ export const DEFAULT_PROJECT_CAMERA: ProjectCamera = {
 };
 
 export type ProjectEditorState = {
-  selection: WorldObjectReference | null;
-  hover: WorldObjectReference | null;
+  selection: ProjectEntityReference | null;
+  hover: ProjectEntityReference | null;
   selectedYear: number;
   selectedPresetId: string | null;
   lightIntensity: number;
@@ -103,7 +101,7 @@ function defaultEditor(document: ProjectDocument): ProjectEditorState {
   };
 }
 
-function referenceExists(document: ProjectDocument, reference: WorldObjectReference | null): boolean {
+function referenceExists(document: ProjectDocument, reference: ProjectEntityReference | null): boolean {
   if (!reference) return true;
   if (reference.kind === "depot") return reference.id === document.environment.depot.id;
   return document.environment.vehicles.some((vehicle) => vehicle.id === reference.id);

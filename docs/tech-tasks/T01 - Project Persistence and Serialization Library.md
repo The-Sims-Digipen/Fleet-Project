@@ -6,7 +6,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). T01 persists and validates `M1ProjectDocument` and `M1ScenarioDocument`, owns legacy-version migration, and must never persist `SimulationResult` or other derived output.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T01 persists and validates one complete `ProjectDocument` aggregate, including its embedded Scenarios, and must never persist `SimulationResult` or other derived output.
 
 ## Goal
 
@@ -15,16 +15,16 @@ Provide a reusable persistence boundary for saving/loading complete project work
 ## Responsibilities
 
 - Maintain the `ProjectRepository` abstraction used by application state.
-- Persist the Project aggregate and its Scenario records atomically in IndexedDB.
-- Persist the authoritative project/fleet/settings/scenario documents supplied by T03/T06.
+- Persist the complete Project aggregate atomically as one IndexedDB record.
+- Persist the authoritative Project, environment, Preset, analysis, and Scenario data in the Project document.
 - Detect stale revisions/conflicting writes where the current repository contract supports them.
 - Export the live workspace to a versioned `.fleetproject` file.
-- Validate imports, support documented schema versions/migrations, and assign fresh local identities to imported copies.
+- Validate imports and assign a fresh Project identity while retaining internal entity identities and references. Unsupported earlier document versions may be rejected or cleared because this is a pre-release product.
 - Keep derived simulation/analytics results out of authoritative persistence; recompute them from saved inputs.
 
 ## M1 boundaries
 
-T01 owns **how authoritative workspace state is stored and restored**. T06 owns workspace lifecycle/invariants; T03 owns fleet/scenario domain data.
+T01 owns **how the complete Project aggregate is stored and restored**. Project commands own lifecycle and domain invariants; the repository owns revisioned persistence.
 
 ## M1 evidence
 

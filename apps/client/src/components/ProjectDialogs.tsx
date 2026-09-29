@@ -39,7 +39,7 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
   const error = validateName(name);
   const inputId = useId();
 
-  return <Modal title="New Project" description="Starts with the default depot, its ten parking lots, and Plan A." onDismiss={onDismiss}>
+  return <Modal title="New Project" description="Starts with the default depot, ten initial Vehicle positions, and Plan A." onDismiss={onDismiss}>
     <form className="grid gap-5" onSubmit={async (event) => {
       event.preventDefault();
       setTouched(true);

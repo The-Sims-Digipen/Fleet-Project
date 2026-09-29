@@ -12,10 +12,8 @@ import {
 } from "./persistence/repository.js";
 import {
   createProjectSchema,
-  createWorkspaceSchema,
   projectIdParamsSchema,
   updateProjectSchema,
-  updateWorkspaceSchema,
 } from "./persistence/schemas.js";
 
 type BuildAppOptions = {
@@ -121,24 +119,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return reply.code(400).send({ code: "VALIDATION_ERROR", message: "Project ID does not match the URL." });
     }
     return requireProjectRepository().updateProject(input.document, input.expectedRevision);
-  });
-
-  app.get<{ Params: { id: string } }>("/api/v1/projects/:id/workspace", async (request) => {
-    return requireRepository().getWorkspace(request.params.id);
-  });
-
-  app.post("/api/v1/workspaces", async (request, reply) => {
-    const input = parse(createWorkspaceSchema, request.body);
-    const record = await requireRepository().createWorkspace(input);
-    return reply.code(201).send(record);
-  });
-
-  app.put<{ Params: { id: string } }>("/api/v1/projects/:id/workspace", async (request, reply) => {
-    const input = parse(updateWorkspaceSchema, request.body);
-    if (input.project.id !== request.params.id) {
-      return reply.code(400).send({ code: "VALIDATION_ERROR", message: "Project ID does not match the URL." });
-    }
-    return requireRepository().updateWorkspace(input);
   });
 
   return app;

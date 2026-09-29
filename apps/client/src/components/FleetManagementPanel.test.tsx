@@ -24,7 +24,7 @@ describe("Fleet Management", () => {
     render(<FleetManagementPanel />);
     const vehicleButton = screen.getByRole("button", { name: "Select City Delivery Van in viewport" });
 
-    act(() => useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" }));
+    act(() => useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" }));
     expect(vehicleButton).toHaveAttribute("aria-pressed", "true");
 
     act(() => {

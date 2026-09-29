@@ -23,7 +23,7 @@ describe("development Inspector", () => {
       ]);
       useProjectStore.getState().selectScenario("plan-b");
       useProjectStore.getState().setSelectedYear(2030);
-      useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" });
+      useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" });
     });
     render(<InspectorPanel />);
 
@@ -39,7 +39,7 @@ describe("development Inspector", () => {
   });
 
   it("edits baseline fields and multiple active-Scenario transitions through Project history", () => {
-    act(() => useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" }));
+    act(() => useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" }));
     render(<InspectorPanel />);
 
     const annualDistance = screen.getByRole("spinbutton", { name: "Annual distance (km)" });
@@ -71,7 +71,7 @@ describe("development Inspector", () => {
         { year: 2029, targetPresetId: "electric-van" },
         { year: 2032, targetPresetId: "hybrid-van" },
       ]);
-      useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" });
+      useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" });
     });
     const historyLength = useProjectStore.getState().runtime.history.past.length;
     render(<InspectorPanel />);
@@ -95,7 +95,7 @@ describe("development Inspector", () => {
       useProjectStore.getState().replaceVehicleTransitions("plan-a", "UNIT-01", [
         { year: 2029, targetPresetId: "electric-van" },
       ]);
-      useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" });
+      useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" });
     });
     const historyLength = useProjectStore.getState().runtime.history.past.length;
     render(<InspectorPanel />);
@@ -117,7 +117,7 @@ describe("development Inspector", () => {
         { year: 2029, targetPresetId: "electric-van" },
         { year: 2032, targetPresetId: "hybrid-van" },
       ]);
-      useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" });
+      useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" });
     });
     const transitions = structuredClone(useProjectStore.getState().runtime.document.scenarios[0].vehiclePlans["UNIT-01"].transitions);
     const historyLength = useProjectStore.getState().runtime.history.past.length;

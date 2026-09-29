@@ -16,6 +16,22 @@ beforeEach(() => {
 });
 
 describe("Project store", () => {
+  it("keeps viewport lighting in runtime editor state only", () => {
+    const document = structuredClone(project().runtime.document);
+
+    project().setLightIntensity(120);
+
+    expect(project().runtime.editor.lightIntensity).toBe(100);
+    expect(project().runtime.document).toEqual(document);
+    expect(project().runtime.history.past).toHaveLength(0);
+
+    project().setLightIntensity(-5);
+
+    expect(project().runtime.editor.lightIntensity).toBe(0);
+    expect(project().runtime.document).toEqual(document);
+    expect(project().runtime.history.past).toHaveLength(0);
+  });
+
   it("edits scenarios and transitions inside the canonical aggregate", () => {
     project().createScenario();
     const scenario = project().runtime.document.scenarios.at(-1)!;
@@ -142,7 +158,7 @@ describe("Project store", () => {
 
     project().replaceVehicleTransitions("plan-a", first, [{ year: 2030, targetPresetId: "electric-van" }]);
     project().replaceVehicleTransitions("plan-b", first, [{ year: 2040, targetPresetId: "hybrid-van" }]);
-    project().selectObject({ kind: "vehicle", id: first });
+    project().selectProjectEntity({ kind: "vehicle", id: first });
     project().deleteVehicle(first);
     expect(project().runtime.document.environment.vehicles.some((vehicle) => vehicle.id === first)).toBe(false);
     expect(project().runtime.document.scenarios.every((scenario) => scenario.vehiclePlans[first] === undefined)).toBe(true);
@@ -169,7 +185,7 @@ describe("Project store", () => {
     const spawnTransforms = structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS);
     const vehicleTransforms = structuredClone(project().runtime.document.environment.vehicles.map((vehicle) => vehicle.transform));
     const depot = project().runtime.document.environment.depot;
-    project().updateObjectTransform({ kind: "depot", id: depot.id }, {
+    project().setProjectEntityTransform({ kind: "depot", id: depot.id }, {
       ...depot.transform,
       position: [120, 0, -40],
     });
@@ -185,9 +201,9 @@ describe("Project store", () => {
     const reference = { kind: "vehicle" as const, id: "UNIT-01" };
     const startingTransform = structuredClone(project().runtime.document.environment.vehicles[0].transform);
     project().beginEdit();
-    project().updateObjectTransform(reference, { ...startingTransform, position: [1, 2, 3] });
-    project().updateObjectTransform(reference, { ...startingTransform, position: [4, 5, 6] });
-    project().updateObjectTransform(reference, { ...startingTransform, position: [7, 8, 9] });
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [1, 2, 3] });
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [4, 5, 6] });
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [7, 8, 9] });
     project().commitEdit();
 
     expect(project().runtime.document.environment.vehicles[0].transform.position).toEqual([7, 8, 9]);
@@ -196,7 +212,7 @@ describe("Project store", () => {
     expect(project().runtime.document.environment.vehicles[0].transform).toEqual(startingTransform);
 
     project().beginEdit();
-    project().updateObjectTransform(reference, { ...startingTransform, position: [10, 11, 12] });
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [10, 11, 12] });
     project().cancelEdit();
     expect(project().runtime.document.environment.vehicles[0].transform).toEqual(startingTransform);
     expect(project().runtime.history.activeEdit).toBeNull();
@@ -205,7 +221,7 @@ describe("Project store", () => {
 
   it("keeps typed selection identity when switching between Inspect and Gizmo modes", () => {
     const selection = { kind: "vehicle" as const, id: "UNIT-01" };
-    project().selectObject(selection);
+    project().selectProjectEntity(selection);
     project().setInteractionMode("gizmo");
     expect(project().runtime.editor.selection).toEqual(selection);
     project().setInteractionMode("inspect");

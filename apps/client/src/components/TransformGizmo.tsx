@@ -3,9 +3,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { Mesh, Vector3, type Group, type Object3D } from "three";
 import { TransformControls as TransformControlsImpl } from "three/addons/controls/TransformControls.js";
 
-import type { Transform } from "../scene/types";
+import type { Transform } from "../domain/spatial";
 import { useProjectStore } from "../state/projectStore";
-import type { WorldObjectReference } from "../state/projectRuntime";
+import type { ProjectEntityReference } from "../domain/project";
 
 const MIN_SCALE = 0.01;
 const TRANSLATION_SNAP = 0.25;
@@ -55,11 +55,11 @@ function hasEnabled(value: unknown): value is ToggleableControls {
 
 /**
  * One viewport-level TransformControls instance that reattaches to whichever
- * scene object is selected. Keeping the controls persistent avoids stale DOM
- * listeners and attachment races when objects are added, removed or switched.
+ * typed Project entity is selected. Keeping the controls persistent avoids stale DOM
+ * listeners and attachment races when entities are added, removed or switched.
  */
-export function TransformGizmo({ object, target, markDragged }: {
-  object: WorldObjectReference | null;
+export function TransformGizmo({ entity, target, markDragged }: {
+  entity: ProjectEntityReference | null;
   target: Group | null;
   markDragged: () => void;
 }) {
@@ -81,7 +81,7 @@ export function TransformGizmo({ object, target, markDragged }: {
   }, [controls]);
 
   const syncTransform = useCallback(() => {
-    if (!object || !target) return;
+    if (!entity || !target) return;
 
     // TransformControls permits crossing through zero while scaling. The scene
     // format deliberately only permits positive scales, so keep both the live
@@ -97,8 +97,8 @@ export function TransformGizmo({ object, target, markDragged }: {
       rotation: [target.rotation.x, target.rotation.y, target.rotation.z],
       scale: [target.scale.x, target.scale.y, target.scale.z],
     };
-    useProjectStore.getState().updateObjectTransform(object, transform);
-  }, [object, target]);
+    useProjectStore.getState().setProjectEntityTransform(entity, transform);
+  }, [entity, target]);
 
   useEffect(() => {
     controls.connect(gl.domElement);
@@ -136,13 +136,13 @@ export function TransformGizmo({ object, target, markDragged }: {
 
   useEffect(() => {
     const onMouseDown = () => {
-      if (!object || !target) return;
+      if (!entity || !target) return;
       markDragged();
       useProjectStore.getState().beginEdit();
     };
     const onObjectChange = () => syncTransform();
     const onMouseUp = () => {
-      if (!object || !target) return;
+      if (!entity || !target) return;
       markDragged();
       syncTransform();
       useProjectStore.getState().commitEdit();
@@ -156,7 +156,7 @@ export function TransformGizmo({ object, target, markDragged }: {
       controls.removeEventListener("objectChange", onObjectChange);
       controls.removeEventListener("mouseUp", onMouseUp);
     };
-  }, [controls, markDragged, object, syncTransform, target]);
+  }, [controls, markDragged, entity, syncTransform, target]);
 
   useEffect(() => {
     const cancelActiveDrag = () => {

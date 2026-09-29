@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
 
 import { effectivePresetIdFor, type ProjectDocument, type ProjectVehicle, type VehicleTransition } from "../domain/project";
-import type { Transform, Vector3 } from "../scene/types";
+import type { Transform, Vector3 } from "../domain/spatial";
 import { useProjectStore } from "../state/projectStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { projectEditLifecycle, projectEditorEditLifecycle } from "./projectEditLifecycle";
@@ -271,7 +271,7 @@ export function InspectorPanel() {
 
   const updateTransform = (property: keyof Transform, value: Vector3) => {
     if (!selection || !object) return;
-    useProjectStore.getState().updateObjectTransform(selection, { ...object.transform, [property]: value });
+    useProjectStore.getState().setProjectEntityTransform(selection, { ...object.transform, [property]: value });
   };
 
   return <CollapsibleSection panelId="inspector" title="Inspector" description="Inspect and edit the selected typed Project object." onBeforeCollapse={projectEditLifecycle.commitEdit}>

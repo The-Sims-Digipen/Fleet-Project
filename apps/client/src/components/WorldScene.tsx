@@ -2,7 +2,8 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { MOUSE, type Group } from "three";
-import { createProjectWorld, worldObjectReferenceKey, type WorldObjectReference, type WorldObjectView } from "../scene/projectWorld";
+import { createProjectWorld, projectEntityReferenceKey, type ProjectWorldObject } from "../scene/projectWorld";
+import type { ProjectEntityReference } from "../domain/project";
 import { useProjectStore } from "../state/projectStore";
 import { ModelObject } from "./ModelObject";
 import { TransformGizmo } from "./TransformGizmo";
@@ -52,23 +53,23 @@ function CameraControls() {
 
 type RegisteredTarget = { key: string; group: Group };
 
-function WorldObjectsLayer({ objects, isClick, markDragged }: {
-  objects: readonly WorldObjectView[];
+function ProjectWorldLayer({ objects, isClick, markDragged }: {
+  objects: readonly ProjectWorldObject[];
   isClick: () => boolean;
   markDragged: () => void;
 }) {
   const selection = useProjectStore((state) => state.runtime.editor.selection);
-  const selectedKey = selection ? worldObjectReferenceKey(selection) : null;
+  const selectedKey = selection ? projectEntityReferenceKey(selection) : null;
   const interactionMode = useProjectStore((state) => state.runtime.editor.interactionMode);
   const roots = useRef(new Map<string, Group>());
   const [registeredTarget, setRegisteredTarget] = useState<RegisteredTarget | null>(null);
 
-  const registerRoot = useCallback((reference: WorldObjectReference, group: Group | null) => {
-    const key = worldObjectReferenceKey(reference);
+  const registerRoot = useCallback((reference: ProjectEntityReference, group: Group | null) => {
+    const key = projectEntityReferenceKey(reference);
     if (group) {
       roots.current.set(key, group);
       const currentSelection = useProjectStore.getState().runtime.editor.selection;
-      if (currentSelection && worldObjectReferenceKey(currentSelection) === key) {
+      if (currentSelection && projectEntityReferenceKey(currentSelection) === key) {
         setRegisteredTarget((current) => current?.key === key && current.group === group ? current : { key, group });
       }
       return;
@@ -93,14 +94,14 @@ function WorldObjectsLayer({ objects, isClick, markDragged }: {
 
   return <>
     {objects.map((object) => {
-      const referenceKey = worldObjectReferenceKey(object.reference);
+      const referenceKey = projectEntityReferenceKey(object.reference);
       const canSelect = import.meta.env.DEV || interactionMode === "inspect";
       return <ModelObject key={referenceKey} object={object} isClick={isClick} selected={selectedKey === referenceKey}
         onSelect={() => {
-          if (canSelect) useProjectStore.getState().selectObject(object.reference);
+          if (canSelect) useProjectStore.getState().selectProjectEntity(object.reference);
         }} registerRoot={import.meta.env.DEV ? registerRoot : undefined} />;
     })}
-    {import.meta.env.DEV && interactionMode === "gizmo" && <TransformGizmo object={selection} target={selectedTarget} markDragged={markDragged} />}
+    {import.meta.env.DEV && interactionMode === "gizmo" && <TransformGizmo entity={selection} target={selectedTarget} markDragged={markDragged} />}
   </>;
 }
 
@@ -126,10 +127,10 @@ export function WorldScene() {
     <p className="sr-only">Project depot with {document.environment.vehicles.length} fleet vehicles.</p>
     <Canvas dpr={[1, 1.5]} camera={{ position: [8, 7, 9], fov: 42, near: 0.1, far: 200 }}
       fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">WebGL is unavailable. The sidebar remains usable.</div>}
-      onPointerMissed={() => { if (isClick()) useProjectStore.getState().selectObject(null); }}>
+      onPointerMissed={() => { if (isClick()) useProjectStore.getState().selectProjectEntity(null); }}>
       <color attach="background" args={["#07100f"]} />
       <Lighting />
-      <WorldObjectsLayer objects={objects} isClick={isClick} markDragged={markDragged} />
+      <ProjectWorldLayer objects={objects} isClick={isClick} markDragged={markDragged} />
       <CameraControls />
     </Canvas>
   </div>;

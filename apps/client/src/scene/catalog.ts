@@ -3,67 +3,35 @@ import type { Group } from "three";
 import { createDepotModel } from "../models/depot";
 import { createVanModel } from "../models/van";
 
-import {
-  copyTransform,
-  identityTransform,
-  type SceneObject,
-  type Transform,
-} from "./types";
-
-export type ObjectDefinition = {
-  kind: "procedural";
+export type ModelDefinition = {
   name: string;
   vehiclePresetCompatible: boolean;
   createModel: () => Group;
-  transform: Transform;
 };
 
-export const objectDefinitions = {
+export const modelDefinitions = {
   van: {
-    kind: "procedural",
     name: "Low-poly Van",
     vehiclePresetCompatible: true,
     createModel: createVanModel,
-    transform: identityTransform(),
   },
 
   depot: {
-    kind: "procedural",
     name: "Depot",
     vehiclePresetCompatible: false,
     createModel: createDepotModel,
-    transform: identityTransform(),
   },
-} satisfies Record<string, ObjectDefinition>;
+} satisfies Record<string, ModelDefinition>;
 
-/** Catalog entries that vehicle presets may use as their rendered geometry. */
-export const vehicleModelEntries = Object.entries(objectDefinitions)
-  .filter(([, definition]) => definition.vehiclePresetCompatible);
+/** Model options that can render a Vehicle Preset. */
+export const vehicleModelEntries = Object.entries(modelDefinitions)
+  .filter(([, definition]) => definition.vehiclePresetCompatible)
+  .map(([id, definition]) => ({ id, name: definition.name }));
 
-export function getDefinition(
+export function getModelDefinition(
   id: string,
-): ObjectDefinition | undefined {
-  return Object.hasOwn(objectDefinitions, id)
-    ? objectDefinitions[id as keyof typeof objectDefinitions]
+): ModelDefinition | undefined {
+  return Object.hasOwn(modelDefinitions, id)
+    ? modelDefinitions[id as keyof typeof modelDefinitions]
     : undefined;
-}
-
-export function createObject(
-  definitionId: string,
-  id: string,
-  presetId?: string,
-  name?: string,
-): SceneObject | undefined {
-  const definition = getDefinition(definitionId);
-
-  if (!definition) return;
-
-  return {
-    id,
-    name: name?.trim() || definition.name,
-    definitionId,
-    ...(presetId ? { presetId } : {}),
-    transform: copyTransform(definition.transform),
-    appearance: {},
-  };
 }

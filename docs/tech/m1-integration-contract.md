@@ -40,7 +40,7 @@ The contract fixes these decisions:
 - editor-only state;
 - one undo/redo history for all Project edits.
 
-Feature components must not mirror Project slices into another store. Continuous controls use `beginEdit`, preview commands, `commitEdit`, and `cancelEdit`. Discrete actions issue one Project command. Scene rendering uses `createProjectSceneObjects`; it does not persist a second scene document.
+Feature components must not mirror Project slices into another store. Continuous controls use `beginEdit`, preview commands, `commitEdit`, and `cancelEdit`. Discrete actions issue one Project command. Viewport rendering uses `createProjectWorld`; it does not persist a second scene document.
 
 ## Persistence boundary
 

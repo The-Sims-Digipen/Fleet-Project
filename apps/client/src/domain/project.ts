@@ -1,5 +1,5 @@
 import { PROJECT_FLEET_CAPACITY } from "./depotLayout";
-import type { Transform } from "../scene/types";
+import type { Transform } from "./spatial";
 import { copyPreset, maxNameLength, normalizePreset, type VehiclePreset } from "../vehicles/types";
 
 export const PROJECT_DOCUMENT_VERSION = 5 as const;
@@ -11,6 +11,10 @@ export type ProjectDepot = {
   name: string;
   transform: Transform;
 };
+
+export type ProjectEntityReference =
+  | { kind: "depot"; id: string }
+  | { kind: "vehicle"; id: string };
 
 export type CurrentVehicleHolding =
   | { kind: "owned"; currentValue: number; endResidualValue: number }

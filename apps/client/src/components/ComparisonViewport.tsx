@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { MOUSE } from "three";
 
 import type { ProjectDocument } from "../domain/project";
-import { createProjectWorld, worldObjectReferenceKey } from "../scene/projectWorld";
+import { createProjectWorld, projectEntityReferenceKey } from "../scene/projectWorld";
 import { ModelObject } from "./ModelObject";
 
 function Camera({ reset }: { reset: number }) {
@@ -55,7 +55,7 @@ export function ComparisonViewport({ document, scenarioId, year, reset }: {
       <ambientLight intensity={0.7} />
       <directionalLight position={[8, 14, 6]} intensity={1.6} castShadow />
       <directionalLight position={[-8, 7, -8]} intensity={0.45} />
-      {objects.map((object) => <ModelObject key={worldObjectReferenceKey(object.reference)} object={object}
+      {objects.map((object) => <ModelObject key={projectEntityReferenceKey(object.reference)} object={object}
         isClick={isClick} selected={false} onSelect={() => undefined} />)}
       <Camera reset={reset} />
     </Canvas>

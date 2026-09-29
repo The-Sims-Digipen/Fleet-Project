@@ -104,7 +104,7 @@ export function FleetManagementPanel() {
               <div className="min-w-0 flex-1">
                 <button type="button" aria-label={`Select ${vehicle.name} in viewport`} aria-pressed={isSelected}
                   className="truncate text-left text-sm font-semibold text-primary underline-offset-2 hover:text-accent hover:underline aria-pressed:text-accent"
-                  onClick={() => { edit.commitEdit(); useProjectStore.getState().selectObject({ kind: "vehicle", id: vehicle.id }); }}>
+                  onClick={() => { edit.commitEdit(); useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: vehicle.id }); }}>
                   {vehicle.name}
                 </button>
                 <span className="mt-0.5 block font-mono text-[10px] font-bold tracking-wider text-accent">{vehicle.id}</span>
