@@ -100,7 +100,7 @@ function ScenarioDecisionEditor({ document, scenario, selectedYear }: {
   selectedYear: number;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const years = Array.from({ length: document.analysis.yearCount }, (_, index) => document.analysis.startYear + index);
+  const years = analysisYears(document);
   const noVehicles = document.environment.vehicles.length === 0;
 
   const replaceTransitions = (vehicleId: string, transitions: VehicleTransition[]) => {
@@ -212,7 +212,7 @@ function PlanColumn({ slot, scenario, scenarios, otherScenarioId, document, simu
             <Metric label="TCO" value={formatCurrency(result.totals.tco)} detail={`${document.analysis.yearCount}-year Project cost`} />
             <Metric label="Transition CAPEX" value={formatCurrency(result.totals.transitionCapex)} detail="Vehicle acquisitions for planned transitions" />
             <Metric label="Total transitions" value={number.format(result.totals.transitionCount)} detail="Across the analysis period" />
-            <Metric label="Payback year" value={result.paybackYear === null ? "Not reached" : String(result.paybackYear)} detail={result.paybackStatus === "initial-parity" ? "No upfront premium." : result.paybackStatus === "reached" ? "Cumulative cash savings remain nonnegative." : "Cash savings do not remain nonnegative through the analysis period."} />
+            <Metric label="Payback year" value={result.paybackYear === null ? "Not reached" : String(result.paybackYear)} detail={result.paybackStatus === "initial-parity" ? "No upfront premium; cash savings stay nonnegative." : result.paybackStatus === "reached" ? "Cumulative cash savings remain nonnegative." : "Cash savings do not remain nonnegative through the analysis period."} />
             <Metric label={`${selectedYear} net cash cost`} value={formatCurrency(annual?.netCashCost ?? 0)} detail="Derived annual Scenario cost" />
             <Metric label={`${selectedYear} emissions`} value={`${number.format(annual?.emissionsKgCo2e ?? 0)} kg CO₂e`} detail="From the effective Vehicle Presets" />
             <Metric label={`${selectedYear} transitions`} value={number.format(annual?.transitionCount ?? 0)} detail="Vehicles changing state this year" />
