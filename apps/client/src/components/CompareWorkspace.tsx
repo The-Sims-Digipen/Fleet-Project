@@ -35,6 +35,10 @@ function clampYear(year: number, startYear: number, yearCount: number): number {
   return Math.max(startYear, Math.min(startYear + yearCount - 1, year));
 }
 
+function analysisYears(document: ProjectDocument): number[] {
+  return Array.from({ length: document.analysis.yearCount }, (_, index) => document.analysis.startYear + index);
+}
+
 function Metric({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return <div className="rounded-lg border border-line bg-control px-3 py-3">
     <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-secondary">{label}</p>
@@ -64,8 +68,8 @@ function ScenarioPicker({ slot, scenario, scenarios, otherScenarioId, onChange }
 
 function yearOptionsForTransition(document: ProjectDocument, transitions: readonly VehicleTransition[], transition: VehicleTransition): number[] {
   const usedElsewhere = new Set(transitions.filter((entry) => entry.year !== transition.year).map((entry) => entry.year));
-  const analysisYears = Array.from({ length: document.analysis.yearCount }, (_, index) => document.analysis.startYear + index);
-  return [...new Set([...analysisYears, transition.year])].sort((left, right) => left - right).filter((year) =>
+  const years = analysisYears(document);
+  return [...new Set([...years, transition.year])].sort((left, right) => left - right).filter((year) =>
     year === transition.year || !usedElsewhere.has(year));
 }
 
@@ -81,7 +85,7 @@ function nextTransition(document: ProjectDocument, scenario: ProjectScenario, ve
     && year < document.analysis.startYear + document.analysis.yearCount
     && !usedYears.has(year)
     ? year
-    : Array.from({ length: document.analysis.yearCount }, (_, index) => document.analysis.startYear + index)
+    : analysisYears(document)
       .find((candidate) => !usedYears.has(candidate));
   if (firstYear !== undefined) return { year: firstYear, targetPresetId };
 
@@ -234,6 +238,27 @@ function Delta({ label, planA, planB, format }: {
   </div>;
 }
 
+function PaybackDelta({ planA, planB }: {
+  planA: ScenarioSimulation | undefined;
+  planB: ScenarioSimulation | undefined;
+}) {
+  let value = "Unavailable";
+  if (planA && planB) {
+    if (planA.paybackYear === null && planB.paybackYear === null) value = "Not reached in either Scenario";
+    else if (planA.paybackYear === null) value = `Plan A not reached; Plan B: ${planB.paybackYear}`;
+    else if (planB.paybackYear === null) value = `Plan A: ${planA.paybackYear}; Plan B not reached`;
+    else {
+      const difference = planB.paybackYear - planA.paybackYear;
+      value = difference === 0 ? "Same year" : `${Math.abs(difference)} ${Math.abs(difference) === 1 ? "year" : "years"} ${difference > 0 ? "later" : "earlier"}`;
+    }
+  }
+
+  return <div className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-line py-3 last:border-b-0">
+    <div><p className="text-sm font-semibold text-primary">Payback year</p><p className="mt-0.5 text-[11px] text-secondary">Plan B compared with Plan A</p></div>
+    <span className="font-mono text-sm font-semibold tabular-nums text-primary">{value}</span>
+  </div>;
+}
+
 function TimelineScrubber({ years, selectedYear, setSelectedYear }: {
   years: readonly number[];
   selectedYear: number;
@@ -284,7 +309,7 @@ export function CompareWorkspace() {
   const [selection, setSelection] = useState(() => initialSelection(document));
   const activeSelection = selection.projectId === document.id ? selection : initialSelection(document);
   const startYear = document.analysis.startYear;
-  const years = Array.from({ length: document.analysis.yearCount }, (_, index) => startYear + index);
+  const years = analysisYears(document);
   const selectedYear = clampYear(activeSelection.year, startYear, document.analysis.yearCount);
 
   const scenarioA = scenarios.find((scenario) => scenario.id === activeSelection.planAId) ?? scenarios[0] ?? null;
@@ -418,7 +443,7 @@ export function CompareWorkspace() {
           <div className="mt-4">
             <Delta label="TCO" planA={resultA?.totals.tco ?? null} planB={resultB?.totals.tco ?? null} format={formatCurrency} />
             <Delta label="Transition CAPEX" planA={resultA?.totals.transitionCapex ?? null} planB={resultB?.totals.transitionCapex ?? null} format={formatCurrency} />
-            <Delta label="Payback year" planA={resultA?.paybackYear ?? null} planB={resultB?.paybackYear ?? null} format={(value) => String(value)} />
+            <PaybackDelta planA={resultA} planB={resultB} />
             <Delta label="Total transitions" planA={resultA?.totals.transitionCount ?? null} planB={resultB?.totals.transitionCount ?? null}
               format={(value) => number.format(value)} />
             <Delta label={`${selectedYear} net cash cost`} planA={annualA?.netCashCost ?? null} planB={annualB?.netCashCost ?? null} format={formatCurrency} />

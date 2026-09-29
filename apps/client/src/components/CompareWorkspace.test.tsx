@@ -140,6 +140,23 @@ describe("Scenario comparison", () => {
     expect(useProjectStore.getState().runtime.document.scenarios).toEqual(project.scenarios);
   });
 
+  it("reports calculated but unreached payback separately from unavailable results", () => {
+    project.analysis.yearCount = 1;
+    project.vehiclePresets = project.vehiclePresets.map((preset) => preset.id === "electric-van"
+      ? { ...preset, purchaseCost: 1_000_000 }
+      : preset);
+    for (const scenario of project.scenarios) {
+      scenario.vehiclePlans["UNIT-01"] = { transitions: [{ year: 2026, targetPresetId: "electric-van" }] };
+    }
+    expect(simulateProject(project).scenarios["plan-a"].paybackYear).toBeNull();
+    useProjectStore.setState(createProjectState(project));
+
+    render(<CompareWorkspace />);
+
+    expect(screen.getByText("Not reached in either Scenario")).toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+  });
+
   it("shows the available Scenario and recovers when one of the compared Scenarios is deleted", () => {
     const document = createProjectFixture();
     document.scenarios = [document.scenarios[0]];
