@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { addVehicleTransition } from "../domain/project";
 import { createProjectFixture } from "../domain/projectFixture";
 import { simulateProject } from "../domain/simulation";
-import { createProjectWorld, projectEntityReferenceKey } from "./projectWorld";
+import { createProjectWorld, projectEntityReferenceKey, resolveProjectWorldSelection } from "./projectWorld";
 
 describe("Project world projection", () => {
   it("projects typed Depot and Vehicle views from authoritative transforms", () => {
@@ -117,5 +117,22 @@ describe("Project world projection", () => {
       tint: "#87928f",
     });
     expect(projectEntityReferenceKey(world[0].reference)).not.toBe(projectEntityReferenceKey(world[1].reference));
+  });
+
+  it("routes typed Inspector selection through the world projection", () => {
+    const project = createProjectFixture();
+    const world = createProjectWorld(project, project.analysis.startYear);
+
+    expect(resolveProjectWorldSelection(project, world, { kind: "depot", id: project.environment.depot.id })).toMatchObject({
+      kind: "depot",
+      entity: project.environment.depot,
+      worldObject: world[0],
+    });
+    expect(resolveProjectWorldSelection(project, world, { kind: "vehicle", id: "UNIT-01" })).toMatchObject({
+      kind: "vehicle",
+      entity: project.environment.vehicles[0],
+      worldObject: world[1],
+    });
+    expect(resolveProjectWorldSelection(project, world, { kind: "vehicle", id: "missing" })).toBeUndefined();
   });
 });

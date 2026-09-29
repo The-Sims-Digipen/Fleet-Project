@@ -1,4 +1,10 @@
-import { effectivePresetIdFor, type ProjectDocument, type ProjectEntityReference } from "../domain/project";
+import {
+  effectivePresetIdFor,
+  type ProjectDepot,
+  type ProjectDocument,
+  type ProjectEntityReference,
+  type ProjectVehicle,
+} from "../domain/project";
 import { copyTransform, type Transform } from "../domain/spatial";
 import { getModelDefinition } from "./catalog";
 
@@ -15,6 +21,10 @@ export type ProjectWorldObject = Readonly<{
   modelId: string;
   tint: string | null;
 }>;
+
+export type ProjectWorldSelection =
+  | Readonly<{ kind: "depot"; worldObject: ProjectWorldObject; entity: ProjectDepot }>
+  | Readonly<{ kind: "vehicle"; worldObject: ProjectWorldObject; entity: ProjectVehicle }>;
 
 /** Runtime-only key for maps and React reconciliation; domain identity stays in `reference`. */
 export function projectEntityReferenceKey(reference: ProjectEntityReference): string {
@@ -69,4 +79,23 @@ export function createProjectWorld(
   }
 
   return objects;
+}
+
+/** Resolves editor routing through the same typed objects used for picking and outlines. */
+export function resolveProjectWorldSelection(
+  document: ProjectDocument,
+  world: readonly ProjectWorldObject[],
+  reference: ProjectEntityReference | null,
+): ProjectWorldSelection | undefined {
+  if (!reference) return undefined;
+  const worldObject = world.find((object) => projectEntityReferenceKey(object.reference) === projectEntityReferenceKey(reference));
+  if (!worldObject) return undefined;
+
+  if (reference.kind === "depot") {
+    const entity = document.environment.depot.id === reference.id ? document.environment.depot : undefined;
+    return entity ? { kind: "depot", worldObject, entity } : undefined;
+  }
+
+  const entity = document.environment.vehicles.find((vehicle) => vehicle.id === reference.id);
+  return entity ? { kind: "vehicle", worldObject, entity } : undefined;
 }

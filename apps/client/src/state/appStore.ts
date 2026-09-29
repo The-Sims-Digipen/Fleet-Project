@@ -8,12 +8,8 @@ export type RepositoryStatus =
   | { state: "loading" }
   | { state: "error"; message: string };
 
-export type SaveStatus =
-  | { state: "idle" }
-  | { state: "saving" }
-  | { state: "error"; message: string };
-
 export type WorkspaceMode = "plan" | "compare";
+export type ProjectDialog = "new" | "open" | null;
 
 export const SIDEBAR_PANEL_IDS = [
   "scenarios",
@@ -47,11 +43,11 @@ export const DEFAULT_SIDEBAR_PANELS: SidebarPanelState = {
 type AppState = {
   projectSummaries: ProjectSummary[];
   repositoryStatus: RepositoryStatus;
-  saveStatus: SaveStatus;
+  projectDialog: ProjectDialog;
   workspaceMode: WorkspaceMode;
   sidebarPanels: SidebarPanelState;
   setRepositoryStatus: (status: RepositoryStatus) => void;
-  setSaveStatus: (status: SaveStatus) => void;
+  setProjectDialog: (dialog: ProjectDialog) => void;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   setSidebarPanelExpanded: (panel: SidebarPanelId, expanded: boolean) => void;
   refreshProjects: () => Promise<ProjectSummary[]>;
@@ -61,11 +57,11 @@ type AppState = {
 export const useAppStore = create<AppState>((set) => ({
   projectSummaries: [],
   repositoryStatus: { state: "idle" },
-  saveStatus: { state: "idle" },
+  projectDialog: null,
   workspaceMode: "plan",
   sidebarPanels: { ...DEFAULT_SIDEBAR_PANELS },
   setRepositoryStatus: (repositoryStatus) => set({ repositoryStatus }),
-  setSaveStatus: (saveStatus) => set({ saveStatus }),
+  setProjectDialog: (projectDialog) => set({ projectDialog }),
   setWorkspaceMode: (workspaceMode) => set({ workspaceMode }),
   setSidebarPanelExpanded: (panel, expanded) => set((state) => ({
     sidebarPanels: { ...state.sidebarPanels, [panel]: expanded },
@@ -81,5 +77,5 @@ export const useAppStore = create<AppState>((set) => ({
       throw error;
     }
   },
-  resetRepositoryState: () => set({ projectSummaries: [], repositoryStatus: { state: "idle" }, saveStatus: { state: "idle" } }),
+  resetRepositoryState: () => set({ projectSummaries: [], repositoryStatus: { state: "idle" }, projectDialog: null }),
 }));

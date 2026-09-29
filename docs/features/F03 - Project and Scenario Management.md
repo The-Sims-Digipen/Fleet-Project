@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses `projectStore` and aggregate `ProjectRepository` for one complete version 1 Project document; UI code must not access IndexedDB or implement migrations directly. `appStore` is limited to cross-Project interface preferences.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses `projectStore` and aggregate `ProjectRepository` for one complete version 1 Project document; UI code must not access IndexedDB or implement migrations directly. `appStore` owns application-shell state: the derived Project catalogue, repository list/open status, global Project dialogs, workspace mode, and sidebar preferences. It does not own an editable copy of any Project document.
 
 ## User capability
 
@@ -35,14 +35,6 @@ Users need a structured workspace for exploring transition plans without losing 
 - Maintain valid active Project/Scenario selections.
 - Preserve dirty/unsaved state until Save Project.
 - Reopen a saved project with its workspace relationships intact.
-
-## Technical dependencies
-
-- [T01 — Project Persistence & Serialization Library](../tech-tasks/T01%20-%20Project%20Persistence%20and%20Serialization%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-- [T06 — Project & Scenario Workspace Orchestration System](../tech-tasks/T06%20-%20Project%20and%20Scenario%20Workspace%20Orchestration%20System.md)
-
-F03 must not access IndexedDB directly; storage is owned by T01.
 
 ## M1 evidence
 

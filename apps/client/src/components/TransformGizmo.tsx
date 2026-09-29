@@ -6,6 +6,7 @@ import { TransformControls as TransformControlsImpl } from "three/addons/control
 import type { Transform } from "../domain/spatial";
 import { useProjectStore } from "../state/projectStore";
 import type { ProjectEntityReference } from "../domain/project";
+import { bindGizmoDragCancellation, createGizmoDragController } from "./gizmoDragController";
 
 const MIN_SCALE = 0.01;
 const TRANSLATION_SNAP = 0.25;
@@ -43,10 +44,6 @@ function removeNegativeAxisVisuals(root: Object3D) {
       handle.geometry.dispose();
     }
   }
-}
-
-function isTypingTarget(target: EventTarget | null) {
-  return target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable);
 }
 
 function hasEnabled(value: unknown): value is ToggleableControls {
@@ -100,6 +97,17 @@ export function TransformGizmo({ entity, target, markDragged }: {
     useProjectStore.getState().setProjectEntityTransform(entity, transform);
   }, [entity, target]);
 
+  const dragController = useMemo(() => createGizmoDragController({
+    controls,
+    canEdit: () => Boolean(entity && target),
+    markDragged,
+    syncTransform,
+    beginEdit: () => useProjectStore.getState().beginEdit(),
+    commitEdit: () => useProjectStore.getState().commitEdit(),
+    cancelEdit: () => useProjectStore.getState().cancelEdit(),
+    enableCamera: () => { if (defaultControls) defaultControls.enabled = true; },
+  }), [controls, defaultControls, entity, markDragged, syncTransform, target]);
+
   useEffect(() => {
     controls.connect(gl.domElement);
     return () => controls.disconnect();
@@ -135,18 +143,9 @@ export function TransformGizmo({ entity, target, markDragged }: {
   }, [controls, defaultControls]);
 
   useEffect(() => {
-    const onMouseDown = () => {
-      if (!entity || !target) return;
-      markDragged();
-      useProjectStore.getState().beginEdit();
-    };
-    const onObjectChange = () => syncTransform();
-    const onMouseUp = () => {
-      if (!entity || !target) return;
-      markDragged();
-      syncTransform();
-      useProjectStore.getState().commitEdit();
-    };
+    const onMouseDown = () => dragController.begin();
+    const onObjectChange = () => dragController.change();
+    const onMouseUp = () => dragController.finish();
 
     controls.addEventListener("mouseDown", onMouseDown);
     controls.addEventListener("objectChange", onObjectChange);
@@ -156,38 +155,11 @@ export function TransformGizmo({ entity, target, markDragged }: {
       controls.removeEventListener("objectChange", onObjectChange);
       controls.removeEventListener("mouseUp", onMouseUp);
     };
-  }, [controls, markDragged, entity, syncTransform, target]);
+  }, [controls, dragController]);
 
   useEffect(() => {
-    const cancelActiveDrag = () => {
-      if (!controls.dragging) return;
-      controls.reset();
-      useProjectStore.getState().cancelEdit();
-      // reset() restores the object but intentionally keeps the pointer gesture
-      // active. End it as well so the gizmo cannot resume moving after Escape
-      // and OrbitControls is immediately re-enabled.
-      controls.pointerUp(null);
-      markDragged();
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || isTypingTarget(event.target)) return;
-      if (!controls.dragging) return;
-      event.preventDefault();
-      cancelActiveDrag();
-    };
-    const onPointerCancel = () => cancelActiveDrag();
-    const onBlur = () => cancelActiveDrag();
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointercancel", onPointerCancel);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointercancel", onPointerCancel);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [controls, markDragged]);
+    return bindGizmoDragCancellation(dragController, controls);
+  }, [controls, dragController]);
 
   return <primitive object={helper} dispose={null} />;
 }

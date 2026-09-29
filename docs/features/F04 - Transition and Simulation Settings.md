@@ -27,14 +27,6 @@ Transition decisions and assumptions must be explicit and editable so users can 
 
 Charging strategy, depot charging share, charger availability, and separate depot/external tariffs are later scope. They do not appear in the M1 Project contract or UI and are not owned by an M1 Scenario.
 
-## Technical dependencies
-
-- [T02 — Company Design System & UI Component Library](../tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-- [T04 — Timeline & Scenario Playback System](../tech-tasks/T04%20-%20Timeline%20and%20Scenario%20Playback%20System.md)
-- [T05 — Simulation & Financial Engine](../tech-tasks/T05%20-%20Simulation%20and%20Financial%20Engine.md)
-- [T06 — Project & Scenario Workspace Orchestration System](../tech-tasks/T06%20-%20Project%20and%20Scenario%20Workspace%20Orchestration%20System.md)
-
 ## M1 evidence
 
 Change a target preset, transition year, or shared assumption and show that the committed Project input is reflected in the canonical effective Vehicle state and derived results for every Scenario.

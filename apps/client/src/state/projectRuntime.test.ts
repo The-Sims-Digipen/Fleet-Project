@@ -21,9 +21,19 @@ import {
 } from "./projectRuntime";
 
 describe("consolidated Project runtime", () => {
+  it("has no saved baseline until a Project is successfully persisted", () => {
+    const runtime = createProjectRuntime(createProjectFixture());
+
+    expect(runtime.savedDocument).toBeNull();
+    expect(isProjectDirty(runtime)).toBe(true);
+  });
+
   it("records discrete document commands but not no-ops or editor actions", () => {
     const initial = createProjectRuntime(createProjectFixture());
-    const selected = updateProjectEditor(initial, { selection: { kind: "vehicle", id: "UNIT-01" }, selectedYear: 2030 });
+    const selected = updateProjectEditor(initial, {
+      selection: { kind: "vehicle", id: "UNIT-01" },
+      plan: { ...initial.editor.plan, selectedYear: 2030 },
+    });
     const unchanged = executeProjectCommand(selected, { type: "rename-project", name: selected.document.name });
     const renamed = executeProjectCommand(unchanged, { type: "rename-project", name: "Renamed project" });
 
@@ -106,7 +116,8 @@ describe("consolidated Project runtime", () => {
     const first = executeProjectCommand(
       updateProjectEditor(createProjectRuntime(createProjectFixture("first")), {
         selection: { kind: "vehicle", id: "UNIT-01" },
-        selectedYear: 2031,
+        plan: { selectedYear: 2031, playing: true },
+        compare: { scenarioAId: "plan-b", scenarioBId: "plan-a", selectedYear: 2030, playing: true },
         camera: { position: [1, 2, 3], target: [4, 5, 6] },
         cameraRevision: 7,
       }),
@@ -117,7 +128,13 @@ describe("consolidated Project runtime", () => {
 
     expect(replaced.document.id).toBe("second");
     expect(replaced.editor.selection).toBeNull();
-    expect(replaced.editor.selectedYear).toBe(secondDocument.analysis.startYear);
+    expect(replaced.editor.plan).toEqual({ selectedYear: secondDocument.analysis.startYear, playing: false });
+    expect(replaced.editor.compare).toEqual({
+      scenarioAId: secondDocument.activeScenarioId,
+      scenarioBId: secondDocument.scenarios.find((scenario) => scenario.id !== secondDocument.activeScenarioId)?.id ?? null,
+      selectedYear: secondDocument.analysis.startYear,
+      playing: false,
+    });
     expect(replaced.editor.camera).toEqual(DEFAULT_PROJECT_CAMERA);
     expect(replaced.editor.cameraRevision).toBe(0);
     expect(replaced.editorEdit).toBeNull();

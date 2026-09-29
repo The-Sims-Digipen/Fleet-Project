@@ -76,8 +76,13 @@ export type ProjectState = ProjectStateFields & {
   deletePreset: (id: string) => boolean;
   updateAnalysis: (patch: Partial<ProjectAnalysisSettings>) => void;
 
-  setSelectedYear: (year: number) => void;
-  resetSelectedYear: () => void;
+  setPlanSelectedYear: (year: number) => void;
+  resetPlanSelectedYear: () => void;
+  setPlanPlaying: (playing: boolean) => void;
+  setCompareScenario: (slot: "A" | "B", id: string | null) => void;
+  setCompareSelectedYear: (year: number) => void;
+  resetCompareSelectedYear: () => void;
+  setComparePlaying: (playing: boolean) => void;
   selectProjectEntity: (selection: ProjectEntityReference | null) => void;
   setInteractionMode: (mode: ProjectEditorState["interactionMode"]) => void;
   setTransformMode: (mode: ProjectEditorState["transformMode"]) => void;
@@ -130,10 +135,8 @@ function nextEntityName(prefix: string, names: readonly string[]): string {
   }
 }
 
-function transformsEqual(left: Transform, right: Transform): boolean {
-  return left.position.every((value, index) => value === right.position[index])
-    && left.rotation.every((value, index) => value === right.rotation[index])
-    && left.scale.every((value, index) => value === right.scale[index]);
+function positionsEqual(left: Transform["position"], right: Transform["position"]): boolean {
+  return left.every((value, index) => value === right[index]);
 }
 
 function camerasEqual(left: ProjectCamera, right: ProjectCamera): boolean {
@@ -142,7 +145,8 @@ function camerasEqual(left: ProjectCamera, right: ProjectCamera): boolean {
 }
 
 function nextSpawnTransform(vehicles: readonly ProjectVehicle[]): Transform | undefined {
-  const transform = DEFAULT_VEHICLE_SPAWN_TRANSFORMS.find((candidate) => !vehicles.some((vehicle) => transformsEqual(vehicle.transform, candidate)));
+  const transform = DEFAULT_VEHICLE_SPAWN_TRANSFORMS.find((candidate) =>
+    !vehicles.some((vehicle) => positionsEqual(vehicle.transform.position, candidate.position)));
   return transform ? structuredClone(transform) : undefined;
 }
 
@@ -198,8 +202,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     const metadata = { revision: record.revision, createdAt: record.createdAt, updatedAt: record.updatedAt };
     setRuntime(replaceOpenProject(get().runtime, record.document, metadata), get().session + 1);
     useAppStore.getState().setRepositoryStatus({ state: "idle" });
-    useAppStore.getState().setSaveStatus({ state: "idle" });
   };
+  const setSaveStatus = (saveStatus: ProjectRuntime["saveStatus"]) => setRuntime({ ...get().runtime, saveStatus });
 
   return {
     ...createProjectState(),
@@ -208,7 +212,6 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (validateName(name)) return;
       set(createProjectState(initialProject(name.trim()), get().session + 1));
       useAppStore.getState().setRepositoryStatus({ state: "idle" });
-      useAppStore.getState().setSaveStatus({ state: "idle" });
     },
     openProject: async (id) => {
       useAppStore.getState().setRepositoryStatus({ state: "loading" });
@@ -219,12 +222,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       }
     },
     saveProject: async () => {
-      if (useAppStore.getState().saveStatus.state === "saving") return;
+      if (get().runtime.saveStatus.state === "saving") return;
       const capturedRuntime = commitProjectEdit(get().runtime);
-      setRuntime(capturedRuntime);
+      setRuntime({ ...capturedRuntime, saveStatus: { state: "saving" } });
       const capturedDocument = copyProject(capturedRuntime.document);
       const capturedSession = get().session;
-      useAppStore.getState().setSaveStatus({ state: "saving" });
       try {
         const record = capturedRuntime.record
           ? await getProjectRepository().updateProject(capturedDocument, capturedRuntime.record.revision)
@@ -235,10 +237,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           createdAt: record.createdAt,
           updatedAt: record.updatedAt,
         }, capturedDocument));
-        useAppStore.getState().setSaveStatus({ state: "idle" });
+        setSaveStatus({ state: "idle" });
       } catch (error) {
         if (get().session !== capturedSession) return;
-        useAppStore.getState().setSaveStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be saved." });
+        setSaveStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be saved." });
       }
     },
     exportProject: () => {
@@ -331,8 +333,18 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     },
     updateAnalysis: (patch) => safelyApply({ type: "update-analysis", patch }),
 
-    setSelectedYear: (year) => get().updateEditor({ selectedYear: year }),
-    resetSelectedYear: () => get().updateEditor({ selectedYear: get().runtime.document.analysis.startYear }),
+    setPlanSelectedYear: (year) => get().updateEditor({ plan: { ...get().runtime.editor.plan, selectedYear: year } }),
+    resetPlanSelectedYear: () => get().updateEditor({ plan: { ...get().runtime.editor.plan, selectedYear: get().runtime.document.analysis.startYear } }),
+    setPlanPlaying: (playing) => get().updateEditor({ plan: { ...get().runtime.editor.plan, playing } }),
+    setCompareScenario: (slot, id) => get().updateEditor({
+      compare: {
+        ...get().runtime.editor.compare,
+        ...(slot === "A" ? { scenarioAId: id } : { scenarioBId: id }),
+      },
+    }),
+    setCompareSelectedYear: (year) => get().updateEditor({ compare: { ...get().runtime.editor.compare, selectedYear: year } }),
+    resetCompareSelectedYear: () => get().updateEditor({ compare: { ...get().runtime.editor.compare, selectedYear: get().runtime.document.analysis.startYear } }),
+    setComparePlaying: (playing) => get().updateEditor({ compare: { ...get().runtime.editor.compare, playing } }),
     selectProjectEntity: (selection) => get().updateEditor({ selection }),
     setInteractionMode: (interactionMode) => get().updateEditor({ interactionMode }),
     setTransformMode: (transformMode) => get().updateEditor({ transformMode }),

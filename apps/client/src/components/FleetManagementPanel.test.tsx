@@ -29,7 +29,7 @@ describe("Fleet Management", () => {
 
     act(() => {
       useProjectStore.getState().selectScenario("plan-b");
-      useProjectStore.getState().setSelectedYear(2031);
+      useProjectStore.getState().setPlanSelectedYear(2031);
       useProjectStore.getState().updateVehicle("UNIT-01", { baselinePresetId: "hybrid-van" });
     });
 

@@ -22,7 +22,7 @@ describe("development Inspector", () => {
         { year: 2030, targetPresetId: "electric-van" },
       ]);
       useProjectStore.getState().selectScenario("plan-b");
-      useProjectStore.getState().setSelectedYear(2030);
+      useProjectStore.getState().setPlanSelectedYear(2030);
       useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" });
     });
     render(<InspectorPanel />);
@@ -45,7 +45,7 @@ describe("development Inspector", () => {
         { year: 2030, targetPresetId: "electric-van" },
         { year: 2032, targetPresetId: "diesel-van" },
       ]);
-      useProjectStore.getState().setSelectedYear(2031);
+      useProjectStore.getState().setPlanSelectedYear(2031);
       useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" });
     });
     render(<InspectorPanel />);
@@ -53,7 +53,7 @@ describe("development Inspector", () => {
     expect(within(screen.getByLabelText("Effective Vehicle state"))
       .getByText("Effective preset").parentElement).toHaveTextContent("Electric Delivery Van");
 
-    act(() => useProjectStore.getState().setSelectedYear(2032));
+    act(() => useProjectStore.getState().setPlanSelectedYear(2032));
     expect(within(screen.getByLabelText("Effective Vehicle state"))
       .getByText("Effective preset").parentElement).toHaveTextContent("Diesel Delivery Van");
   });

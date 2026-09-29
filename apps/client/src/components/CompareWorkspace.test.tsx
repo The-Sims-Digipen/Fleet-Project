@@ -53,6 +53,8 @@ describe("Scenario comparison", () => {
     fireEvent.change(slider, { target: { value: "2031" } });
     expect(screen.getByTestId("comparison-viewport-plan-a")).toHaveAttribute("data-year", "2031");
     expect(screen.getByTestId("comparison-viewport-plan-b")).toHaveAttribute("data-year", "2031");
+    expect(useProjectStore.getState().runtime.editor.compare.selectedYear).toBe(2031);
+    expect(useProjectStore.getState().runtime.editor.plan.selectedYear).toBe(project.analysis.startYear);
     expect(useProjectStore.getState().runtime.document).toEqual(project);
   });
 
@@ -94,49 +96,12 @@ describe("Scenario comparison", () => {
       .toHaveTextContent("1");
   });
 
-  it("edits one Scenario's transition while preserving the other Scenario and shared Project data", async () => {
-    const user = userEvent.setup();
+  it("keeps comparison read-only", () => {
     render(<CompareWorkspace />);
 
-    await user.click(screen.getByRole("button", { name: "Edit Gradual transition decisions" }));
-    await user.selectOptions(screen.getByRole("combobox", {
-      name: "Target preset for Gradual transition / UNIT-01 transition in 2030",
-    }), "hybrid-van");
-    await user.selectOptions(screen.getByRole("combobox", {
-      name: "Year for Gradual transition / UNIT-01 transition 2030",
-    }), "2031");
-
-    const changed = useProjectStore.getState().runtime.document;
-    expect(changed.scenarios.find((scenario) => scenario.id === "plan-a")?.vehiclePlans["UNIT-01"].transitions)
-      .toEqual([{ year: 2031, targetPresetId: "hybrid-van" }]);
-    expect(changed.scenarios.find((scenario) => scenario.id === "plan-b")?.vehiclePlans["UNIT-01"].transitions)
-      .toEqual([{ year: 2032, targetPresetId: "hybrid-van" }]);
-    expect(changed.activeScenarioId).toBe("plan-a");
-    expect(changed.environment).toEqual(project.environment);
-    expect(changed.vehiclePresets).toEqual(project.vehiclePresets);
-    expect(changed.analysis).toEqual(project.analysis);
-  });
-
-  it("edits Plan B decisions without replacing Plan A", async () => {
-    const user = userEvent.setup();
-    render(<CompareWorkspace />);
-
-    await user.click(screen.getByRole("button", { name: "Edit Early transition decisions" }));
-    await user.selectOptions(screen.getByRole("combobox", {
-      name: "Target preset for Early transition / UNIT-01 transition in 2032",
-    }), "electric-van");
-    await user.selectOptions(screen.getByRole("combobox", {
-      name: "Year for Early transition / UNIT-01 transition 2032",
-    }), "2033");
-
-    const changed = useProjectStore.getState().runtime.document;
-    expect(changed.scenarios.find((scenario) => scenario.id === "plan-a")?.vehiclePlans["UNIT-01"].transitions)
-      .toEqual([{ year: 2030, targetPresetId: "electric-van" }]);
-    expect(changed.scenarios.find((scenario) => scenario.id === "plan-b")?.vehiclePlans["UNIT-01"].transitions)
-      .toEqual([{ year: 2033, targetPresetId: "electric-van" }]);
-    expect(changed.activeScenarioId).toBe("plan-a");
-    expect(changed.environment).toEqual(project.environment);
-    expect(changed.analysis).toEqual(project.analysis);
+    expect(screen.queryByRole("button", { name: /Edit .* decisions/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add transition/ })).not.toBeInTheDocument();
+    expect(useProjectStore.getState().runtime.document).toEqual(project);
   });
 
   it("keeps comparison Scenario choices in runtime state", async () => {

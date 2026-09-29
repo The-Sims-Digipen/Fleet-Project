@@ -55,6 +55,45 @@ describe("application workspace", () => {
     expect(screen.getAllByTestId("comparison-viewport").every((viewport) => viewport.getAttribute("data-year") === "2031")).toBe(true);
   });
 
+  it("pauses the workspace being left while preserving both selected years", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    useProjectStore.getState().setPlanSelectedYear(2029);
+    useProjectStore.getState().setPlanPlaying(true);
+
+    await user.click(screen.getByRole("tab", { name: "Compare" }));
+    expect(useProjectStore.getState().runtime.editor.plan).toEqual({ selectedYear: 2029, playing: false });
+    useProjectStore.getState().setCompareSelectedYear(2031);
+    useProjectStore.getState().setComparePlaying(true);
+
+    await user.click(screen.getByRole("tab", { name: "Plan / Depot" }));
+    expect(useProjectStore.getState().runtime.editor.compare.selectedYear).toBe(2031);
+    expect(useProjectStore.getState().runtime.editor.compare.playing).toBe(false);
+  });
+
+  it("keeps Project history shortcuts active when visible controls are not mounted", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    const originalName = useProjectStore.getState().runtime.document.name;
+    useProjectStore.getState().renameProject("Changed in Plan");
+
+    await user.click(screen.getByRole("tab", { name: "Compare" }));
+    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    expect(useProjectStore.getState().runtime.document.name).toBe(originalName);
+  });
+
+  it("does not expose Project-document editing fields in Compare", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: "Compare" }));
+
+    expect(screen.getByRole("textbox", { name: "Project name" })).toHaveAttribute("readonly");
+  });
+
   it("preserves application workspace and sidebar state across Projects", async () => {
     const user = userEvent.setup();
     const view = render(<App />);

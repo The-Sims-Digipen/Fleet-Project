@@ -24,13 +24,6 @@ Vehicle presets provide a consistent source of vehicle specifications for fleet 
 - Use stable preset IDs so fleet/scenario references survive edits and persistence.
 - Allow scenario transition planning to select a target preset.
 
-## Technical dependencies
-
-- [T01 — Project Persistence & Serialization Library](../tech-tasks/T01%20-%20Project%20Persistence%20and%20Serialization%20Library.md)
-- [T02 — Company Design System & UI Component Library](../tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-- [T05 — Simulation & Financial Engine](../tech-tasks/T05%20-%20Simulation%20and%20Financial%20Engine.md)
-
 ## M1 evidence
 
 Create or edit a preset, assign it to a fleet/scenario transition, save/reopen the project, and show that the same preset data is used by the transition and simulation workflow.

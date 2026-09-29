@@ -5,6 +5,7 @@ import { ProjectControls } from "./components/ProjectControls";
 import { ResizableWorkspace } from "./components/ResizableWorkspace";
 import { Sidebar } from "./components/Sidebar";
 import { TransformToolbar } from "./components/TransformToolbar";
+import { useProjectHistoryShortcuts } from "./components/useProjectHistoryShortcuts";
 import { topBarControl, topBarControlActive, topBarStatus } from "./components/topBarStyles";
 import { useAppStore } from "./state/appStore";
 import { useProjectStore } from "./state/projectStore";
@@ -20,26 +21,34 @@ class ViewportBoundary extends Component<{ children: ReactNode }, { failed: bool
 }
 
 export default function App() {
+  useProjectHistoryShortcuts();
   const workspaceMode = useAppStore((state) => state.workspaceMode);
   const setWorkspaceMode = useAppStore((state) => state.setWorkspaceMode);
   const document = useProjectStore((state) => state.runtime.document);
-  const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
+  const selectedYear = useProjectStore((state) => state.runtime.editor.plan.selectedYear);
   const scenarios = document.scenarios;
   const activeScenarioId = document.activeScenarioId;
   const activeScenario = scenarios.find((scenario) => scenario.id === activeScenarioId) ?? scenarios[0];
+  const switchWorkspace = (mode: "plan" | "compare") => {
+    if (mode === workspaceMode) return;
+    const project = useProjectStore.getState();
+    if (workspaceMode === "plan") project.setPlanPlaying(false);
+    else project.setComparePlaying(false);
+    setWorkspaceMode(mode);
+  };
 
   return <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface">
     <a className="fixed top-3 left-3 z-50 -translate-y-[160%] rounded-lg bg-accent px-3.5 py-2.5 font-extrabold text-accent-ink focus:translate-y-0" href={workspaceMode === "compare" ? "#compare-workspace" : "#controls"}>Skip to workspace</a>
     <header className="flex h-14 shrink-0 items-center gap-2 overflow-x-auto border-b border-line bg-surface/95 px-4 [scrollbar-width:thin]">
-      <ProjectControls />
+      <ProjectControls readOnly={workspaceMode === "compare"} />
       <div className="mx-1 h-6 w-px shrink-0 bg-line" aria-hidden="true" />
       <span className="shrink-0 px-1 text-[0.68rem] font-bold tracking-[0.12em] text-secondary uppercase">Mode</span>
       <div className="flex shrink-0 items-center gap-2" role="tablist" aria-label="Workspace view">
-        <button type="button" role="tab" aria-selected={workspaceMode === "plan"} className={workspaceMode === "plan" ? topBarControlActive : topBarControl} onClick={() => setWorkspaceMode("plan")}>Plan / Depot</button>
-        <button type="button" role="tab" aria-selected={workspaceMode === "compare"} className={workspaceMode === "compare" ? topBarControlActive : topBarControl} onClick={() => setWorkspaceMode("compare")}>Compare</button>
+        <button type="button" role="tab" aria-selected={workspaceMode === "plan"} className={workspaceMode === "plan" ? topBarControlActive : topBarControl} onClick={() => switchWorkspace("plan")}>Plan / Depot</button>
+        <button type="button" role="tab" aria-selected={workspaceMode === "compare"} className={workspaceMode === "compare" ? topBarControlActive : topBarControl} onClick={() => switchWorkspace("compare")}>Compare</button>
       </div>
       <div className="mx-1 h-6 w-px shrink-0 bg-line" aria-hidden="true" />
-      {workspaceMode === "plan" && import.meta.env.DEV && <HistoryControls />}
+      {workspaceMode === "plan" && <HistoryControls />}
       <span className={topBarStatus}><i className="size-[7px] shrink-0 rounded-full bg-accent shadow-[0_0_10px_#55d6be80]" aria-hidden="true" />Project environment</span>
     </header>
 

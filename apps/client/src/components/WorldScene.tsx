@@ -107,7 +107,7 @@ function ProjectWorldLayer({ objects, isClick, markDragged }: {
 
 export function WorldScene() {
   const document = useProjectStore((state) => state.runtime.document);
-  const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
+  const selectedYear = useProjectStore((state) => state.runtime.editor.plan.selectedYear);
   const objects = useMemo(() => createProjectWorld(document, selectedYear), [document, selectedYear]);
   // Track the full pointer path: returning to the start after orbiting is still a drag.
   const gesture = useRef({ x: 0, y: 0, dragged: false, primary: false });

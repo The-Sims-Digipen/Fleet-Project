@@ -7,12 +7,13 @@ import { NewProjectDialog, OpenProjectDialog } from "./ProjectDialogs";
 import { topBarControl, topBarControlActive } from "./topBarStyles";
 
 /** Header controls for browser-local project persistence plus portable import/export. */
-export function ProjectControls() {
+export function ProjectControls({ readOnly = false }: { readOnly?: boolean }) {
   const name = useProjectStore((state) => state.runtime.document.name);
   const projectId = useProjectStore((state) => state.runtime.record ? state.runtime.document.id : null);
-  const saveStatus = useAppStore((state) => state.saveStatus);
+  const saveStatus = useProjectStore((state) => state.runtime.saveStatus);
+  const dialog = useAppStore((state) => state.projectDialog);
+  const setDialog = useAppStore((state) => state.setProjectDialog);
   const dirty = useProjectDirty();
-  const [dialog, setDialog] = useState<"new" | "open" | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const importInput = useRef<HTMLInputElement>(null);
@@ -26,9 +27,9 @@ export function ProjectControls() {
 
   const status = saveStatus.state === "saving" ? { text: "Saving…", tone: "text-secondary" }
     : saveStatus.state === "error" ? { text: "Save failed", detail: `${saveStatus.message} Your edits are still here.`, tone: "text-red-300" }
+    : !projectId ? { text: "Not saved yet", tone: "text-amber-200" }
     : dirty ? { text: "Unsaved changes", tone: "text-amber-200" }
-    : projectId ? { text: "Saved locally", tone: "text-accent" }
-    : { text: "Not saved yet", tone: "text-secondary" };
+    : { text: "Saved locally", tone: "text-accent" };
 
   async function importFile(file: File) {
     if (dirty && !window.confirm(`Importing a project will replace the current unsaved workspace “${name}”. Continue?`)) return;
@@ -54,7 +55,7 @@ export function ProjectControls() {
 
   return <div className="flex shrink-0 items-center gap-2" aria-label="Project">
     <div className="w-[clamp(12rem,20vw,19rem)] shrink-0">
-      <NameField label="Project name" value={name} onCommit={(next) => useProjectStore.getState().renameProject(next)} compact />
+      <NameField label="Project name" value={name} onCommit={(next) => useProjectStore.getState().renameProject(next)} compact readOnly={readOnly} />
     </div>
     <button type="button" aria-label="New project" className={topBarControl} onClick={() => setDialog("new")}>New</button>
     <button type="button" aria-label="Open project" className={topBarControl} onClick={() => setDialog("open")}>Open</button>

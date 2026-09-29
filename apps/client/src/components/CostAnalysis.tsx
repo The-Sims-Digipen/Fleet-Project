@@ -17,7 +17,7 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
 
 export function CostAnalysis() {
   const document = useProjectStore((state) => state.runtime.document);
-  const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
+  const selectedYear = useProjectStore((state) => state.runtime.editor.plan.selectedYear);
   const simulation = useMemo(() => simulateProject(document), [document]);
   const scenario = simulation.scenarios[document.activeScenarioId];
   const formatCurrency = (value: number) => `${document.analysis.currency} ${value.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

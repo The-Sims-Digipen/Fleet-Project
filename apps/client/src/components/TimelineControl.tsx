@@ -1,18 +1,19 @@
-import { useEffect, useState } from "react";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { useProjectStore } from "../state/projectStore";
+import { useTimelinePlayback } from "./useTimelinePlayback";
 
 const buttonClass = "min-h-9 rounded-lg border border-line-strong px-3 text-xs font-bold text-secondary hover:border-[#668078] hover:text-primary";
+const getPlanSelectedYear = () => useProjectStore.getState().runtime.editor.plan.selectedYear;
 
 export function TimelineControl() {
   const document = useProjectStore((state) => state.runtime.document);
-  const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
-  const setSelectedYear = useProjectStore((state) => state.setSelectedYear);
-  const resetYear = useProjectStore((state) => state.resetSelectedYear);
+  const selectedYear = useProjectStore((state) => state.runtime.editor.plan.selectedYear);
+  const playing = useProjectStore((state) => state.runtime.editor.plan.playing);
+  const setSelectedYear = useProjectStore((state) => state.setPlanSelectedYear);
+  const resetYear = useProjectStore((state) => state.resetPlanSelectedYear);
+  const setPlaying = useProjectStore((state) => state.setPlanPlaying);
   const { analysis, scenarios, activeScenarioId } = document;
   const scenario = scenarios.find((item) => item.id === activeScenarioId) ?? scenarios[0];
-  const [playing, setPlaying] = useState(false);
-
   const startYear = analysis.startYear;
   const endYear = analysis.startYear + analysis.yearCount - 1;
   const vehicleEvents = scenario
@@ -25,15 +26,7 @@ export function TimelineControl() {
   const vehicleYears = [...new Set(vehicleEvents.map((event) => event.year))];
   const offset = (year: number) => endYear === startYear ? 0 : (year - startYear) / (endYear - startYear) * 100;
 
-  useEffect(() => {
-    if (!playing) return;
-    const timer = window.setInterval(() => {
-      const project = useProjectStore.getState();
-      if (project.runtime.editor.selectedYear >= endYear) setPlaying(false);
-      else project.setSelectedYear(project.runtime.editor.selectedYear + 1);
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [endYear, playing]);
+  useTimelinePlayback({ playing, endYear, getSelectedYear: getPlanSelectedYear, setSelectedYear, setPlaying });
 
   return <CollapsibleSection panelId="timeline" title="Timeline" description="Vehicle changes follow the active Scenario.">
     <div className="flex items-center justify-between gap-3">

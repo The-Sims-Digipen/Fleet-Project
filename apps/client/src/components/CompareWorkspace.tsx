@@ -1,10 +1,11 @@
 import ReactECharts from "echarts-for-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { effectivePresetIdFor, type ProjectDocument, type ProjectScenario, type VehicleTransition } from "../domain/project";
+import type { ProjectDocument, ProjectScenario } from "../domain/project";
 import { simulateProject, type ScenarioSimulation } from "../domain/simulation";
 import { useProjectStore } from "../state/projectStore";
 import { ComparisonViewport } from "./ComparisonViewport";
+import { useTimelinePlayback } from "./useTimelinePlayback";
 
 const number = new Intl.NumberFormat("en-SG", { maximumFractionDigits: 0 });
 const fieldClass = "min-h-9 w-full min-w-0 rounded border border-line-strong bg-control px-2 text-xs font-medium text-primary focus:border-accent";
@@ -12,28 +13,7 @@ const actionClass = "min-h-8 rounded border border-line-strong px-2.5 text-xs fo
 const labelClass = "grid min-w-0 gap-1 text-[10px] font-semibold text-secondary";
 
 type PlanSlot = "A" | "B";
-type ComparisonSelection = {
-  projectId: string;
-  planAId: string;
-  planBId: string;
-  year: number;
-};
-
-function initialSelection(document: ProjectDocument): ComparisonSelection {
-  const firstScenarioId = document.scenarios.some((scenario) => scenario.id === document.activeScenarioId)
-    ? document.activeScenarioId
-    : document.scenarios[0]?.id ?? "";
-  return {
-    projectId: document.id,
-    planAId: firstScenarioId,
-    planBId: document.scenarios.find((scenario) => scenario.id !== firstScenarioId)?.id ?? "",
-    year: document.analysis.startYear,
-  };
-}
-
-function clampYear(year: number, startYear: number, yearCount: number): number {
-  return Math.max(startYear, Math.min(startYear + yearCount - 1, year));
-}
+const getCompareSelectedYear = () => useProjectStore.getState().runtime.editor.compare.selectedYear;
 
 function analysisYears(document: ProjectDocument): number[] {
   return Array.from({ length: document.analysis.yearCount }, (_, index) => document.analysis.startYear + index);
@@ -64,105 +44,6 @@ function ScenarioPicker({ slot, scenario, scenarios, otherScenarioId, onChange }
       </option>)}
     </select>
   </label>;
-}
-
-function yearOptionsForTransition(document: ProjectDocument, transitions: readonly VehicleTransition[], transition: VehicleTransition): number[] {
-  const usedElsewhere = new Set(transitions.filter((entry) => entry.year !== transition.year).map((entry) => entry.year));
-  const years = analysisYears(document);
-  return [...new Set([...years, transition.year])].sort((left, right) => left - right).filter((year) =>
-    year === transition.year || !usedElsewhere.has(year));
-}
-
-function nextTransition(document: ProjectDocument, scenario: ProjectScenario, vehicleId: string, year: number): VehicleTransition | null {
-  const transitions = scenario.vehiclePlans[vehicleId]?.transitions ?? [];
-  const usedYears = new Set(transitions.map((transition) => transition.year));
-  const targetPresetId = document.vehiclePresets.find((preset) =>
-    preset.id !== effectivePresetIdFor(document, scenario.id, vehicleId, year))?.id
-    ?? document.vehiclePresets[0]?.id;
-  if (!targetPresetId) return null;
-
-  const firstYear = year >= document.analysis.startYear
-    && year < document.analysis.startYear + document.analysis.yearCount
-    && !usedYears.has(year)
-    ? year
-    : analysisYears(document)
-      .find((candidate) => !usedYears.has(candidate));
-  if (firstYear !== undefined) return { year: firstYear, targetPresetId };
-
-  let outsideYear = document.analysis.startYear + document.analysis.yearCount;
-  while (usedYears.has(outsideYear)) outsideYear += 1;
-  return { year: outsideYear, targetPresetId };
-}
-
-function ScenarioDecisionEditor({ document, scenario, selectedYear }: {
-  document: ProjectDocument;
-  scenario: ProjectScenario;
-  selectedYear: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const years = analysisYears(document);
-  const noVehicles = document.environment.vehicles.length === 0;
-
-  const replaceTransitions = (vehicleId: string, transitions: VehicleTransition[]) => {
-    useProjectStore.getState().replaceVehicleTransitions(scenario.id, vehicleId, transitions);
-  };
-
-  return <div className="border-t border-line px-4 py-3">
-    <button type="button" className={actionClass} aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
-      {expanded ? "Hide" : "Edit"} {scenario.name} decisions
-    </button>
-    {expanded && <div className="mt-3 grid gap-3" aria-label={`${scenario.name} decisions`}>
-      {noVehicles ? <p role="status" className="text-xs text-secondary">No Project Vehicles are available to plan.</p>
-        : document.environment.vehicles.map((vehicle) => {
-          const transitions = scenario.vehiclePlans[vehicle.id]?.transitions ?? [];
-          const canAdd = document.vehiclePresets.length > 0;
-          const addTransition = nextTransition(document, scenario, vehicle.id, selectedYear);
-
-          return <div key={vehicle.id} className="grid gap-2 rounded-lg border border-line bg-control p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-primary">{vehicle.name}</p>
-                <p className="font-mono text-[10px] text-secondary">Baseline: {document.vehiclePresets.find((preset) => preset.id === vehicle.baselinePresetId)?.name ?? "Generic / no preset"}</p>
-              </div>
-              <button type="button" className={actionClass} aria-label={`Add transition for ${scenario.name} / ${vehicle.id}`}
-                disabled={!canAdd} title={!canAdd ? "Create a Vehicle Preset before adding a transition." : undefined}
-                onClick={() => {
-                  if (!addTransition) return;
-                  replaceTransitions(vehicle.id, [...transitions, addTransition]);
-                }}>Add transition</button>
-            </div>
-
-            {!transitions.length && <p className="text-[11px] text-secondary">No planned transitions.</p>}
-            {transitions.map((transition) => {
-              const options = yearOptionsForTransition(document, transitions, transition);
-              const update = (patch: Partial<VehicleTransition>) => replaceTransitions(vehicle.id,
-                transitions.map((entry) => entry.year === transition.year ? { ...entry, ...patch } : entry));
-              return <div key={`${vehicle.id}-${transition.year}`} className="grid grid-cols-[1fr_1.5fr_auto] items-end gap-2">
-                <label className={labelClass}>
-                  Transition year
-                  <select aria-label={`Year for ${scenario.name} / ${vehicle.id} transition ${transition.year}`} className={fieldClass}
-                    value={transition.year} onChange={(event) => update({ year: Number(event.target.value) })}>
-                    {options.map((year) => <option key={year} value={year}>{year}</option>)}
-                  </select>
-                </label>
-                <label className={labelClass}>
-                  Target preset
-                  <select aria-label={`Target preset for ${scenario.name} / ${vehicle.id} transition in ${transition.year}`} className={fieldClass}
-                    value={transition.targetPresetId} onChange={(event) => update({ targetPresetId: event.target.value })}>
-                    {document.vehiclePresets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
-                  </select>
-                </label>
-                <button type="button" className={actionClass} aria-label={`Remove ${scenario.name} / ${vehicle.id} transition in ${transition.year}`}
-                  onClick={() => replaceTransitions(vehicle.id, transitions.filter((entry) => entry.year !== transition.year))}>Remove</button>
-              </div>;
-            })}
-            {!canAdd && <p className="text-[11px] text-secondary">Create a Vehicle Preset before adding a transition.</p>}
-            {canAdd && years.every((year) => transitions.some((entry) => entry.year === year))
-              && <p className="text-[11px] text-secondary">The next transition will be added after the analysis period.</p>}
-          </div>;
-        })}
-    </div>}
-  </div>;
 }
 
 function PlanColumn({ slot, scenario, scenarios, otherScenarioId, document, simulation, selectedYear, formatCurrency, onSelectScenario }: {
@@ -217,7 +98,6 @@ function PlanColumn({ slot, scenario, scenarios, otherScenarioId, document, simu
             <Metric label={`${selectedYear} emissions`} value={`${number.format(annual?.emissionsKgCo2e ?? 0)} kg CO₂e`} detail="From the effective Vehicle Presets" />
             <Metric label={`${selectedYear} transitions`} value={number.format(annual?.transitionCount ?? 0)} detail="Vehicles changing state this year" />
           </div>
-          <ScenarioDecisionEditor document={document} scenario={scenario} selectedYear={selectedYear} />
         </>}
   </article>;
 }
@@ -259,23 +139,17 @@ function PaybackDelta({ planA, planB }: {
   </div>;
 }
 
-function TimelineScrubber({ years, selectedYear, setSelectedYear }: {
+function TimelineScrubber({ years, selectedYear, playing, setSelectedYear, setPlaying }: {
   years: readonly number[];
   selectedYear: number;
+  playing: boolean;
   setSelectedYear: (year: number) => void;
+  setPlaying: (playing: boolean) => void;
 }) {
-  const [playing, setPlaying] = useState(false);
   const startYear = years[0] ?? selectedYear;
   const endYear = years[years.length - 1] ?? selectedYear;
 
-  useEffect(() => {
-    if (!playing) return;
-    const timer = window.setInterval(() => {
-      if (selectedYear >= endYear) setPlaying(false);
-      else setSelectedYear(selectedYear + 1);
-    }, 900);
-    return () => window.clearInterval(timer);
-  }, [playing, selectedYear, endYear, setSelectedYear]);
+  useTimelinePlayback({ playing, endYear, getSelectedYear: getCompareSelectedYear, setSelectedYear, setPlaying });
 
   return <article className="rounded-xl border border-line-strong bg-panel px-5 py-4">
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -287,7 +161,7 @@ function TimelineScrubber({ years, selectedYear, setSelectedYear }: {
       <div className="flex items-center gap-2">
         <button type="button" className={actionClass} onClick={() => {
           if (!playing && selectedYear === endYear) setSelectedYear(startYear);
-          setPlaying((value) => !value);
+          setPlaying(!playing);
         }}>{playing ? "Pause" : "Play"}</button>
         <button type="button" className={actionClass} onClick={() => { setPlaying(false); setSelectedYear(startYear); }}>Reset</button>
         <output htmlFor="comparison-year" className="min-w-[74px] rounded-lg border border-line bg-control px-3 py-2 text-center font-mono text-lg font-semibold text-primary">{selectedYear}</output>
@@ -305,15 +179,16 @@ function TimelineScrubber({ years, selectedYear, setSelectedYear }: {
 
 export function CompareWorkspace() {
   const document = useProjectStore((state) => state.runtime.document);
+  const comparison = useProjectStore((state) => state.runtime.editor.compare);
+  const setCompareScenario = useProjectStore((state) => state.setCompareScenario);
+  const setSelectedYear = useProjectStore((state) => state.setCompareSelectedYear);
+  const setPlaying = useProjectStore((state) => state.setComparePlaying);
   const scenarios = document.scenarios;
-  const [selection, setSelection] = useState(() => initialSelection(document));
-  const activeSelection = selection.projectId === document.id ? selection : initialSelection(document);
-  const startYear = document.analysis.startYear;
   const years = analysisYears(document);
-  const selectedYear = clampYear(activeSelection.year, startYear, document.analysis.yearCount);
+  const selectedYear = comparison.selectedYear;
 
-  const scenarioA = scenarios.find((scenario) => scenario.id === activeSelection.planAId) ?? scenarios[0] ?? null;
-  const scenarioB = scenarios.find((scenario) => scenario.id === activeSelection.planBId && scenario.id !== scenarioA?.id)
+  const scenarioA = scenarios.find((scenario) => scenario.id === comparison.scenarioAId) ?? scenarios[0] ?? null;
+  const scenarioB = scenarios.find((scenario) => scenario.id === comparison.scenarioBId && scenario.id !== scenarioA?.id)
     ?? scenarios.find((scenario) => scenario.id !== scenarioA?.id) ?? null;
   const simulation = useMemo(() => simulateProject(document), [document]);
   const formatCurrency = useMemo(() => {
@@ -333,26 +208,7 @@ export function CompareWorkspace() {
     { scenario: scenarioB, result: resultB },
   ];
 
-  useEffect(() => {
-    setSelection((current) => {
-      const base = current.projectId === document.id ? current : initialSelection(document);
-      const planAId = scenarios.some((scenario) => scenario.id === base.planAId)
-        ? base.planAId
-        : scenarios.some((scenario) => scenario.id === document.activeScenarioId) ? document.activeScenarioId : scenarios[0]?.id ?? "";
-      const planBId = scenarios.some((scenario) => scenario.id === base.planBId && scenario.id !== planAId)
-        ? base.planBId
-        : scenarios.find((scenario) => scenario.id !== planAId)?.id ?? "";
-      const year = clampYear(base.year, startYear, document.analysis.yearCount);
-      if (base.projectId === document.id && base.planAId === planAId && base.planBId === planBId && base.year === year) return base;
-      return { projectId: document.id, planAId, planBId, year };
-    });
-  }, [document.id, document.analysis.yearCount, startYear, scenarios]);
-
-  const updateSelection = (patch: Partial<Omit<ComparisonSelection, "projectId">>) => {
-    setSelection((current) => ({ ...(current.projectId === document.id ? current : initialSelection(document)), ...patch }));
-  };
-  const setScenario = (slot: PlanSlot, id: string) => updateSelection(slot === "A" ? { planAId: id } : { planBId: id });
-  const setSelectedYear = (year: number) => updateSelection({ year: clampYear(year, startYear, document.analysis.yearCount) });
+  const setScenario = (slot: PlanSlot, id: string) => setCompareScenario(slot, id);
 
   const chartOption = useMemo(() => ({
     animation: false,
@@ -422,7 +278,8 @@ export function CompareWorkspace() {
         </div>
       </header>
 
-      <TimelineScrubber years={years} selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
+      <TimelineScrubber years={years} selectedYear={selectedYear} playing={comparison.playing}
+        setSelectedYear={setSelectedYear} setPlaying={setPlaying} />
 
       <div className="overflow-x-auto pb-1">
         <div className="flex min-w-max gap-4 xl:min-w-0">

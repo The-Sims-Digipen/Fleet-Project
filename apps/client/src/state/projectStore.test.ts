@@ -181,6 +181,21 @@ describe("Project store", () => {
     expect("spawnSlotId" in project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === replacementId)!).toBe(false);
   });
 
+  it("keeps a spawn position occupied when a Vehicle is rotated or scaled", () => {
+    const firstId = project().createVehicle()!;
+    const first = project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === firstId)!;
+    project().setProjectEntityTransform({ kind: "vehicle", id: firstId }, {
+      ...first.transform,
+      rotation: [0, Math.PI / 2, 0],
+      scale: [1.1, 1.1, 1.1],
+    });
+
+    const secondId = project().createVehicle()!;
+    const second = project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === secondId)!;
+
+    expect(second.transform.position).toEqual([0, 0, -7]);
+  });
+
   it("keeps default spawn transforms and existing Vehicle transforms independent of Depot movement", () => {
     const spawnTransforms = structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS);
     const vehicleTransforms = structuredClone(project().runtime.document.environment.vehicles.map((vehicle) => vehicle.transform));
@@ -278,10 +293,30 @@ describe("Project store", () => {
   });
 
   it("clamps the runtime year when shared analysis settings change", () => {
-    project().setSelectedYear(2034);
+    project().setPlanSelectedYear(2034);
+    project().setCompareSelectedYear(2033);
     project().updateAnalysis({ startYear: 2030, yearCount: 2 });
 
-    expect(project().runtime.editor.selectedYear).toBe(2031);
+    expect(project().runtime.editor.plan.selectedYear).toBe(2031);
+    expect(project().runtime.editor.compare.selectedYear).toBe(2031);
+  });
+
+  it("keeps Plan and Compare navigation independent and outside Project history", () => {
+    project().setPlanSelectedYear(2029);
+    project().setPlanPlaying(true);
+    project().setCompareScenario("A", "plan-b");
+    project().setCompareSelectedYear(2031);
+    project().setComparePlaying(true);
+
+    expect(project().runtime.editor.plan).toEqual({ selectedYear: 2029, playing: true });
+    expect(project().runtime.editor.compare).toEqual({
+      scenarioAId: "plan-b",
+      scenarioBId: "plan-a",
+      selectedYear: 2031,
+      playing: true,
+    });
+    expect(project().runtime.document.activeScenarioId).toBe("plan-a");
+    expect(project().runtime.history.past).toHaveLength(0);
   });
 
   it("updates and resets the runtime camera without adding history", () => {

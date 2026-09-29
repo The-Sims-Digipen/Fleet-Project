@@ -28,12 +28,6 @@ The transition model must use fleet data that represents the vehicles being plan
 
 Filtering, sorting and bulk planning may be expanded after the minimum real CRUD/data flow is stable.
 
-## Technical dependencies
-
-- [T01 — Project Persistence & Serialization Library](../tech-tasks/T01%20-%20Project%20Persistence%20and%20Serialization%20Library.md)
-- [T02 — Company Design System & UI Component Library](../tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-
 ## M1 evidence
 
 Create a generic Vehicle, verify it receives an unused spawn transform and renders in 3D, assign/change its preset without changing its ID, use the Vehicle in a Scenario transition, save/reopen the Project, then delete it and verify every Scenario plan keyed by its ID is removed.

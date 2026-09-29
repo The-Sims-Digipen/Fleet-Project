@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { validateName, type ProjectSummary } from "../project/types";
+import { validateName } from "../project/types";
 import { useAppStore } from "../state/appStore";
 import { useProjectStore } from "../state/projectStore";
 
@@ -71,24 +71,18 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
   </Modal>;
 }
 
-type ListState = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: ProjectSummary[] };
-
 export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismiss: () => void }) {
   const currentName = useProjectStore((state) => state.runtime.document.name);
   const currentId = useProjectStore((state) => state.runtime.record ? state.runtime.document.id : null);
-  const [list, setList] = useState<ListState>({ state: "loading" });
+  const projects = useAppStore((state) => state.projectSummaries);
+  const repositoryStatus = useAppStore((state) => state.repositoryStatus);
+  const refreshProjects = useAppStore((state) => state.refreshProjects);
   const [openError, setOpenError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
-  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    useAppStore.getState().refreshProjects().then(
-      (projects) => { if (active) setList({ state: "ready", projects }); },
-      (error: unknown) => { if (active) setList({ state: "error", message: error instanceof Error ? error.message : "Projects could not be loaded." }); },
-    );
-    return () => { active = false; };
-  }, [attempt]);
+    void refreshProjects().catch(() => undefined);
+  }, [refreshProjects]);
 
   async function open(id: string) {
     setOpening(true);
@@ -104,14 +98,14 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 
   return <Modal title="Open Project" description="Choose a project saved locally in this browser." onDismiss={onDismiss}>
     <DiscardWarning dirty={dirty} projectName={currentName} />
-    {list.state === "loading" && <p className="text-sm text-secondary" role="status">Loading projects…</p>}
-    {list.state === "error" && <div role="alert" className="grid gap-2 text-sm text-red-300">
-      <p>{list.message} Your open edits are retained.</p>
-      <button type="button" className={`${secondaryButton} justify-self-start`} onClick={() => { setList({ state: "loading" }); setAttempt((value) => value + 1); }}>Retry</button>
+    {repositoryStatus.state === "loading" && <p className="text-sm text-secondary" role="status">Loading projects…</p>}
+    {repositoryStatus.state === "error" && <div role="alert" className="grid gap-2 text-sm text-red-300">
+      <p>{repositoryStatus.message} Your open edits are retained.</p>
+      <button type="button" className={`${secondaryButton} justify-self-start`} onClick={() => { void refreshProjects().catch(() => undefined); }}>Retry</button>
     </div>}
-    {list.state === "ready" && (list.projects.length
+    {repositoryStatus.state === "idle" && (projects.length
       ? <ul aria-label="Saved projects" className="m-0 grid max-h-72 list-none gap-1.5 overflow-y-auto p-0">
-        {list.projects.map((project) => <li key={project.id} className="flex items-center gap-3 rounded-lg border border-line-strong px-3 py-2">
+        {projects.map((project) => <li key={project.id} className="flex items-center gap-3 rounded-lg border border-line-strong px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold" title={project.name}>{project.name}{project.id === currentId && <span className="ml-2 text-xs font-normal text-accent">(open)</span>}</p>
             <p className="text-xs text-secondary">{project.scenarioCount} {project.scenarioCount === 1 ? "scenario" : "scenarios"} · Updated {new Date(project.updatedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>

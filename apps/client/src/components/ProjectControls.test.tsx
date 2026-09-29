@@ -6,6 +6,7 @@ import App from "../App";
 import { createProjectFixture } from "../domain/projectFixture";
 import { createMemoryProjectRepository } from "../project/repository";
 import { createSampleProjects } from "../project/sampleProjects";
+import { useAppStore } from "../state/appStore";
 import { createProjectState, setProjectRepository, useProjectStore } from "../state/projectStore";
 
 vi.mock("./WorldScene", () => ({ WorldScene: () => <div>Viewport test placeholder</div> }));
@@ -15,6 +16,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+  vi.stubGlobal("confirm", vi.fn(() => true));
   setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
   useProjectStore.setState(createProjectState(createProjectFixture()));
 });
@@ -49,12 +51,14 @@ describe("project and scenario controls", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Open project" }));
+    expect(useAppStore.getState().projectDialog).toBe("open");
     const dialog = screen.getByRole("dialog", { name: "Open Project" });
     await user.click(await within(dialog).findByRole("button", { name: "Open Sample depot transition" }));
     const document = useProjectStore.getState().runtime.document;
     expect(screen.getByLabelText("Project name")).toHaveValue("Sample depot transition");
     expect(document.environment.vehicles).toHaveLength(6);
     expect(document.scenarios).toHaveLength(2);
+    expect(useAppStore.getState().projectDialog).toBeNull();
   });
 
   it("reports unreadable imports in plain language", async () => {

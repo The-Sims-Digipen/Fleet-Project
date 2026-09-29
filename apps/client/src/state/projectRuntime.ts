@@ -31,10 +31,25 @@ export const DEFAULT_PROJECT_CAMERA: ProjectCamera = {
   target: [0, 0, 0],
 };
 
+export type ProjectSaveStatus =
+  | { state: "idle" }
+  | { state: "saving" }
+  | { state: "error"; message: string };
+
+export type ProjectTimelineState = {
+  selectedYear: number;
+  playing: boolean;
+};
+
+export type ProjectComparisonState = ProjectTimelineState & {
+  scenarioAId: string | null;
+  scenarioBId: string | null;
+};
+
 export type ProjectEditorState = {
   selection: ProjectEntityReference | null;
-  hover: ProjectEntityReference | null;
-  selectedYear: number;
+  plan: ProjectTimelineState;
+  compare: ProjectComparisonState;
   selectedPresetId: string | null;
   lightIntensity: number;
   interactionMode: "inspect" | "gizmo";
@@ -54,7 +69,8 @@ export type ProjectHistory = {
 export type ProjectRuntime = {
   document: ProjectDocument;
   record: ProjectRecordMetadata | null;
-  savedDocument: ProjectDocument;
+  saveStatus: ProjectSaveStatus;
+  savedDocument: ProjectDocument | null;
   editor: ProjectEditorState;
   editorEdit: ProjectEditorState | null;
   history: ProjectHistory;
@@ -86,10 +102,18 @@ const projectDocumentsEqual = (left: ProjectDocument, right: ProjectDocument) =>
 const appendHistorySnapshot = (documents: ProjectDocument[], document: ProjectDocument) => [...documents, copyProject(document)].slice(-100);
 
 function defaultEditor(document: ProjectDocument): ProjectEditorState {
+  const scenarioAId = document.scenarios.some((scenario) => scenario.id === document.activeScenarioId)
+    ? document.activeScenarioId
+    : document.scenarios[0]?.id ?? null;
   return {
     selection: null,
-    hover: null,
-    selectedYear: document.analysis.startYear,
+    plan: { selectedYear: document.analysis.startYear, playing: false },
+    compare: {
+      scenarioAId,
+      scenarioBId: document.scenarios.find((scenario) => scenario.id !== scenarioAId)?.id ?? null,
+      selectedYear: document.analysis.startYear,
+      playing: false,
+    },
     selectedPresetId: null,
     lightIntensity: 65,
     interactionMode: "inspect",
@@ -109,12 +133,21 @@ function referenceExists(document: ProjectDocument, reference: ProjectEntityRefe
 
 function editorForDocument(editor: ProjectEditorState, document: ProjectDocument): ProjectEditorState {
   const endYear = document.analysis.startYear + document.analysis.yearCount - 1;
+  const clampYear = (year: number) => Math.max(document.analysis.startYear, Math.min(endYear, Math.round(year)));
+  const scenarioAId = document.scenarios.some((scenario) => scenario.id === editor.compare.scenarioAId)
+    ? editor.compare.scenarioAId
+    : document.scenarios.some((scenario) => scenario.id === document.activeScenarioId)
+      ? document.activeScenarioId
+      : document.scenarios[0]?.id ?? null;
+  const scenarioBId = document.scenarios.some((scenario) => scenario.id === editor.compare.scenarioBId && scenario.id !== scenarioAId)
+    ? editor.compare.scenarioBId
+    : document.scenarios.find((scenario) => scenario.id !== scenarioAId)?.id ?? null;
   return {
     ...editor,
     selection: referenceExists(document, editor.selection) ? editor.selection : null,
-    hover: referenceExists(document, editor.hover) ? editor.hover : null,
     selectedPresetId: document.vehiclePresets.some((preset) => preset.id === editor.selectedPresetId) ? editor.selectedPresetId : null,
-    selectedYear: Math.max(document.analysis.startYear, Math.min(endYear, Math.round(editor.selectedYear))),
+    plan: { ...editor.plan, selectedYear: clampYear(editor.plan.selectedYear) },
+    compare: { ...editor.compare, scenarioAId, scenarioBId, selectedYear: clampYear(editor.compare.selectedYear) },
   };
 }
 
@@ -123,7 +156,8 @@ export function createProjectRuntime(document: ProjectDocument, record: ProjectR
   return {
     document: normalized,
     record: record ? { ...record } : null,
-    savedDocument: copyProject(normalized),
+    saveStatus: { state: "idle" },
+    savedDocument: record ? copyProject(normalized) : null,
     editor: defaultEditor(normalized),
     editorEdit: null,
     history: { past: [], future: [], activeEdit: null },
@@ -364,5 +398,5 @@ export function replaceOpenProject(
 }
 
 export function isProjectDirty(runtime: ProjectRuntime): boolean {
-  return !projectDocumentsEqual(runtime.document, runtime.savedDocument);
+  return runtime.savedDocument === null || !projectDocumentsEqual(runtime.document, runtime.savedDocument);
 }

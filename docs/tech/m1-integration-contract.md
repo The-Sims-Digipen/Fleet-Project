@@ -10,7 +10,7 @@ The contract fixes these decisions:
 
 - Project-owned inputs: depot, authoritative vehicles and transforms, presets, analysis period, prices, emissions factors, and discount rate.
 - Scenario-owned inputs: ordered Vehicle transition plans only. Charging strategy, depot charging share, charging infrastructure, and feasibility are later scope; no such assumptions are persisted per Scenario in M1.
-- Project editor-only state: selection, selected year, camera, lighting, transform tools, drafts, and undo mechanics. Application-wide workspace mode and sidebar expansion remain in `appStore` across Project changes.
+- Project editor-only state: selection; independent Plan and Compare timeline state; Compare Scenario A/B choices; camera; lighting; transform tools; drafts; and undo mechanics. Application-wide workspace mode, Project catalogue/list status, global Project dialogs, and sidebar expansion remain in `appStore` across Project changes. Save status follows the open Project runtime.
 - Derived state: simulation, analytics, event lists, and render objects are recomputed and never authoritative persisted data.
 - Transition semantics: the baseline preset applies before the first transition, then the latest transition at or before the selected year applies.
 - Time semantics: `startYear` through `startYear + yearCount - 1`, inclusive.
@@ -29,7 +29,7 @@ An Effective Vehicle is a derived, read-only interpretation of its Project Vehic
 - Deleting a vehicle removes all of its Scenario plan entries in the same command.
 - Scenario duplication deep-copies plans. The last Scenario cannot be deleted.
 - Invalid form drafts remain component-local and never replace the last valid domain value.
-- Changing the analysis period clamps the editor's selected year.
+- Changing the analysis period clamps both workspace selected years. Leaving a workspace pauses its playback while preserving its selected year and Scenario choices.
 
 `normalizeProject` enforces these invariants at creation, mutation, repository, and import boundaries.
 

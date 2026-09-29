@@ -30,12 +30,6 @@ The 3D view provides a spatial representation of the plan and lets users verify 
 
 Detailed depot authoring, production asset polish and charging-layout feasibility are later milestone scope.
 
-## Technical dependencies
-
-- [T02 — Company Design System & UI Component Library](../tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-- [T04 — Timeline & Scenario Playback System](../tech-tasks/T04%20-%20Timeline%20and%20Scenario%20Playback%20System.md)
-
 ## M1 evidence
 
 Select a scenario and move the timeline across a vehicle's transition year; the 3D representation must use the same selected year and show the appropriate pre/post-transition vehicle state.
