@@ -12,4 +12,8 @@ export type SceneObject = {
   appearance: Appearance;
 };
 export const identityTransform = (): Transform => ({ position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
-export const copyTransform = (value: Transform): Transform => ({ position: [...value.position], rotation: [...value.rotation], scale: [...value.scale] });
+export const copyTransform = (value: Readonly<{ position: readonly [number, number, number]; rotation: readonly [number, number, number]; scale: readonly [number, number, number] }>): Transform => ({
+  position: [...value.position],
+  rotation: [...value.rotation],
+  scale: [...value.scale],
+});

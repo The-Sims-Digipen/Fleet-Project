@@ -2,7 +2,8 @@ import { Component, useCallback, useLayoutEffect, useMemo, type ComponentType, t
 import type { Group } from "three";
 import { createProceduralInstance } from "../models/proceduralModel";
 import { getDefinition, type ObjectDefinition } from "../scene/catalog";
-import type { SceneObject } from "../scene/types";
+import { copyTransform, type SceneObject } from "../scene/types";
+import type { WorldObjectReference, WorldObjectView } from "../scene/projectWorld";
 
 class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -10,7 +11,8 @@ class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolea
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-type RendererProps = { object: SceneObject; definition: ObjectDefinition; selected: boolean };
+type RenderableObject = SceneObject | WorldObjectView;
+type RendererProps = { object: RenderableObject; definition: ObjectDefinition; selected: boolean };
 
 function ProceduralRenderer({ object, definition, selected }: RendererProps) {
   const instance = useMemo(() => createProceduralInstance(definition.createModel), [definition]);
@@ -28,18 +30,22 @@ const renderers: Record<ObjectDefinition["kind"], ComponentType<RendererProps>> 
 };
 
 export function ModelObject({ object, isClick, selected, onSelect, registerRoot }: {
-  object: SceneObject;
+  object: RenderableObject;
   isClick: () => boolean;
   selected: boolean;
   onSelect: () => void;
-  registerRoot?: (id: string, root: Group | null) => void;
+  registerRoot?: (reference: WorldObjectReference, root: Group | null) => void;
 }) {
-  const definition = getDefinition(object.definitionId);
-  const setRoot = useCallback((root: Group | null) => registerRoot?.(object.id, root), [object.id, registerRoot]);
+  const definitionId = "model" in object ? object.model.definitionId : object.definitionId;
+  const definition = getDefinition(definitionId);
+  const transform = copyTransform(object.transform);
+  const setRoot = useCallback((root: Group | null) => {
+    if ("reference" in object) registerRoot?.(object.reference, root);
+  }, [object, registerRoot]);
   if (!definition) return null;
   const Renderer = renderers[definition.kind];
 
-  return <group ref={registerRoot ? setRoot : undefined} {...object.transform} onClick={(event) => {
+  return <group ref={registerRoot ? setRoot : undefined} {...transform} onClick={(event) => {
     event.stopPropagation();
     if (isClick()) onSelect();
   }}>

@@ -2,8 +2,7 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MOUSE, type Group } from "three";
-import { createProjectSceneObjects } from "../scene/fleetSceneObjects";
-import type { SceneObject } from "../scene/types";
+import { createProjectWorld, worldObjectReferenceKey, type WorldObjectReference, type WorldObjectView } from "../scene/projectWorld";
 import { useProjectStore } from "../state/projectStore";
 import { ModelObject } from "./ModelObject";
 import { TransformGizmo } from "./TransformGizmo";
@@ -33,55 +32,56 @@ function CameraControls({ reset }: { reset: number }) {
   />;
 }
 
-type RegisteredTarget = { id: string; group: Group };
+type RegisteredTarget = { key: string; group: Group };
 
 function WorldObjectsLayer({ objects, isClick, markDragged }: {
-  objects: SceneObject[];
+  objects: readonly WorldObjectView[];
   isClick: () => boolean;
   markDragged: () => void;
 }) {
   const selection = useProjectStore((state) => state.runtime.editor.selection);
-  const selectedId = selection?.id ?? null;
+  const selectedKey = selection ? worldObjectReferenceKey(selection) : null;
   const interactionMode = useProjectStore((state) => state.runtime.editor.interactionMode);
   const roots = useRef(new Map<string, Group>());
   const [registeredTarget, setRegisteredTarget] = useState<RegisteredTarget | null>(null);
 
-  const registerRoot = useCallback((id: string, group: Group | null) => {
+  const registerRoot = useCallback((reference: WorldObjectReference, group: Group | null) => {
+    const key = worldObjectReferenceKey(reference);
     if (group) {
-      roots.current.set(id, group);
-      if (useProjectStore.getState().runtime.editor.selection?.id === id) {
-        setRegisteredTarget((current) => current?.id === id && current.group === group ? current : { id, group });
+      roots.current.set(key, group);
+      const currentSelection = useProjectStore.getState().runtime.editor.selection;
+      if (currentSelection && worldObjectReferenceKey(currentSelection) === key) {
+        setRegisteredTarget((current) => current?.key === key && current.group === group ? current : { key, group });
       }
       return;
     }
 
-    roots.current.delete(id);
-    setRegisteredTarget((current) => current?.id === id ? null : current);
+    roots.current.delete(key);
+    setRegisteredTarget((current) => current?.key === key ? null : current);
   }, []);
 
   // Selection can change independently of mounting (sidebar selection, undo,
-  // object creation). Resolve the selected logical object to its live Three.js
-  // root after refs have been committed.
+  // object creation). Resolve its typed Project reference to a live Three.js root.
   useLayoutEffect(() => {
-    const group = selectedId ? roots.current.get(selectedId) : undefined;
+    const group = selectedKey ? roots.current.get(selectedKey) : undefined;
     setRegisteredTarget((current) => {
-      if (!selectedId || !group) return current === null ? current : null;
-      if (current?.id === selectedId && current.group === group) return current;
-      return { id: selectedId, group };
+      if (!selectedKey || !group) return current === null ? current : null;
+      if (current?.key === selectedKey && current.group === group) return current;
+      return { key: selectedKey, group };
     });
-  }, [selectedId, objects.length]);
+  }, [selectedKey, objects.length]);
 
-  const selectedTarget = selectedId && registeredTarget?.id === selectedId ? registeredTarget.group : null;
+  const selectedTarget = selectedKey && registeredTarget?.key === selectedKey ? registeredTarget.group : null;
 
   return <>
-    {objects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selected={import.meta.env.DEV && selectedId === object.id}
-      onSelect={() => {
-        if (!import.meta.env.DEV) return;
-        const document = useProjectStore.getState().runtime.document;
-        useProjectStore.getState().selectObject(object.id === document.environment.depot.id
-          ? { kind: "depot", id: object.id }
-          : { kind: "vehicle", id: object.id });
-      }} registerRoot={import.meta.env.DEV ? registerRoot : undefined} />)}
+    {objects.map((object) => {
+      const referenceKey = worldObjectReferenceKey(object.reference);
+      const canSelect = import.meta.env.DEV || interactionMode === "inspect";
+      return <ModelObject key={referenceKey} object={object} isClick={isClick} selected={selectedKey === referenceKey}
+        onSelect={() => {
+          if (canSelect) useProjectStore.getState().selectObject(object.reference);
+        }} registerRoot={import.meta.env.DEV ? registerRoot : undefined} />;
+    })}
     {import.meta.env.DEV && interactionMode === "gizmo" && <TransformGizmo object={selection} target={selectedTarget} markDragged={markDragged} />}
   </>;
 }
@@ -89,7 +89,7 @@ function WorldObjectsLayer({ objects, isClick, markDragged }: {
 export function WorldScene({ cameraReset }: { cameraReset: number }) {
   const document = useProjectStore((state) => state.runtime.document);
   const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
-  const objects = useMemo(() => createProjectSceneObjects(document, selectedYear), [document, selectedYear]);
+  const objects = useMemo(() => createProjectWorld(document, selectedYear), [document, selectedYear]);
   // Track the full pointer path: returning to the start after orbiting is still a drag.
   const gesture = useRef({ x: 0, y: 0, dragged: false, primary: false });
   const isClick = useCallback(() => gesture.current.primary && !gesture.current.dragged, []);
@@ -108,7 +108,7 @@ export function WorldScene({ cameraReset }: { cameraReset: number }) {
     <p className="sr-only">Project depot with {document.environment.vehicles.length} fleet vehicles.</p>
     <Canvas dpr={[1, 1.5]} camera={{ position: [8, 7, 9], fov: 42, near: 0.1, far: 200 }}
       fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">WebGL is unavailable. The sidebar remains usable.</div>}
-      onPointerMissed={() => { if (import.meta.env.DEV && isClick()) useProjectStore.getState().selectObject(null); }}>
+      onPointerMissed={() => { if (isClick()) useProjectStore.getState().selectObject(null); }}>
       <color attach="background" args={["#07100f"]} />
       <Lighting />
       <WorldObjectsLayer objects={objects} isClick={isClick} markDragged={markDragged} />

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -18,6 +18,23 @@ describe("Fleet Management", () => {
 
     expect(useProjectStore.getState().runtime.editor.selection).toEqual({ kind: "vehicle", id: "UNIT-01" });
     expect(useProjectStore.getState().runtime.history.past).toHaveLength(0);
+  });
+
+  it("reflects viewport selection in Fleet Management and preserves it across Scenario and year changes", () => {
+    render(<FleetManagementPanel />);
+    const vehicleButton = screen.getByRole("button", { name: "Select City Delivery Van in viewport" });
+
+    act(() => useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" }));
+    expect(vehicleButton).toHaveAttribute("aria-pressed", "true");
+
+    act(() => {
+      useProjectStore.getState().selectScenario("plan-b");
+      useProjectStore.getState().setSelectedYear(2031);
+      useProjectStore.getState().updateVehicle("UNIT-01", { baselinePresetId: "hybrid-van" });
+    });
+
+    expect(useProjectStore.getState().runtime.editor.selection).toEqual({ kind: "vehicle", id: "UNIT-01" });
+    expect(vehicleButton).toHaveAttribute("aria-pressed", "true");
   });
 
   it("commits operational and ownership edits as undoable Project changes", () => {

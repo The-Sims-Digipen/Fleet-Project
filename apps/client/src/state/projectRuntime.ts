@@ -12,17 +12,16 @@ import {
   type VehicleTransition,
 } from "../domain/project";
 import type { Transform } from "../scene/types";
+import type { WorldObjectReference } from "../scene/projectWorld";
 import type { VehiclePreset } from "../vehicles/types";
+
+export type { WorldObjectReference };
 
 export type ProjectRecordMetadata = {
   revision: number;
   createdAt: string;
   updatedAt: string;
 };
-
-export type WorldObjectReference =
-  | { kind: "depot"; id: string }
-  | { kind: "vehicle"; id: string };
 
 export type ProjectEditorState = {
   selection: WorldObjectReference | null;
