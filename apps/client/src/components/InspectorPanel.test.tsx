@@ -90,6 +90,27 @@ describe("development Inspector", () => {
     expect(useProjectStore.getState().runtime.history.past).toHaveLength(historyLength + 1);
   });
 
+  it("discards a transition year draft when Escape is pressed", () => {
+    act(() => {
+      useProjectStore.getState().replaceVehicleTransitions("plan-a", "UNIT-01", [
+        { year: 2029, targetPresetId: "electric-van" },
+      ]);
+      useProjectStore.getState().selectObject({ kind: "vehicle", id: "UNIT-01" });
+    });
+    const historyLength = useProjectStore.getState().runtime.history.past.length;
+    render(<InspectorPanel />);
+
+    const year = screen.getByRole("spinbutton", { name: "Transition year 1" });
+    act(() => year.focus());
+    fireEvent.change(year, { target: { value: "2034" } });
+    fireEvent.keyDown(year, { key: "Escape" });
+
+    expect(useProjectStore.getState().runtime.document.scenarios[0].vehiclePlans["UNIT-01"].transitions).toEqual([
+      { year: 2029, targetPresetId: "electric-van" },
+    ]);
+    expect(useProjectStore.getState().runtime.history.past).toHaveLength(historyLength);
+  });
+
   it("rejects a duplicate transition year without changing the Scenario or history", () => {
     act(() => {
       useProjectStore.getState().replaceVehicleTransitions("plan-a", "UNIT-01", [

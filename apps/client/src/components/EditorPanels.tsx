@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { effectivePresetIdFor, type ProjectDocument, type ProjectVehicle, type VehicleTransition } from "../domain/project";
 import type { Transform, Vector3 } from "../scene/types";
@@ -28,8 +28,11 @@ function TransitionYearControl({ index, value, transitions, onCommit, edit }: {
   const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const shouldCommitOnBlur = useRef(false);
 
   const commit = () => {
+    if (!shouldCommitOnBlur.current) return;
+    shouldCommitOnBlur.current = false;
     if (draft === null) {
       edit.commitEdit();
       return;
@@ -58,7 +61,7 @@ function TransitionYearControl({ index, value, transitions, onCommit, edit }: {
       Transition year {index + 1}
       <input id={id} className="min-h-[42px] w-full min-w-0 cursor-text rounded-[7px] border border-line-strong bg-control px-2 py-1.5 text-primary"
         type="number" step={1} value={draft ?? String(value)} aria-invalid={error ? true : undefined}
-        onFocus={() => { edit.beginEdit(); setDraft(String(value)); setError(null); }}
+        onFocus={() => { shouldCommitOnBlur.current = true; edit.beginEdit(); setDraft(String(value)); setError(null); }}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={commit}
         onKeyDown={(event) => {
@@ -68,6 +71,7 @@ function TransitionYearControl({ index, value, transitions, onCommit, edit }: {
             event.currentTarget.blur();
           } else if (event.key === "Escape") {
             event.preventDefault();
+            shouldCommitOnBlur.current = false;
             edit.cancelEdit();
             setDraft(null);
             setError(null);
