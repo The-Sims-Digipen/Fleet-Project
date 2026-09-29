@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { createProjectFixture } from "../domain/projectFixture";
 import {
+  beginProjectEditorEdit,
   beginProjectEdit,
+  cancelProjectEditorEdit,
   cancelProjectEdit,
+  commitProjectEditorEdit,
   commitProjectEdit,
   createProjectRuntime,
+  DEFAULT_PROJECT_CAMERA,
   executeProjectCommand,
   isProjectDirty,
   markProjectSaved,
@@ -41,6 +45,23 @@ describe("consolidated Project runtime", () => {
     expect(committed.history.past).toHaveLength(1);
     expect(undoProjectCommand(committed).document.name).toBe(initial.document.name);
     expect(cancelProjectEdit(previewProjectCommand(beginProjectEdit(committed), { type: "rename-project", name: "Cancelled" })).document.name).toBe("Second preview");
+  });
+
+  it("cancels runtime-only editor changes without adding Project history", () => {
+    const initial = createProjectRuntime(createProjectFixture());
+    const editing = beginProjectEditorEdit(initial);
+    const preview = updateProjectEditor(editing, { lightIntensity: 15 });
+    const cancelled = cancelProjectEditorEdit(preview);
+
+    expect(preview.editor.lightIntensity).toBe(15);
+    expect(cancelled.editor.lightIntensity).toBe(initial.editor.lightIntensity);
+    expect(cancelled.editorEdit).toBeNull();
+    expect(cancelled.history.past).toHaveLength(0);
+
+    const committed = commitProjectEditorEdit(updateProjectEditor(beginProjectEditorEdit(initial), { lightIntensity: 25 }));
+    expect(committed.editor.lightIntensity).toBe(25);
+    expect(committed.editorEdit).toBeNull();
+    expect(committed.history.past).toHaveLength(0);
   });
 
   it("finishes an active edit before selection, panel, or transform-tool changes", () => {
@@ -83,7 +104,12 @@ describe("consolidated Project runtime", () => {
 
   it("replacing the open Project resets editor state and history", () => {
     const first = executeProjectCommand(
-      updateProjectEditor(createProjectRuntime(createProjectFixture("first")), { selection: { kind: "vehicle", id: "UNIT-01" }, selectedYear: 2031 }),
+      updateProjectEditor(createProjectRuntime(createProjectFixture("first")), {
+        selection: { kind: "vehicle", id: "UNIT-01" },
+        selectedYear: 2031,
+        camera: { position: [1, 2, 3], target: [4, 5, 6] },
+        cameraRevision: 7,
+      }),
       { type: "rename-project", name: "Changed" },
     );
     const secondDocument = createProjectFixture("second");
@@ -92,6 +118,9 @@ describe("consolidated Project runtime", () => {
     expect(replaced.document.id).toBe("second");
     expect(replaced.editor.selection).toBeNull();
     expect(replaced.editor.selectedYear).toBe(secondDocument.analysis.startYear);
+    expect(replaced.editor.camera).toEqual(DEFAULT_PROJECT_CAMERA);
+    expect(replaced.editor.cameraRevision).toBe(0);
+    expect(replaced.editorEdit).toBeNull();
     expect(replaced.history).toEqual({ past: [], future: [], activeEdit: null });
     expect(isProjectDirty(replaced)).toBe(false);
   });

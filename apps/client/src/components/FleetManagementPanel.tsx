@@ -5,15 +5,12 @@ import { effectivePresetIdFor } from "../domain/project";
 import { useProjectStore } from "../state/projectStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, TextControl, type EditLifecycle } from "./controls";
+import { projectEditLifecycle } from "./projectEditLifecycle";
 
 const actionClass = "min-h-8 rounded border border-line-strong px-2.5 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
 const fieldClass = "min-h-9 w-full min-w-0 rounded border border-line-strong bg-panel px-2 text-xs font-medium text-primary focus:border-accent disabled:cursor-default disabled:opacity-50";
 const labelClass = "grid gap-1 text-[11px] font-semibold text-secondary";
-const edit: EditLifecycle = {
-  beginEdit: () => useProjectStore.getState().beginEdit(),
-  commitEdit: () => useProjectStore.getState().commitEdit(),
-  cancelEdit: () => useProjectStore.getState().cancelEdit(),
-};
+const edit: EditLifecycle = projectEditLifecycle;
 
 function CheckField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return <label className="flex min-h-9 items-center gap-2 text-xs text-secondary">
@@ -66,7 +63,7 @@ export function FleetManagementPanel() {
     setNotice(`Deleted ${name}.`);
   };
 
-  return <CollapsibleSection title="Fleet Management" defaultOpen description="Edit Project-owned Vehicles and the active Scenario's transition plan." onBeforeCollapse={edit.commitEdit}>
+  return <CollapsibleSection panelId="fleet" title="Fleet Management" description="Edit Project-owned Vehicles and the active Scenario's transition plan." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded-lg border border-line-strong bg-control">
       <div className="flex items-center justify-between border-b border-line-strong px-3 py-2">
         <span className="text-xs font-semibold text-primary">Vehicles · {scenario?.name ?? "No scenario"}</span>

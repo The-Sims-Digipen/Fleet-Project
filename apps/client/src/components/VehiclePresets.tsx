@@ -6,12 +6,9 @@ import { useProjectStore } from "../state/projectStore";
 import { ownershipKinds, propulsions, type PresetNumericField, type Propulsion, type VehiclePreset } from "../vehicles/types";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, SelectControl, TextControl } from "./controls";
+import { projectEditLifecycle } from "./projectEditLifecycle";
 
-const edit = {
-  beginEdit: () => useProjectStore.getState().beginEdit(),
-  commitEdit: () => useProjectStore.getState().commitEdit(),
-  cancelEdit: () => useProjectStore.getState().cancelEdit(),
-};
+const edit = projectEditLifecycle;
 
 const propulsionOptions = propulsions.map((value) => ({ value, label: `${value[0].toUpperCase()}${value.slice(1)}` }));
 const modelOptions = vehicleModelEntries.map(([value, definition]) => ({ value, label: definition.name }));
@@ -80,7 +77,7 @@ export function VehiclePresets() {
     setNotice(removed ? "Preset deleted." : null);
   };
 
-  return <CollapsibleSection title="Vehicle Presets" defaultOpen description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
+  return <CollapsibleSection panelId="vehicle-presets" title="Vehicle Presets" description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
         <button type="button" aria-label="New vehicle preset" className={actionClass} onClick={() => { setConfirming(null); useProjectStore.getState().createPreset(); }}>New</button>

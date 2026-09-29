@@ -10,7 +10,7 @@ The contract fixes these decisions:
 
 - Project-owned inputs: depot, authoritative vehicles and transforms, presets, analysis period, prices, emissions factors, and discount rate.
 - Scenario-owned inputs: ordered per-vehicle preset transitions.
-- Editor-only state: selection, selected year, camera, lighting, transform tools, drafts, and undo mechanics.
+- Project editor-only state: selection, selected year, camera, lighting, transform tools, drafts, and undo mechanics. Application-wide workspace mode and sidebar expansion remain in `appStore` across Project changes.
 - Derived state: simulation, analytics, event lists, and render objects are recomputed and never authoritative persisted data.
 - Transition semantics: the baseline preset applies before the first transition, then the latest transition at or before the selected year applies.
 - Time semantics: `startYear` through `startYear + yearCount - 1`, inclusive.

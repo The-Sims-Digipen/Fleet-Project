@@ -51,7 +51,7 @@ export function CostAnalysis() {
     ],
   }), [simulation, scenario, document.analysis.currency]);
 
-  return <CollapsibleSection title="Cost & emissions" description="Derived from Project Vehicles, Presets, Scenario transitions, and shared Analysis Settings." defaultOpen>
+  return <CollapsibleSection panelId="cost-analysis" title="Cost & emissions" description="Derived from Project Vehicles, Presets, Scenario transitions, and shared Analysis Settings.">
     {!scenario ? <p role="status" className="text-xs text-secondary">No Scenario results are available for this Project.</p> : <>
       <div className="grid grid-cols-2 gap-3">
         <Metric label={tcoLabel} value={formatCurrency(scenario.totals.tco)} detail={`${scenario.scenarioName} · ${document.analysis.discountRate > 0 ? "discounted " : ""}Project costs`} />

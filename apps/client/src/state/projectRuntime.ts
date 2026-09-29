@@ -23,6 +23,16 @@ export type ProjectRecordMetadata = {
   updatedAt: string;
 };
 
+export type ProjectCamera = {
+  position: [number, number, number];
+  target: [number, number, number];
+};
+
+export const DEFAULT_PROJECT_CAMERA: ProjectCamera = {
+  position: [8, 7, 9],
+  target: [0, 0, 0],
+};
+
 export type ProjectEditorState = {
   selection: WorldObjectReference | null;
   hover: WorldObjectReference | null;
@@ -33,8 +43,8 @@ export type ProjectEditorState = {
   transformMode: "translate" | "rotate" | "scale";
   transformSpace: "world" | "local";
   snapEnabled: boolean;
-  activePanel: string | null;
-  camera: { position: [number, number, number]; target: [number, number, number] };
+  camera: ProjectCamera;
+  cameraRevision: number;
 };
 
 export type ProjectHistory = {
@@ -48,6 +58,7 @@ export type ProjectRuntime = {
   record: ProjectRecordMetadata | null;
   savedDocument: ProjectDocument;
   editor: ProjectEditorState;
+  editorEdit: ProjectEditorState | null;
   history: ProjectHistory;
 };
 
@@ -87,8 +98,8 @@ function defaultEditor(document: ProjectDocument): ProjectEditorState {
     transformMode: "translate",
     transformSpace: "world",
     snapEnabled: true,
-    activePanel: null,
-    camera: { position: [8, 7, 9], target: [0, 0, 0] },
+    camera: structuredClone(DEFAULT_PROJECT_CAMERA),
+    cameraRevision: 0,
   };
 }
 
@@ -116,6 +127,7 @@ export function createProjectRuntime(document: ProjectDocument, record: ProjectR
     record: record ? { ...record } : null,
     savedDocument: copyProject(normalized),
     editor: defaultEditor(normalized),
+    editorEdit: null,
     history: { past: [], future: [], activeEdit: null },
   };
 }
@@ -224,7 +236,7 @@ export function applyProjectCommand(document: ProjectDocument, command: ProjectC
 }
 
 export function executeProjectCommand(runtime: ProjectRuntime, command: ProjectCommand): ProjectRuntime {
-  const committed = commitProjectEdit(runtime);
+  const committed = commitProjectEdit(commitProjectEditorEdit(runtime));
   const next = applyProjectCommand(committed.document, command);
   if (projectDocumentsEqual(committed.document, next)) return committed;
   return {
@@ -236,8 +248,9 @@ export function executeProjectCommand(runtime: ProjectRuntime, command: ProjectC
 }
 
 export function beginProjectEdit(runtime: ProjectRuntime): ProjectRuntime {
-  if (runtime.history.activeEdit) return runtime;
-  return { ...runtime, history: { ...runtime.history, activeEdit: copyProject(runtime.document) } };
+  const committed = commitProjectEditorEdit(runtime);
+  if (committed.history.activeEdit) return committed;
+  return { ...committed, history: { ...committed.history, activeEdit: copyProject(committed.document) } };
 }
 
 export function previewProjectCommand(runtime: ProjectRuntime, command: ProjectCommand): ProjectRuntime {
@@ -268,8 +281,27 @@ export function cancelProjectEdit(runtime: ProjectRuntime): ProjectRuntime {
   };
 }
 
-export function undoProjectCommand(runtime: ProjectRuntime): ProjectRuntime {
+export function beginProjectEditorEdit(runtime: ProjectRuntime): ProjectRuntime {
   const committed = commitProjectEdit(runtime);
+  if (committed.editorEdit) return committed;
+  return { ...committed, editorEdit: structuredClone(committed.editor) };
+}
+
+export function commitProjectEditorEdit(runtime: ProjectRuntime): ProjectRuntime {
+  return runtime.editorEdit ? { ...runtime, editorEdit: null } : runtime;
+}
+
+export function cancelProjectEditorEdit(runtime: ProjectRuntime): ProjectRuntime {
+  if (!runtime.editorEdit) return runtime;
+  return {
+    ...runtime,
+    editor: editorForDocument(runtime.editorEdit, runtime.document),
+    editorEdit: null,
+  };
+}
+
+export function undoProjectCommand(runtime: ProjectRuntime): ProjectRuntime {
+  const committed = commitProjectEdit(commitProjectEditorEdit(runtime));
   const previous = committed.history.past.at(-1);
   if (!previous) return committed;
   const document = copyProject(previous);
@@ -286,7 +318,7 @@ export function undoProjectCommand(runtime: ProjectRuntime): ProjectRuntime {
 }
 
 export function redoProjectCommand(runtime: ProjectRuntime): ProjectRuntime {
-  const committed = commitProjectEdit(runtime);
+  const committed = commitProjectEdit(commitProjectEditorEdit(runtime));
   const next = committed.history.future.at(-1);
   if (!next) return committed;
   const document = copyProject(next);
@@ -310,10 +342,9 @@ export function updateProjectEditor(runtime: ProjectRuntime, patch: Partial<Proj
     "transformMode",
     "transformSpace",
     "snapEnabled",
-    "activePanel",
   ]);
   const current = Object.keys(patch).some((key) => commitKeys.has(key as keyof ProjectEditorState))
-    ? commitProjectEdit(runtime)
+    ? commitProjectEdit(commitProjectEditorEdit(runtime))
     : runtime;
   return { ...current, editor: editorForDocument({ ...current.editor, ...structuredClone(patch) }, current.document) };
 }

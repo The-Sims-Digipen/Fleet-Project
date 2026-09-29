@@ -35,7 +35,7 @@ export function TimelineControl() {
     return () => window.clearInterval(timer);
   }, [endYear, playing]);
 
-  return <CollapsibleSection title="Timeline" defaultOpen description="Vehicle changes follow the active Scenario.">
+  return <CollapsibleSection panelId="timeline" title="Timeline" description="Vehicle changes follow the active Scenario.">
     <div className="flex items-center justify-between gap-3">
       <label htmlFor="timeline-year" className="text-xs font-semibold text-secondary">Selected year</label>
       <output htmlFor="timeline-year" className="font-mono text-xl font-bold text-accent">{selectedYear}</output>

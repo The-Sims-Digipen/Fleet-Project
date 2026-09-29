@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useState, type ReactNode } from "react";
+import { Component, lazy, Suspense, type ReactNode } from "react";
 import { CompareWorkspace } from "./components/CompareWorkspace";
 import { HistoryControls } from "./components/HistoryControls";
 import { ProjectControls } from "./components/ProjectControls";
@@ -6,11 +6,10 @@ import { ResizableWorkspace } from "./components/ResizableWorkspace";
 import { Sidebar } from "./components/Sidebar";
 import { TransformToolbar } from "./components/TransformToolbar";
 import { topBarControl, topBarControlActive, topBarStatus } from "./components/topBarStyles";
+import { useAppStore } from "./state/appStore";
 import { useProjectStore } from "./state/projectStore";
 
 const LazyWorldScene = lazy(() => import("./components/WorldScene").then((module) => ({ default: module.WorldScene })));
-
-type WorkspaceMode = "plan" | "compare";
 
 class ViewportBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -21,8 +20,8 @@ class ViewportBoundary extends Component<{ children: ReactNode }, { failed: bool
 }
 
 export default function App() {
-  const [cameraReset, setCameraReset] = useState(0);
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("plan");
+  const workspaceMode = useAppStore((state) => state.workspaceMode);
+  const setWorkspaceMode = useAppStore((state) => state.setWorkspaceMode);
   const document = useProjectStore((state) => state.runtime.document);
   const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
   const scenarios = document.scenarios;
@@ -46,12 +45,12 @@ export default function App() {
 
     {workspaceMode === "compare" ? <CompareWorkspace /> : <ResizableWorkspace>
       <section className="relative min-h-0 min-w-0 overflow-hidden bg-surface" aria-labelledby="scene-title">
-        <ViewportBoundary><Suspense fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">Loading project environment…</div>}><LazyWorldScene cameraReset={cameraReset} /></Suspense></ViewportBoundary>
+        <ViewportBoundary><Suspense fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">Loading project environment…</div>}><LazyWorldScene /></Suspense></ViewportBoundary>
         {import.meta.env.DEV && <TransformToolbar />}
         <div className="pointer-events-none absolute top-[30px] left-[clamp(20px,3vw,42px)] z-10"><span className="mb-2 block font-mono text-[0.68rem] font-bold tracking-[0.14em] text-accent uppercase">3D viewport</span><h2 className="text-[clamp(1.6rem,3vw,2.25rem)] font-medium tracking-[-0.04em]" id="scene-title">{activeScenario?.name ?? "Project depot"} · {selectedYear}</h2><p className="mt-2 text-xs text-[#39ff14]">Bright green vehicles have transitioned in the active scenario.</p></div>
         <div className="pointer-events-none absolute right-[clamp(20px,3vw,42px)] bottom-7 z-10 rounded-lg border border-line-strong/80 bg-surface/80 px-[11px] py-[9px] text-[0.7rem] text-secondary backdrop-blur-[10px]">MMB orbit · Shift+MMB pan · Scroll zoom{import.meta.env.DEV ? " · Click to select · W/E/R transform · Q space" : ""}</div>
       </section>
-      <Sidebar onResetCamera={() => setCameraReset((value) => value + 1)} />
+      <Sidebar />
     </ResizableWorkspace>}
   </main>;
 }

@@ -5,6 +5,7 @@ import { DEFAULT_VEHICLE_SPAWN_TRANSFORMS } from "../domain/depotLayout";
 import { simulateProject } from "../domain/simulation";
 import { createPortableProject } from "../project/portableProject";
 import { createMemoryProjectRepository } from "../project/repository";
+import { DEFAULT_PROJECT_CAMERA } from "./projectRuntime";
 import { createProjectState, setProjectRepository, useProjectStore } from "./projectStore";
 
 const project = () => useProjectStore.getState();
@@ -234,6 +235,17 @@ describe("Project store", () => {
     project().updateAnalysis({ startYear: 2030, yearCount: 2 });
 
     expect(project().runtime.editor.selectedYear).toBe(2031);
+  });
+
+  it("updates and resets the runtime camera without adding history", () => {
+    project().setCamera({ position: [2, 3, 4], target: [1, 0, -1] });
+
+    expect(project().runtime.editor.camera).toEqual({ position: [2, 3, 4], target: [1, 0, -1] });
+    expect(project().runtime.history.past).toHaveLength(0);
+    project().resetCamera();
+    expect(project().runtime.editor.camera).toEqual(DEFAULT_PROJECT_CAMERA);
+    expect(project().runtime.editor.cameraRevision).toBe(1);
+    expect(project().runtime.history.past).toHaveLength(0);
   });
 
   it("persists and reopens the complete aggregate", async () => {

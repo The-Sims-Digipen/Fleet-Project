@@ -1,18 +1,15 @@
 import { useProjectStore } from "../state/projectStore";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, TextControl, type EditLifecycle } from "./controls";
+import { projectEditLifecycle } from "./projectEditLifecycle";
 
-const edit: EditLifecycle = {
-  beginEdit: () => useProjectStore.getState().beginEdit(),
-  commitEdit: () => useProjectStore.getState().commitEdit(),
-  cancelEdit: () => useProjectStore.getState().cancelEdit(),
-};
+const edit: EditLifecycle = projectEditLifecycle;
 
 export function SimulationSettings() {
   const analysis = useProjectStore((state) => state.runtime.document.analysis);
   const updateAnalysis = useProjectStore((state) => state.updateAnalysis);
 
-  return <CollapsibleSection title="Analysis Settings" defaultOpen description="Shared assumptions used to evaluate every Scenario." onBeforeCollapse={edit.commitEdit}>
+  return <CollapsibleSection panelId="analysis" title="Analysis Settings" description="Shared assumptions used to evaluate every Scenario." onBeforeCollapse={edit.commitEdit}>
     <div className="grid gap-5">
       <p className="text-xs leading-relaxed text-secondary">Changing a shared assumption recalculates the baseline and every Project Scenario. Invalid drafts stay in the field until corrected and do not replace the saved Project value.</p>
 

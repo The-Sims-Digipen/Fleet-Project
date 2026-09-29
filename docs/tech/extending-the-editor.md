@@ -1,8 +1,8 @@
 # Extending the editor
 
-Compose each sidebar feature as an isolated component inside `Sidebar` using `CollapsibleSection`. Supply a title, optional description, `defaultOpen`, and children. Modules with editable controls should pass `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`; they receive values, callbacks, and an edit lifecycle and do not depend on Zustand.
+Compose each sidebar feature as an isolated component inside `Sidebar` using `CollapsibleSection`. Register a stable panel ID and its initial expansion value in `appStore`, then supply that ID, a title, an optional description, and children. Modules with editable controls should pass the appropriate document or runtime-editor `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`; they receive values, callbacks, and an edit lifecycle and do not depend on Zustand.
 
-Feature components read the canonical document from `useProjectStore(state => state.runtime.document)` and call focused store actions or Project commands. Do not introduce a second feature store for a slice of Project data. Editor-only values belong in `ProjectEditorState`; persisted domain values belong in `ProjectDocument`.
+Feature components read the canonical document from `useProjectStore(state => state.runtime.document)` and call focused store actions or Project commands. Do not introduce a second feature store for a slice of Project data. Project-scoped editor values belong in `ProjectEditorState`; persisted domain values belong in `ProjectDocument`; cross-Project workspace mode and sidebar expansion belong in `appStore`.
 
 ## Register a procedural model
 

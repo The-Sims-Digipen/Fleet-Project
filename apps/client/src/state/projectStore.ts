@@ -20,10 +20,14 @@ import type { Transform } from "../scene/types";
 import type { VehiclePreset } from "../vehicles/types";
 import { useAppStore } from "./appStore";
 import {
+  beginProjectEditorEdit,
   beginProjectEdit,
+  cancelProjectEditorEdit,
   cancelProjectEdit,
+  commitProjectEditorEdit,
   commitProjectEdit,
   createProjectRuntime,
+  DEFAULT_PROJECT_CAMERA,
   executeProjectCommand,
   isProjectDirty,
   markProjectSaved,
@@ -33,6 +37,7 @@ import {
   undoProjectCommand,
   updateProjectEditor,
   type ProjectCommand,
+  type ProjectCamera,
   type ProjectEditorState,
   type ProjectRuntime,
   type WorldObjectReference,
@@ -79,6 +84,8 @@ export type ProjectState = ProjectStateFields & {
   setTransformSpace: (space: ProjectEditorState["transformSpace"]) => void;
   setSnapEnabled: (enabled: boolean) => void;
   setLightIntensity: (intensity: number) => void;
+  setCamera: (camera: ProjectCamera) => void;
+  resetCamera: () => void;
   updateObjectTransform: (reference: WorldObjectReference, transform: Transform) => void;
 
   executeCommand: (command: ProjectCommand) => void;
@@ -86,6 +93,9 @@ export type ProjectState = ProjectStateFields & {
   previewCommand: (command: ProjectCommand) => void;
   commitEdit: () => void;
   cancelEdit: () => void;
+  beginEditorEdit: () => void;
+  commitEditorEdit: () => void;
+  cancelEditorEdit: () => void;
   undo: () => void;
   redo: () => void;
   updateEditor: (patch: Partial<ProjectEditorState>) => void;
@@ -124,6 +134,11 @@ function transformsEqual(left: Transform, right: Transform): boolean {
   return left.position.every((value, index) => value === right.position[index])
     && left.rotation.every((value, index) => value === right.rotation[index])
     && left.scale.every((value, index) => value === right.scale[index]);
+}
+
+function camerasEqual(left: ProjectCamera, right: ProjectCamera): boolean {
+  return left.position.every((value, index) => Math.abs(value - right.position[index]) < 1e-6)
+    && left.target.every((value, index) => Math.abs(value - right.target[index]) < 1e-6);
 }
 
 function nextSpawnTransform(vehicles: readonly ProjectVehicle[]): Transform | undefined {
@@ -324,6 +339,13 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     setTransformSpace: (transformSpace) => get().updateEditor({ transformSpace }),
     setSnapEnabled: (snapEnabled) => get().updateEditor({ snapEnabled }),
     setLightIntensity: (lightIntensity) => get().updateEditor({ lightIntensity: Math.max(0, Math.min(100, lightIntensity)) }),
+    setCamera: (camera) => {
+      if (!camerasEqual(get().runtime.editor.camera, camera)) get().updateEditor({ camera });
+    },
+    resetCamera: () => get().updateEditor({
+      camera: structuredClone(DEFAULT_PROJECT_CAMERA),
+      cameraRevision: get().runtime.editor.cameraRevision + 1,
+    }),
     updateObjectTransform: (reference, transform) => safelyApply(reference.kind === "depot"
       ? { type: "set-depot-transform", transform }
       : { type: "set-vehicle-transform", vehicleId: reference.id, transform }),
@@ -333,6 +355,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     previewCommand: (command) => applyRuntime(previewProjectCommand(get().runtime, command)),
     commitEdit: () => setRuntime(commitProjectEdit(get().runtime)),
     cancelEdit: () => applyRuntime(cancelProjectEdit(get().runtime)),
+    beginEditorEdit: () => setRuntime(beginProjectEditorEdit(get().runtime)),
+    commitEditorEdit: () => setRuntime(commitProjectEditorEdit(get().runtime)),
+    cancelEditorEdit: () => setRuntime(cancelProjectEditorEdit(get().runtime)),
     undo: () => applyRuntime(undoProjectCommand(get().runtime)),
     redo: () => applyRuntime(redoProjectCommand(get().runtime)),
     updateEditor: (patch) => setRuntime(updateProjectEditor(get().runtime, patch)),

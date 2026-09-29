@@ -43,7 +43,7 @@ Project
 
 The Project answers “what physical system am I planning?” A Scenario answers “what alternative plan am I evaluating for that system?” Scenarios own per-vehicle transition sequences. They reference vehicles and presets by stable ID and never duplicate the physical environment.
 
-`useProjectStore` owns one `ProjectRuntime`: the canonical document, persistence metadata, editor-only state, and undo history. Feature components issue Project commands; no feature mirrors part of the document into another store. This keeps validation, undo/redo, dirty state, save/load, and rendering on the same source of truth.
+`useProjectStore` owns one `ProjectRuntime`: the canonical document, persistence metadata, Project-scoped editor state, and undo history. `useAppStore` owns cross-Project application state such as repository status, Plan/Compare workspace mode, and sidebar expansion. Feature components issue Project commands; no feature mirrors part of the document into another store. This keeps validation, undo/redo, dirty state, save/load, and rendering on the same source of truth without treating application-wide UI preferences as Project state.
 
 ## Persistence boundary
 

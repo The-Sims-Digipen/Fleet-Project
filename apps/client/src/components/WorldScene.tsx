@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { MOUSE, type Group } from "three";
 import { createProjectWorld, worldObjectReferenceKey, type WorldObjectReference, type WorldObjectView } from "../scene/projectWorld";
 import { useProjectStore } from "../state/projectStore";
@@ -12,22 +12,40 @@ function Lighting() {
   return <><ambientLight intensity={0.35 + light / 100} /><directionalLight position={[6, 9, 5]} intensity={0.5 + light / 45} /></>;
 }
 
-function CameraControls({ reset }: { reset: number }) {
+function CameraControls() {
   const camera = useThree((state) => state.camera);
-  const size = useThree((state) => state.size);
-  useEffect(() => {
-    camera.position.set(8, 7, 9);
-    camera.lookAt(0, 0, 0);
-  }, [camera, reset, size.width, size.height]);
+  const session = useProjectStore((state) => state.session);
+  const cameraRevision = useProjectStore((state) => state.runtime.editor.cameraRevision);
+  const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
+
+  useLayoutEffect(() => {
+    const next = useProjectStore.getState().runtime.editor.camera;
+    camera.position.fromArray(next.position);
+    if (controls.current) {
+      controls.current.target.fromArray(next.target);
+      controls.current.update();
+    } else {
+      camera.lookAt(...next.target);
+    }
+  }, [camera, cameraRevision, session]);
+
+  const synchronizeCamera = useCallback(() => {
+    if (!controls.current) return;
+    useProjectStore.getState().setCamera({
+      position: camera.position.toArray() as [number, number, number],
+      target: controls.current.target.toArray() as [number, number, number],
+    });
+  }, [camera]);
+
   return <OrbitControls
-    key={reset}
+    ref={controls}
     makeDefault
     enableDamping
     dampingFactor={0.06}
     minDistance={2}
     maxDistance={60}
     maxPolarAngle={Math.PI / 2.02}
-    target={[0, 0, 0]}
+    onChange={synchronizeCamera}
     mouseButtons={{ LEFT: -1 as MOUSE, MIDDLE: MOUSE.ROTATE, RIGHT: -1 as MOUSE }}
   />;
 }
@@ -86,7 +104,7 @@ function WorldObjectsLayer({ objects, isClick, markDragged }: {
   </>;
 }
 
-export function WorldScene({ cameraReset }: { cameraReset: number }) {
+export function WorldScene() {
   const document = useProjectStore((state) => state.runtime.document);
   const selectedYear = useProjectStore((state) => state.runtime.editor.selectedYear);
   const objects = useMemo(() => createProjectWorld(document, selectedYear), [document, selectedYear]);
@@ -112,7 +130,7 @@ export function WorldScene({ cameraReset }: { cameraReset: number }) {
       <color attach="background" args={["#07100f"]} />
       <Lighting />
       <WorldObjectsLayer objects={objects} isClick={isClick} markDragged={markDragged} />
-      <CameraControls reset={cameraReset} />
+      <CameraControls />
     </Canvas>
   </div>;
 }

@@ -13,7 +13,7 @@ export function ScenarioPanel() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const active = scenarios.find((scenario) => scenario.id === activeScenarioId);
 
-  return <CollapsibleSection title="Scenarios" defaultOpen description="Alternative plans share this Project's depot and authoritative fleet. Save Project writes the complete workspace to browser storage.">
+  return <CollapsibleSection panelId="scenarios" title="Scenarios" description="Alternative plans share this Project's depot and authoritative fleet. Save Project writes the complete workspace to browser storage.">
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
         <span className="mr-auto text-[0.68rem] font-semibold text-secondary">Project scenarios</span>
