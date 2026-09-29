@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads the Project world projection for the active Scenario and selected year and renders it without independently applying transition rules or mutating Scenario/simulation state.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads the Project world projection for the active Scenario and selected year and renders it without independently applying transition rules or mutating Project/simulation state.
 
 ## User capability
 
@@ -21,7 +21,7 @@ The 3D view provides a spatial representation of the plan and lets users verify 
 - Support the existing navigation and selection/inspection interactions required by the M1 build.
 - Render fleet vehicles from real project/scenario state rather than an independent hard-coded fleet source.
 - Place every fleet vehicle at its unique Project-owned world transform, using a generic visual when no preset is selected.
-- Use the shared selected year from T04.
+- Use the selected year from Project runtime state.
 - Display the current preset/state before a transition and the target preset/state from the transition year onward.
 - Keep rendering read-only with respect to authoritative simulation/scenario state.
 - Keep development transform and Project-document inspection controls out of production builds.

@@ -6,7 +6,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). T07 consumes `SimulationResult` and the T04 selected year to produce display-ready KPI/chart models; it must not recalculate financial, energy or emissions truth.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). T07 consumes `SimulationResult` and the selected year from Project runtime state to produce display-ready KPI/chart models; it must not recalculate financial, energy or emissions truth.
 
 ## Goal
 
@@ -19,7 +19,7 @@ Provide the typed presentation layer that converts T05 simulation outputs into c
 - Build KPI view models for TCO, savings and payback/breakeven.
 - Represent `payback not reached`, empty/no-data and invalid-result states explicitly.
 - Apply consistent units, formatting, legends and axis/domain logic.
-- Support selected-year indicators/context where useful while keeping T04 as the authoritative clock.
+- Support selected-year indicators/context where useful while keeping `projectStore` as the selected-year runtime owner.
 - Remove hard-coded result arrays/summary values from the primary M1 financial views.
 
 ## M1 boundaries

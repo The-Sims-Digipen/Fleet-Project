@@ -6,28 +6,28 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). T06 owns the in-memory lifecycle of versioned project/scenario documents, active selections, dirty state and complete workspace snapshots; T01 remains the only storage boundary and T03 remains the domain-operation owner.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). `projectStore` owns the in-memory lifecycle of the open Project, its active Scenario, editor state, dirty state, and history. `ProjectRepository` stores complete Project aggregates; no separate Scenario documents or workspace snapshots are authoritative.
 
 ## Goal
 
-Manage the in-memory lifecycle and invariants of Projects and Scenarios, including active selection, Scenario duplication/removal, dirty state and the aggregate snapshots passed to persistence.
+Provide Project-store commands for the lifecycle and invariants of Projects and Scenarios, including active Scenario selection, duplication/removal, dirty state, and complete aggregate persistence.
 
 ## Responsibilities
 
-- Create/open an in-memory Project workspace from repository data.
-- Maintain active Project/Scenario selections.
+- Create/open an in-memory Project through `projectStore` and the repository contract.
+- Maintain the active Scenario inside the Project document and Project runtime.
 - Create, rename, duplicate, switch and remove Scenarios according to product invariants.
 - Ensure every Project retains at least one Scenario and one physical environment.
 - Preserve unsaved changes while switching within the workspace.
 - Keep Scenario duplication independent rather than sharing mutable planning state.
-- Track dirty/unsaved state and construct a complete valid workspace snapshot for T01.
+- Track dirty/unsaved state in Project runtime and persist the complete Project document through `ProjectRepository`.
 - Restore valid active selections after remove/load operations.
 
 ## Boundaries
 
-- T06 owns **workspace lifecycle and invariants**.
-- T03 owns **fleet/transition domain data inside scenarios**.
-- T01 owns **storage, transactions and serialization**.
+- `projectStore` owns **the open Project, Project-scoped runtime state, and undo history**.
+- Project commands and domain selectors own **Project and Scenario invariants and derived state**.
+- `ProjectRepository` owns **complete aggregate storage, revisions, and serialization**; `appStore` owns cross-Project workspace preferences.
 
 ## M1 evidence
 

@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 binds to the single T04 selected year, project `AnalysisSettings` and real T03 events; it must not own another clock or duplicate effective-preset logic.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 uses the selected year in `projectStore` runtime state, Project `AnalysisSettings`, and derived Scenario transition events. Playback controls must not create another clock or duplicate effective-preset logic.
 
 ## User capability
 
@@ -21,7 +21,7 @@ Users need to understand when planned transitions occur and how the fleet change
 - Select/seek to a year.
 - Play, pause and reset timeline playback.
 - Generate transition markers from real scenario transition data.
-- Drive one authoritative selected year through T04.
+- Drive the selected year through the Project runtime action.
 - Keep dependent fleet/3D/analytics views synchronized to that selected year where applicable.
 
 Charger-installation markers become required when charging infrastructure enters the approved product scope.
