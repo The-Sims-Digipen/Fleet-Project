@@ -181,6 +181,37 @@ describe("Project store", () => {
       .toEqual(spawnTransforms[1]);
   });
 
+  it("groups live typed transform updates into one Undo entry and restores a cancelled drag", () => {
+    const reference = { kind: "vehicle" as const, id: "UNIT-01" };
+    const startingTransform = structuredClone(project().runtime.document.environment.vehicles[0].transform);
+    project().beginEdit();
+    project().updateObjectTransform(reference, { ...startingTransform, position: [1, 2, 3] });
+    project().updateObjectTransform(reference, { ...startingTransform, position: [4, 5, 6] });
+    project().updateObjectTransform(reference, { ...startingTransform, position: [7, 8, 9] });
+    project().commitEdit();
+
+    expect(project().runtime.document.environment.vehicles[0].transform.position).toEqual([7, 8, 9]);
+    expect(project().runtime.history.past).toHaveLength(1);
+    project().undo();
+    expect(project().runtime.document.environment.vehicles[0].transform).toEqual(startingTransform);
+
+    project().beginEdit();
+    project().updateObjectTransform(reference, { ...startingTransform, position: [10, 11, 12] });
+    project().cancelEdit();
+    expect(project().runtime.document.environment.vehicles[0].transform).toEqual(startingTransform);
+    expect(project().runtime.history.activeEdit).toBeNull();
+    expect(project().runtime.history.past).toHaveLength(0);
+  });
+
+  it("keeps typed selection identity when switching between Inspect and Gizmo modes", () => {
+    const selection = { kind: "vehicle" as const, id: "UNIT-01" };
+    project().selectObject(selection);
+    project().setInteractionMode("gizmo");
+    expect(project().runtime.editor.selection).toEqual(selection);
+    project().setInteractionMode("inspect");
+    expect(project().runtime.editor.selection).toEqual(selection);
+  });
+
   it("duplicates Scenario plans independently and protects the final Scenario", () => {
     project().replaceVehicleTransitions("plan-a", "UNIT-01", [{ year: 2030, targetPresetId: "electric-van" }]);
     project().duplicateScenario("plan-a");
