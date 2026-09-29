@@ -8,3 +8,4 @@ Fleet vehicles are stable generic instances owned by the Project. Each owns one 
 
 Because the product is pre-release, existing multi-World development data is discarded instead of migrated. Independent depots are separate Projects. A portfolio abstraction can be introduced later if cross-project planning becomes a real requirement.
 
+The authoritative aggregate and typed world projection are recorded in [ADR 0002](0002-project-aggregate-and-typed-world.md).

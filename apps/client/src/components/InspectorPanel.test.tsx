@@ -38,6 +38,26 @@ describe("development Inspector", () => {
     expect(within(effectiveState).getByText("Effective preset").parentElement).toHaveTextContent("Electric Delivery Van");
   });
 
+  it("shows the last effective preset in an ordered multi-transition Vehicle plan", () => {
+    act(() => {
+      useProjectStore.getState().replaceVehicleTransitions("plan-a", "UNIT-01", [
+        { year: 2028, targetPresetId: "hybrid-van" },
+        { year: 2030, targetPresetId: "electric-van" },
+        { year: 2032, targetPresetId: "diesel-van" },
+      ]);
+      useProjectStore.getState().setSelectedYear(2031);
+      useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" });
+    });
+    render(<InspectorPanel />);
+
+    expect(within(screen.getByLabelText("Effective Vehicle state"))
+      .getByText("Effective preset").parentElement).toHaveTextContent("Electric Delivery Van");
+
+    act(() => useProjectStore.getState().setSelectedYear(2032));
+    expect(within(screen.getByLabelText("Effective Vehicle state"))
+      .getByText("Effective preset").parentElement).toHaveTextContent("Diesel Delivery Van");
+  });
+
   it("edits baseline fields and multiple active-Scenario transitions through Project history", () => {
     act(() => useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: "UNIT-01" }));
     render(<InspectorPanel />);

@@ -8,9 +8,11 @@ Success means a user can create or load a sample fleet, author a depot, schedule
 
 ## Committed product
 
-A single-user browser application runs locally with browser-local IndexedDB project persistence and a Fastify API available for later backend features. It includes fleet editing, staged transition scheduling, depot/external/mixed charging, a custom calculation engine, a flat freeform depot editor, scenario-driven 3D visualization, suitability explanations, charts, and two-plan comparison. No account or public hosting is required.
+The product definition below covers the long-term M1–M6 scope. The current version 5 M1 Project contract contains a Depot and Vehicle baselines, shared Analysis Settings, and Scenario-owned Vehicle transition plans. M1 does not persist parking assignments or Scenario charging assumptions; charging strategies, charging infrastructure, feasibility, Charger visualization, and charging comparison remain later scope.
 
-Synthetic sample data provides an immediate demonstration. The current default depot supports ten parked vehicle instances; the 100-van example remains an illustrative future-scale case rather than a vehicle-type restriction. Sample values are explicitly illustrative. Use realistic synthetic or historical data unless ChargedUp explicitly approves other data.
+A single-user browser application runs locally with browser-local IndexedDB project persistence and a Fastify API backed by the same aggregate Project repository contract. It includes fleet editing, staged transition scheduling, depot/external/mixed charging, a custom calculation engine, a flat freeform depot editor, scenario-driven 3D visualization, suitability explanations, charts, and two-plan comparison. No account or public hosting is required.
+
+Synthetic sample data provides an immediate demonstration. The current default Depot supplies ten initial world-space Vehicle spawn transforms; the 100-van example remains an illustrative future-scale case rather than a vehicle-type restriction. Sample values are explicitly illustrative. Use realistic synthetic or historical data unless ChargedUp explicitly approves other data.
 
 ## Requirements and acceptance scenarios
 

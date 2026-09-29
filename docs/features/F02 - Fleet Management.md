@@ -5,11 +5,11 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F02 reads Project-owned Vehicles and edits them through Project commands; transition year and target preset remain Scenario-owned and must not be written into the shared Vehicle record.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F02 reads Project-owned Vehicle baselines and edits them through Project commands. Ordered transition years and target Presets belong to the Scenario's Vehicle Plan and must not be written into the shared Vehicle baseline.
 
 ## User capability
 
-Users can view the Project's authoritative fleet and add or edit generic Vehicle instances, their optional baseline preset, world transform, annual distance and other M1 planning attributes.
+Users can view the Project's authoritative fleet and add or edit generic Vehicle instances, their optional baseline Preset, world transform, annual distance, and other M1 planning attributes.
 
 ## User need
 
@@ -24,7 +24,7 @@ The transition model must use fleet data that represents the vehicles being plan
 - Assign or change an optional vehicle preset without changing vehicle identity.
 - Preserve stable vehicle IDs across edits, scenarios and persistence.
 - Enforce unique default spawn positions and the current ten-Vehicle depot capacity.
-- Derive rendered vehicles from the Project fleet instead of persisting scene vehicles.
+- Derive rendered Vehicles from the Project fleet instead of persisting scene objects or parking assignments.
 
 Filtering, sorting and bulk planning may be expanded after the minimum real CRUD/data flow is stable.
 

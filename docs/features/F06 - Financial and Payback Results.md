@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F06 renders T07 view models derived from `SimulationResult`; KPI cards and charts must not contain fallback financial calculations or hard-coded authoritative values.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F06 renders T07 view models derived from `SimulationResult`; KPI cards and charts use the canonical effective Vehicle interpretation and must not contain fallback financial calculations or hard-coded authoritative values.
 
 ## User capability
 

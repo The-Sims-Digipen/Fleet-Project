@@ -56,6 +56,44 @@ describe("Scenario comparison", () => {
     expect(useProjectStore.getState().runtime.document).toEqual(project);
   });
 
+  it("uses the same multi-transition state for comparison metrics and both selected-year viewports", () => {
+    project.scenarios[0].vehiclePlans["UNIT-01"] = {
+      transitions: [
+        { year: 2028, targetPresetId: "hybrid-van" },
+        { year: 2030, targetPresetId: "electric-van" },
+        { year: 2032, targetPresetId: "diesel-van" },
+      ],
+    };
+    project.scenarios[1].vehiclePlans["UNIT-01"] = {
+      transitions: [
+        { year: 2029, targetPresetId: "electric-van" },
+        { year: 2031, targetPresetId: "hybrid-van" },
+        { year: 2033, targetPresetId: "diesel-van" },
+      ],
+    };
+    useProjectStore.setState(createProjectState(project));
+    render(<CompareWorkspace />);
+
+    fireEvent.change(screen.getByRole("slider", { name: "Comparison year" }), { target: { value: "2031" } });
+
+    const simulation = simulateProject(project);
+    const number = new Intl.NumberFormat("en-SG", { maximumFractionDigits: 0 });
+    for (const scenarioId of ["plan-a", "plan-b"]) {
+      const group = within(screen.getByRole("group", { name: `Plan ${scenarioId === "plan-a" ? "A" : "B"} results` }));
+      const annual = simulation.scenarios[scenarioId].annual.find((entry) => entry.year === 2031)!;
+      expect(group.getByText(`${number.format(annual.emissionsKgCo2e)} kg CO₂e`)).toBeInTheDocument();
+      expect(group.getByText(new Intl.NumberFormat("en-SG", {
+        style: "currency", currency: project.analysis.currency, maximumFractionDigits: 0,
+      }).format(annual.netCashCost))).toBeInTheDocument();
+    }
+    expect(screen.getByTestId("comparison-viewport-plan-a")).toHaveAttribute("data-year", "2031");
+    expect(screen.getByTestId("comparison-viewport-plan-b")).toHaveAttribute("data-year", "2031");
+    expect(within(screen.getByRole("group", { name: "Plan A results" })).getByText("2031 transitions").parentElement)
+      .toHaveTextContent("0");
+    expect(within(screen.getByRole("group", { name: "Plan B results" })).getByText("2031 transitions").parentElement)
+      .toHaveTextContent("1");
+  });
+
   it("edits one Scenario's transition while preserving the other Scenario and shared Project data", async () => {
     const user = userEvent.setup();
     render(<CompareWorkspace />);

@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses the Project store and aggregate `ProjectRepository` for one complete Project document; UI code must not access IndexedDB or implement migrations directly.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses `projectStore` and aggregate `ProjectRepository` for one complete version 5 Project document; UI code must not access IndexedDB or implement migrations directly. `appStore` is limited to cross-Project interface preferences.
 
 ## User capability
 
@@ -26,6 +26,7 @@ Users need a structured workspace for exploring transition plans without losing 
 - Every Project must retain at least one Scenario.
 - New Projects automatically contain the default depot and ordered Vehicle spawn positions.
 - Save Project is the persistence boundary and writes one complete Project aggregate through `ProjectRepository`.
+- Scenario owns transition plans only; M1 has no Scenario-owned charging strategy, charger inventory, or parking assignment.
 
 ## M1 scope
 

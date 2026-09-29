@@ -4,16 +4,18 @@ This is the shared handoff for integrating the milestone-one features into one w
 
 ## Canonical code contract
 
-The framework-independent aggregate is `apps/client/src/domain/project.ts`. A `ProjectDocument` owns the environment, vehicle presets, Scenarios, active Scenario, and shared analysis settings. Its `version` field is a serialization detail; consumers use unversioned Project names.
+The framework-independent aggregate is `apps/client/src/domain/project.ts`. Its version 5 `ProjectDocument` owns one environment, Vehicle Presets, Scenarios, active Scenario identity, and shared Analysis Settings. The `version` field is a serialization detail; consumers use the same unversioned Project contract and reject unsupported document versions.
 
 The contract fixes these decisions:
 
 - Project-owned inputs: depot, authoritative vehicles and transforms, presets, analysis period, prices, emissions factors, and discount rate.
-- Scenario-owned inputs: ordered per-vehicle preset transitions.
+- Scenario-owned inputs: ordered Vehicle transition plans only. Charging strategy, depot charging share, charging infrastructure, and feasibility are later scope; no such assumptions are persisted per Scenario in M1.
 - Project editor-only state: selection, selected year, camera, lighting, transform tools, drafts, and undo mechanics. Application-wide workspace mode and sidebar expansion remain in `appStore` across Project changes.
 - Derived state: simulation, analytics, event lists, and render objects are recomputed and never authoritative persisted data.
 - Transition semantics: the baseline preset applies before the first transition, then the latest transition at or before the selected year applies.
 - Time semantics: `startYear` through `startYear + yearCount - 1`, inclusive.
+
+An Effective Vehicle is a derived, read-only interpretation of its Project Vehicle baseline and one Scenario's transitions at a selected year. Timeline, simulation, graphs, Inspector state, comparison metrics, and `createProjectWorld` must agree with this interpretation across every ordered transition.
 
 ## Validation and reference invariants
 
@@ -40,7 +42,7 @@ The contract fixes these decisions:
 - editor-only state;
 - one undo/redo history for all Project edits.
 
-Feature components must not mirror Project slices into another store. Continuous controls use `beginEdit`, preview commands, `commitEdit`, and `cancelEdit`. Discrete actions issue one Project command. Viewport rendering uses `createProjectWorld`; it does not persist a second scene document.
+Feature components must not mirror Project slices into another authoritative store. Continuous controls use `beginEdit`, preview commands, `commitEdit`, and `cancelEdit`. Discrete actions issue one Project command. Viewport rendering, picking, and Inspector routing use `createProjectWorld` and typed Depot/Vehicle references; they do not persist a second scene document. The hardcoded ordered spawn transforms are copied onto new Vehicles and have no persisted parking-slot identity.
 
 ## Persistence boundary
 

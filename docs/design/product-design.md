@@ -2,9 +2,11 @@
 
 Design owners: Ooi Ming Thong (UX), Dayton Ng Zhi Jie (web interface), and Tan Wei Jun (3D interaction). [Wireframes](ui-ux/wireframes.md) illustrate the screens; the [implementation features](../features/README.md) defines scope.
 
+This is a long-term M1–M6 design. The current version 5 M1 contract has shared Project Analysis Settings and Scenario-owned Vehicle transition plans; charging strategies, charger placement, and parking assignments are later design scope, not persisted M1 state.
+
 ## Navigation and screen responsibilities
 
-The application has a project home screen and a project workspace. The workspace offers Plan, Depot, and Compare views without navigating away from the current document. Its header always shows project/scenario names, saved/unsaved state, Save, and the simulation label. Common analysis settings and scenario-specific charging settings must be visibly distinguished.
+The application has a project home screen and a project workspace. The workspace offers Plan, Depot, and Compare views without navigating away from the current document. Its header always shows project/scenario names, saved/unsaved state, Save, and the simulation label. Common Analysis Settings are Project-owned; Scenario-specific Vehicle transitions are shown separately. Any future charging assumptions must be explicitly separated when scheduled.
 
 | View | Primary content | Main actions |
 |---|---|---|

@@ -82,6 +82,29 @@ describe("Project world projection", () => {
     expect(fuelFor("plan-b", 2032)).toBe(1_512);
   });
 
+  it("keeps 3D preset projection and simulation aligned across multiple Vehicle transitions", () => {
+    const project = createProjectFixture();
+    project.scenarios[0].vehiclePlans["UNIT-01"] = {
+      transitions: [
+        { year: 2028, targetPresetId: "hybrid-van" },
+        { year: 2030, targetPresetId: "electric-van" },
+        { year: 2032, targetPresetId: "diesel-van" },
+      ],
+    };
+
+    const simulation = simulateProject(project).scenarios["plan-a"];
+    const stateAt = (year: number) => ({
+      tint: createProjectWorld(project, year, "plan-a")[1].tint,
+      fuel: simulation.annual.find((entry) => entry.year === year)?.fuelLitres,
+      electricity: simulation.annual.find((entry) => entry.year === year)?.electricityKWh,
+    });
+
+    expect(stateAt(2027)).toMatchObject({ tint: "#ffffff", fuel: 2_660, electricity: 0 });
+    expect(stateAt(2028)).toMatchObject({ tint: "#39ff14", fuel: 1_512, electricity: 3_733.333333333333 });
+    expect(stateAt(2030)).toMatchObject({ tint: "#39ff14", fuel: 0, electricity: 6_844.444444444444 });
+    expect(stateAt(2032)).toMatchObject({ tint: "#ffffff", fuel: 2_660, electricity: 0 });
+  });
+
   it("keeps generic Vehicles visible and distinguishes same-ID typed references", () => {
     const project = createProjectFixture();
     project.environment.vehicles[0].baselinePresetId = null;

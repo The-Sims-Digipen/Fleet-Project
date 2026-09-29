@@ -8,7 +8,7 @@ M1 has no Scenario charging strategy, depot charging share, charging-availabilit
 
 - Model whole calendar years from `startYear` through `startYear + years - 1`. Transition, replacement, and charger installation occur at the start of their chosen year; annual operation follows; terminal residual credits occur after the final year's operation.
 - Use km, litres, kWh, kgCO2e, and one Project currency. Fuel and electricity prices, emissions factors, and the discount rate are shared Project assumptions. Apply the discount rate to present-value TCO; do not model inflation, tax, subsidy, or battery degradation. All comparisons use the Project currency.
-- Each vehicle has constant annual-distance/operational assumptions; maintenance and energy behavior come from the active vehicle preset. `utilisation` informs ranking; it does not multiply annualKm again. typicalDailyKm and operatingDays inform charging checks; flag a material mismatch with annualKm rather than silently replacing either input.
+- Each Vehicle has constant annual-distance/operational assumptions; maintenance and energy behavior come from the effective Vehicle Preset. `utilisation` is retained for later suitability ranking; it does not multiply annualKm. `typicalDailyKm`, `operatingDays`, depot return/dwell, and external access are stored Vehicle inputs for later charging checks and do not add an M1 charging strategy or feasibility calculation.
 - The baseline can include one replacement using the Vehicle's baseline Preset. A Scenario can contain multiple ordered transitions, and each target Preset stays active until the next transition. If the first transition is on or before the baseline replacement year, it replaces that baseline purchase; otherwise the baseline replacement happens first. Transition years may fall outside the evaluation window.
 - Operational emissions include the active Preset's fuel and supplied-electricity use using the shared Project factors. Vehicle manufacturing and disposal emissions are excluded.
 
@@ -27,8 +27,6 @@ For an owned holding active from start-of-year index a to horizon end N, with ac
 `V(t) = P + (R - P) * (t - a) / (N - a)`
 
 Use a=0 for existing assets. Use the actual acquisition-year index for acquired assets. R is an explicit end-of-analysis value, not an automatically estimated resale price. All allowed purchases occur before N. At replacement/transition, credit V(t) for the outgoing owned holding. At horizon end, credit R only for the final owned holding. Never credit both early disposal and terminal residual for the same disposed holding. Leased holdings have no sale/residual credit.
-
-Charger purchase and installation costs are CAPEX in the installation year regardless of current use or the selected charging strategy. Owned infrastructure has no residual value in annual-v1. Existing/prepaid infrastructure is represented by zero acquisition costs at the start year. Do not silently erase costs because a user selects external charging while still retaining planned chargers.
 
 ## Energy, annual costs, and totals
 
@@ -58,7 +56,9 @@ Assumption impact compares the before/after Project input snapshots, lists chang
 
 ## Deferred: charging and physical feasibility
 
-The following requirements remain for a later milestone. They do not add charging fields to the M1 Project or Scenario contracts and do not feed the M1 simulation.
+The following requirements remain for a later milestone. They do not add Scenario charging strategy or infrastructure fields to the M1 contract and do not feed the M1 simulation. Existing Vehicle operating attributes such as depot return, dwell, and external access are not a persisted per-Scenario charging plan.
+
+When charging infrastructure is introduced, its purchase and installation costs are CAPEX in the installation year regardless of current use or selected strategy. Owned infrastructure has no residual value in annual-v1. Existing/prepaid infrastructure is represented by zero acquisition costs at the start year. Do not silently erase costs because a user selects external charging while still retaining planned chargers.
 
 For each electric active-preset vehicle/year, typical depot supplied daily kWh = typicalDailyKm × active-preset kWh/km × depotShare / efficiency. Sum across electric vehicles requesting depot charging. Installed capacity P is the sum of powerKW for chargers with installationYear <= selected year; chargers must also have a valid finite numeric configuration. Placement conflicts do not secretly remove planned chargers from cost/power calculations: return infeasibility alongside indicative results.
 

@@ -1,6 +1,6 @@
 # Data model and persistence contract
 
-A Project is one physical planning environment. It owns its depot, authoritative fleet, reusable vehicle presets, shared assumptions, and Scenarios. Save/load preserves authoritative inputs, not Three.js meshes, editor state, or calculated results.
+A version 5 Project is one physical planning environment and one aggregate persistence record. It owns its Depot, authoritative Vehicle baselines, reusable Vehicle Presets, shared Analysis Settings, active Scenario identity, and ordered Scenarios. Save/load preserves authoritative inputs, not Three.js meshes, editor state, or calculated results.
 
 ## Data model
 
@@ -13,6 +13,8 @@ A Project is one physical planning environment. It owns its depot, authoritative
 | Scenario | Stable ID, name, per-vehicle transition sequences | Alternative plan over the Project baseline |
 | Result | Annual counts, cash flows, energy, emissions, feasibility issues | Derived; never authoritative persistence |
 
+In the M1 contract, a Scenario stores Vehicle transition plans only. It does not own a copy of a Vehicle, charging strategy, depot charging share, charger availability, or separate energy tariffs. Later charging and feasibility requirements remain in [F08](../features/F08%20-%20Power%20and%20Feasibility%20Information.md) and [the product specification](../SPECS.md).
+
 Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication deep-copies planning data only. The Project document's `version` field identifies its serialized schema; code uses unversioned domain names because only one schema is authoritative at runtime.
 
 ## Project invariants
@@ -22,6 +24,7 @@ Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario
 - A vehicle's `baselinePresetId` is null or resolves to a Project preset.
 - The depot and every vehicle own exactly one valid world transform.
 - The default depot supports at most ten fleet vehicles.
+- Vehicle creation copies the first unused default world-space spawn transform. Spawn positions are construction inputs; neither a spawn-slot identity nor a parking assignment is persisted.
 - Every Scenario plan key resolves to a Project vehicle.
 - Every transition target resolves to a Project preset.
 - Transition years for a vehicle are unique and ascending.
@@ -30,6 +33,8 @@ Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario
 - Every Project contains at least one Scenario, and `activeScenarioId` resolves to one of them.
 
 `normalizeProject` enforces these invariants at construction and every mutation boundary. Repository and portable-file adapters validate untrusted documents through the same function.
+
+`effectivePresetIdFor` is the canonical interpretation of a Vehicle baseline and a Scenario's ordered transitions at a selected year. Simulation and the typed Project world projection consume that same rule; the rendered Vehicle is not another authoritative entity.
 
 ## Repository contract
 

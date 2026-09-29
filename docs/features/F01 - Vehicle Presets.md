@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F01 edits Project-owned Vehicle Presets through Project commands, preserves stable IDs, and uses Project reference-integrity rules before deletion.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F01 edits Project-owned Vehicle Presets through Project commands, preserves stable IDs, and uses Project reference-integrity rules before deletion. Presets supply baseline or transition state for Project Vehicles; they do not create independent scene objects.
 
 ## User capability
 
@@ -20,7 +20,7 @@ Vehicle presets provide a consistent source of vehicle specifications for fleet 
 - List available vehicle presets.
 - Create and edit a preset.
 - Delete a preset only when reference integrity is preserved or the user is shown the affected references.
-- Configure the fields required by M1 calculations and visualisation, including propulsion/energy source, efficiency, purchase cost, battery/charging attributes and 3D model selection where applicable.
+- Configure the fields required by M1 annual calculations and visualisation, including propulsion/energy source, consumption, efficiency, purchase cost, and 3D model selection where applicable. Charging strategy, depot/external split, charger inventory, and charging feasibility are later scope.
 - Use stable preset IDs so fleet/scenario references survive edits and persistence.
 - Allow scenario transition planning to select a target preset.
 

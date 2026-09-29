@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 uses the selected year in `projectStore` runtime state, Project `AnalysisSettings`, and derived Scenario transition events. Playback controls must not create another clock or duplicate effective-preset logic.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 uses the selected year in `projectStore` runtime state, Project `AnalysisSettings`, and derived events for every Scenario Vehicle transition. Playback controls must not create another clock or duplicate effective-preset logic.
 
 ## User capability
 

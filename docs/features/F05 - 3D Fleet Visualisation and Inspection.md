@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads the Project world projection for the active Scenario and selected year and renders it without independently applying transition rules or mutating Project/simulation state.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads the typed Project world projection for the active Scenario and selected year and renders it without independently applying transition rules or mutating Project/simulation state. Rendered objects are derived views, not a second editable scene document.
 
 ## User capability
 
@@ -24,6 +24,8 @@ The 3D view provides a spatial representation of the plan and lets users verify 
 - Use the selected year from Project runtime state.
 - Display the current preset/state before a transition and the target preset/state from the transition year onward.
 - Keep rendering read-only with respect to authoritative simulation/scenario state.
+- Use typed Depot/Vehicle references for picking, highlighting, Inspector routing, and development gizmo attachment.
+- Keep production Vehicle picking/highlighting available while generic development Inspector and gizmo controls remain development-only.
 - Keep development transform and Project-document inspection controls out of production builds.
 
 Detailed depot authoring, production asset polish and charging-layout feasibility are later milestone scope.

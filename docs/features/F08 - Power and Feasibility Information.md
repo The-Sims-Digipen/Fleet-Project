@@ -17,7 +17,7 @@ Financially attractive plans may still be operationally constrained by charging 
 
 ## Current scope
 
-M1 shows a short later-scope note only. It does not persist charging assumptions or present placeholder demand, capacity, or feasibility results.
+M1 shows a short later-scope note only. It does not persist Scenario charging assumptions or parking assignments and does not present placeholder demand, capacity, or feasibility results. The later requirement remains: add charging strategy, feasibility, and Charger visualization to the Project environment and Scenario planning without creating a parallel authoritative store.
 
 Future functional scope includes:
 

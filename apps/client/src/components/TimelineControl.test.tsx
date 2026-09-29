@@ -22,9 +22,15 @@ test("slider and event markers select the Project editor year", () => {
 
 test("vehicle markers come from canonical scenario transitions", () => {
   const project = useProjectStore.getState();
-  project.replaceVehicleTransitions("plan-a", "UNIT-01", [{ year: 2035, targetPresetId: "electric-van" }]);
+  project.replaceVehicleTransitions("plan-a", "UNIT-01", [
+    { year: 2028, targetPresetId: "hybrid-van" },
+    { year: 2031, targetPresetId: "electric-van" },
+    { year: 2034, targetPresetId: "diesel-van" },
+  ]);
   render(<TimelineControl />);
-  expect(screen.getByRole("button", { name: "2035: 1 vehicle changes" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "2028: 1 vehicle changes" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "2031: 1 vehicle changes" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "2034: 1 vehicle changes" })).toBeInTheDocument();
 });
 
 test("play advances annually, pause holds, and reset returns to the start", () => {

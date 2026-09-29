@@ -2,7 +2,7 @@
 
 Compose each sidebar feature as an isolated component inside `Sidebar` using `CollapsibleSection`. Register a stable panel ID and its initial expansion value in `appStore`, then supply that ID, a title, an optional description, and children. Modules with editable controls should pass the appropriate document or runtime-editor `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`; they receive values, callbacks, and an edit lifecycle and do not depend on Zustand.
 
-Feature components read the canonical document from `useProjectStore(state => state.runtime.document)` and call focused store actions or Project commands. Do not introduce a second feature store for a slice of Project data. Project-scoped editor values belong in `ProjectEditorState`; persisted domain values belong in `ProjectDocument`; cross-Project workspace mode and sidebar expansion belong in `appStore`.
+Feature components read the version 5 canonical document from `useProjectStore(state => state.runtime.document)` and call focused store actions or Project commands. Do not introduce a second authoritative feature store for a slice of Project data. Project-scoped editor values belong in `ProjectEditorState`; persisted domain values belong in `ProjectDocument`; cross-Project workspace mode and sidebar expansion belong in `appStore`.
 
 ## Register a procedural model
 
@@ -39,7 +39,7 @@ Registering geometry only makes a renderer available. If a charger, bay, obstacl
 
 ## Rendering and ownership
 
-`domain/spatial.ts` owns the transform type used by persisted Project entities. `createProjectWorld` derives read-only Depot and Vehicle views from the Project environment, active Scenario, and selected year. Those views and Three.js objects are never persisted.
+`domain/spatial.ts` owns the transform type used by persisted Project entities. `createProjectWorld` derives read-only typed Depot and Vehicle views from the Project environment, active Scenario, and selected year. Typed references carry the Project entity kind and stable ID; those views and Three.js objects are never persisted. M1 does not persist parking assignments or Scenario charging assumptions. Future charger, bay, or obstacle behavior must add a typed Project entity and Project command before exposing its renderer.
 
 The model catalogue maps each stable model ID to its procedural factory and Vehicle Preset compatibility. A model supplies presentation; it does not define fleet or planning data.
 
