@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses `projectStore` and aggregate `ProjectRepository` for one complete version 5 Project document; UI code must not access IndexedDB or implement migrations directly. `appStore` is limited to cross-Project interface preferences.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses `projectStore` and aggregate `ProjectRepository` for one complete version 1 Project document; UI code must not access IndexedDB or implement migrations directly. `appStore` is limited to cross-Project interface preferences.
 
 ## User capability
 

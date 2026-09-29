@@ -25,7 +25,7 @@ Transition decisions and assumptions must be explicit and editable so users can 
 - Recalculate the baseline and every Scenario when a shared assumption changes.
 - Keep each Scenario's Vehicle transition timeline isolated from the other Scenarios.
 
-Charging strategy, depot charging share, charger availability, and separate depot/external tariffs are later scope. They do not appear in the M1 Project contract or UI and are not owned by a Scenario in version 5.
+Charging strategy, depot charging share, charger availability, and separate depot/external tariffs are later scope. They do not appear in the M1 Project contract or UI and are not owned by an M1 Scenario.
 
 ## Technical dependencies
 

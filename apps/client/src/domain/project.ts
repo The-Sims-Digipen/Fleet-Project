@@ -2,7 +2,7 @@ import { PROJECT_FLEET_CAPACITY } from "./depotLayout";
 import type { Transform } from "./spatial";
 import { copyPreset, maxNameLength, normalizePreset, type VehiclePreset } from "../vehicles/types";
 
-export const PROJECT_DOCUMENT_VERSION = 5 as const;
+export const PROJECT_DOCUMENT_VERSION = 1 as const;
 
 export type ProjectAnalysisSettings = ReturnType<typeof requiredAnalysis>;
 

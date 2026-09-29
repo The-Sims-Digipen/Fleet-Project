@@ -4,7 +4,7 @@ This is the shared handoff for integrating the milestone-one features into one w
 
 ## Canonical code contract
 
-The framework-independent aggregate is `apps/client/src/domain/project.ts`. Its version 5 `ProjectDocument` owns one environment, Vehicle Presets, Scenarios, active Scenario identity, and shared Analysis Settings. The `version` field is a serialization detail; consumers use the same unversioned Project contract and reject unsupported document versions.
+The framework-independent aggregate is `apps/client/src/domain/project.ts`. Its version 1 `ProjectDocument` owns one environment, Vehicle Presets, Scenarios, active Scenario identity, and shared Analysis Settings. Code uses unversioned Project and domain names; the format field identifies the serialized contract, and normalizers reject an unsupported format.
 
 The contract fixes these decisions:
 

@@ -19,7 +19,7 @@ function projectDocument(): ProjectDocument {
     scale: [1, 1, 1] as [number, number, number],
   };
   return {
-    version: 5,
+    version: 1,
     id: "project-contract",
     name: "Delivery fleet",
     activeScenarioId: "scenario-a",

@@ -1,3 +1,0 @@
-# Project aggregate and typed world projections
-
-The version 5 `ProjectDocument` and `projectStore` are the authoritative owners of an open Project's domain state; typed Project entities define world truth, while rendered objects, simulation results, and analytics are derived projections. The `appStore` is limited to cross-Project interface preferences. Scenarios own ordered Vehicle transition plans and reference Project Vehicles by stable identity. We reject parallel authoritative scene objects and per-feature authoritative stores because either can split identity, transforms, edits, history, or persistence across competing owners.

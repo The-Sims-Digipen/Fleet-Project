@@ -2,7 +2,7 @@
 
 Design owners: Ooi Ming Thong (UX), Dayton Ng Zhi Jie (web interface), and Tan Wei Jun (3D interaction). [Wireframes](ui-ux/wireframes.md) illustrate the screens; the [implementation features](../features/README.md) defines scope.
 
-This is a long-term M1–M6 design. The current version 5 M1 contract has shared Project Analysis Settings and Scenario-owned Vehicle transition plans; charging strategies, charger placement, and parking assignments are later design scope, not persisted M1 state.
+This is a long-term M1–M6 design. The current version 1 Project format has shared Project Analysis Settings and Scenario-owned Vehicle transition plans; charging strategies, charger placement, and parking assignments are later design scope, not persisted M1 state.
 
 ## Navigation and screen responsibilities
 

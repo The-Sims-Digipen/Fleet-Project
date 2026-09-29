@@ -1,7 +1,7 @@
 # Project world source-of-truth acceptance report
 
 **Run date:** 2026-09-29
-**Contract:** Project document version 5
+**Contract:** Project document format version 1; IndexedDB internal revision 5
 
 ## Verified
 
@@ -11,7 +11,7 @@
 - Shared UI typecheck and build pass; UI tests pass: 16 files, 86 tests. UI documentation typecheck and production build pass.
 - Browser acceptance on the production build created a Vehicle, picked it from the Three.js viewport, and verified the selected Fleet row and visible selection outline. Production UI did not expose the development Inspector or gizmo controls.
 - Browser acceptance on the development build verified typed Vehicle gizmo attachment, a transform drag, and one Undo restoring the drag's starting transform.
-- Browser IndexedDB repository tests cover fresh initialization, pre-v5 reset, aggregate save/load equality, import identity, unsupported versions, stale revisions, and write-failure recovery.
+- Browser IndexedDB repository tests cover fresh initialization, unsupported prerelease data remaining untouched, aggregate save/load equality, import identity, unsupported formats, stale revisions, and write-failure recovery.
 
 ## Not verified in this environment
 

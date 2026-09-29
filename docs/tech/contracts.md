@@ -1,6 +1,6 @@
 # Data model and persistence contract
 
-A version 5 Project is one physical planning environment and one aggregate persistence record. It owns its Depot, authoritative Vehicle baselines, reusable Vehicle Presets, shared Analysis Settings, active Scenario identity, and ordered Scenarios. Save/load preserves authoritative inputs, not Three.js meshes, editor state, or calculated results.
+The version 1 Project document is one physical planning environment and one aggregate persistence record. It owns its Depot, authoritative Vehicle baselines, reusable Vehicle Presets, shared Analysis Settings, active Scenario identity, and ordered Scenarios. Save/load preserves authoritative inputs, not Three.js meshes, editor state, or calculated results.
 
 ## Data model
 
@@ -15,7 +15,7 @@ A version 5 Project is one physical planning environment and one aggregate persi
 
 In the M1 contract, a Scenario stores Vehicle transition plans only. It does not own a copy of a Vehicle, charging strategy, depot charging share, charger availability, or separate energy tariffs. Later charging and feasibility requirements remain in [F08](../features/F08%20-%20Power%20and%20Feasibility%20Information.md) and [the product specification](../SPECS.md).
 
-Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication deep-copies planning data only. The Project document's `version` field identifies its serialized schema; code uses unversioned domain names because only one schema is authoritative at runtime.
+Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication deep-copies planning data only. The Project document's `version` field is 1 and identifies its serialized format; code uses unversioned domain names because one current schema is authoritative at runtime.
 
 ## Project invariants
 
@@ -47,14 +47,16 @@ UI/state code depends on `ProjectRepository`, which can:
 
 IndexedDB has one `projects` store keyed by `document.id`. Each record contains the complete Project document plus `revision`, `createdAt`, and `updatedAt`. Persistence metadata is deliberately outside the undoable domain document. A failed transaction exposes no partial save.
 
-Browser storage upgrades from IndexedDB versions 1–4 intentionally discard the pre-release stores and records, then create the aggregate `projects` store; those records are not migrated. Later IndexedDB version upgrades must define an explicit migration instead of repeating this reset. The server's final migration likewise discards unsupported pre-v5 Project records and removes separate Scenario tables. Runtime and import accept only Project document version 5. The portable-file envelope has its own version, independent of the Project document version.
+The browser database is named `fleet-transition-planner` and currently uses internal IndexedDB revision 5. This storage revision is independent of the Project document format version 1. Initialization creates the current `projects` store; it does not transform or automatically clear incompatible prerelease data. Clear incompatible browser data manually.
+
+The server row's `schema_version` mirrors the Project document version and is 1. The migration runner applies ordered SQL migrations; the current clean baseline creates only the aggregate `projects` table. Incompatible prerelease server data is not ported; recreate the server database when a breaking persistence change requires a clean start. Keep the migration mechanism for supported future schema changes.
 
 ## Portable project file
 
-Format `fleet-transition-planner-project` contains:
+Format `fleet-transition-planner-project` at version 1 contains:
 
 - the complete Project document;
 - an export timestamp;
-- a portable-format version independent of the Project schema version.
+- the portable format version, independent of the Project document version.
 
 Import validates the current format and document, then creates a fresh Project ID. Persistence metadata, camera state, selection, transform controls, lighting, undo history, and derived results are excluded.

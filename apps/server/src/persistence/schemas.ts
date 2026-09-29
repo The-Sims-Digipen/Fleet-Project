@@ -82,7 +82,7 @@ function uniqueValues(values: readonly string[], context: z.RefinementCtx, path:
 }
 
 export const projectDocumentSchema = z.object({
-  version: z.literal(5),
+  version: z.literal(1),
   id: identifier,
   name,
   activeScenarioId: identifier,

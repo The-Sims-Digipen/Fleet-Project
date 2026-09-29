@@ -44,7 +44,7 @@ describe("Project document", () => {
     });
 
     expect(document).toMatchObject({
-      version: 5,
+      version: 1,
       id: "project-1",
       name: "Depot transition",
       activeScenarioId: "scenario-1",

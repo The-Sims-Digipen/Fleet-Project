@@ -43,6 +43,14 @@ function openExistingDatabase(databaseName: string): Promise<IDBDatabase> {
   });
 }
 
+function readStore<T>(database: IDBDatabase, storeName: string): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const request = database.transaction(storeName, "readonly").objectStore(storeName).getAll();
+    request.onsuccess = () => resolve(request.result as T[]);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 function createFetchBackedProjectRepository(): ProjectRepository {
   const persistence = createMemoryProjectRepository();
   const response = (status: number, body: unknown) => new Response(JSON.stringify(body), {
@@ -97,6 +105,7 @@ describe.each(adapters)("aggregate Project repository contract: $name", ({ creat
     );
 
     const created = await repository.createProject(document);
+    expect(created.document.version).toBe(1);
     expect(created.revision).toBe(1);
     expect(created.document).toEqual(document);
     expect(await repository.listProjects()).toEqual([
@@ -133,24 +142,26 @@ describe.each(adapters)("aggregate Project repository contract: $name", ({ creat
 
   it("rejects unsupported or invalid documents without storing them", async () => {
     const repository = createRepository();
-    await expect(repository.createProject({ ...createProjectFixture(), version: 4 } as never)).rejects.toThrow(/unsupported Project document version/i);
+    await expect(repository.createProject({ ...createProjectFixture(), version: 2 } as never)).rejects.toThrow(/unsupported Project document version/i);
     expect(await repository.listProjects()).toEqual([]);
   });
 });
 
-describe("IndexedDB aggregate schema upgrade", () => {
-  it("clears pre-v5 records and leaves one usable aggregate store", async () => {
+describe("IndexedDB aggregate schema initialization", () => {
+  it("does not automatically clear or port unsupported prerelease data", async () => {
     const databaseName = `fleet-project-legacy-test-${crypto.randomUUID()}`;
     await seedLegacyDatabase(databaseName);
     const repository = createIndexedDbProjectRepository(databaseName);
 
-    expect(await repository.listProjects()).toEqual([]);
-    const created = await repository.createProject(createProjectFixture("upgraded-project"));
-    expect(await repository.getProject(created.document.id)).toEqual(created);
+    await expect(repository.listProjects()).rejects.toThrow();
 
     const database = await openExistingDatabase(databaseName);
     expect(database.version).toBe(5);
-    expect(Array.from(database.objectStoreNames)).toEqual(["projects"]);
+    expect(Array.from(database.objectStoreNames)).toEqual(["projects", "scenarios"]);
+    expect(await readStore<{ document: { id: string } }>(database, "projects")).toEqual([
+      expect.objectContaining({ document: { id: "legacy-project" } }),
+    ]);
+    expect(await readStore<{ id: string }>(database, "scenarios")).toEqual([{ id: "legacy-scenario" }]);
     database.close();
   });
 });

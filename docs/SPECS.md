@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-This document preserves long-term product requirements across M1–M6. The current version 5 M1 contract is narrower: one Project aggregate owns a Depot, Vehicle baselines, Presets, shared Analysis Settings, and Scenarios whose plans contain Vehicle transitions only. M1 has no persisted parking assignments or Scenario charging strategy; charging, feasibility, Charger visualization, and charging-oriented comparison remain later scope, not removed requirements.
+This document preserves long-term product requirements across M1–M6. The current version 1 Project format is narrower: one Project aggregate owns a Depot, Vehicle baselines, Presets, shared Analysis Settings, and Scenarios whose plans contain Vehicle transitions only. M1 has no persisted parking assignments or Scenario charging strategy; charging, feasibility, Charger visualization, and charging-oriented comparison remain later scope, not removed requirements.
 
 Help fleet operators decide which vehicles should transition first, what user-defined vehicle preset they should transition to, when to transition them, and how those choices affect whole-fleet cost and emissions. Provide a decision-support product with clear, reusable calculation components.
 

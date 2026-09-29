@@ -1,6 +1,6 @@
 # Depot editor specification
 
-The version 5 Project owns one physical environment consisting of one Depot and its Project-owned Vehicles. New Projects use the default ordered list of ten world-space spawn transforms. Vehicle creation copies the first unused transform onto the new Vehicle; the list is construction input only, and no parking assignment or spawn-slot identity is persisted.
+The version 1 Project format owns one physical environment consisting of one Depot and its Project-owned Vehicles. New Projects use the default ordered list of ten world-space spawn transforms. Vehicle creation copies the first unused transform onto the new Vehicle; the list is construction input only, and no parking assignment or spawn-slot identity is persisted.
 
 `Project.environment` is authoritative. The 3D layer derives the Depot and one rendered object per Vehicle using their stored transforms and the effective preset for the active Scenario and selected year. A Vehicle without a baseline Preset uses generic geometry and styling. Rendered objects are not separately persisted.
 

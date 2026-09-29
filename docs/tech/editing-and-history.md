@@ -1,6 +1,6 @@
 # Editing and history
 
-The saved baseline is the complete version 5 Project document from the last successful save; dirty state compares the current document with that baseline. It is distinct from Undo history and from an active edit.
+The saved baseline is the complete version 1 Project document from the last successful save; dirty state compares the current document with that baseline. It is distinct from Undo history and from an active edit.
 
 `beginEdit`, `commitEdit`, and `cancelEdit` define an active edit: continuous previews either become one undo step or are discarded back to the active edit's starting document. Number fields preview valid values while typing, commit on blur or Enter, and cancel on Escape. Sliders group pointer drags and held arrow keys; pointer cancellation restores the starting value. Color edits group until the picker loses focus. Presets and checkboxes are discrete edits. Blank or invalid numeric drafts stay local to their control.
 

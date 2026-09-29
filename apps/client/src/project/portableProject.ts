@@ -1,7 +1,7 @@
 import { normalizeProject, type ProjectDocument } from "../domain/project";
 
 export const PORTABLE_PROJECT_FORMAT = "fleet-transition-planner-project";
-export const PORTABLE_PROJECT_VERSION = 4;
+export const PORTABLE_PROJECT_VERSION = 1;
 
 export type PortableProjectFile = {
   format: typeof PORTABLE_PROJECT_FORMAT;

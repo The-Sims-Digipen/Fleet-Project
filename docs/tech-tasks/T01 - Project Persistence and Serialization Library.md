@@ -10,7 +10,7 @@ Follow the [M1 integration contract](../tech/m1-integration-contract.md). T01 pe
 
 ## Goal
 
-Provide a reusable persistence boundary for saving/loading complete project workspaces and importing/exporting versioned `.fleetproject` snapshots without coupling UI/domain code directly to IndexedDB.
+Provide a reusable persistence boundary for saving/loading complete Project aggregates and importing/exporting versioned `.fleetproject` files without coupling UI/domain code directly to IndexedDB.
 
 ## Responsibilities
 
@@ -19,7 +19,7 @@ Provide a reusable persistence boundary for saving/loading complete project work
 - Persist the authoritative Project, environment, Preset, analysis, and Scenario data in the Project document.
 - Detect stale revisions/conflicting writes where the current repository contract supports them.
 - Export the live workspace to a versioned `.fleetproject` file.
-- Validate imports and assign a fresh Project identity while retaining internal entity identities and references. Unsupported earlier document versions may be rejected or cleared because this is a pre-release product.
+- Validate the current document and file formats and assign a fresh Project identity while retaining internal entity identities and references. Earlier prerelease formats are unsupported; incompatible local data is cleared manually instead of being ported.
 - Keep derived simulation/analytics results out of authoritative persistence; recompute them from saved inputs.
 
 ## M1 boundaries

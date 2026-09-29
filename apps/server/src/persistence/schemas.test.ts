@@ -6,7 +6,7 @@ const transform = { position: [0, 0, 0] as [number, number, number], rotation: [
 
 function projectDocument(): ProjectDocument {
   return {
-    version: 5,
+    version: 1,
     id: "project-fixture",
     name: "Delivery fleet",
     activeScenarioId: "scenario-a",
@@ -64,7 +64,7 @@ function projectDocument(): ProjectDocument {
   };
 }
 
-describe("version 5 aggregate Project contract", () => {
+describe("version 1 aggregate Project contract", () => {
   it("accepts the complete Project shape with embedded ordered Scenario transitions", () => {
     const input = projectDocument();
 
@@ -104,6 +104,6 @@ describe("version 5 aggregate Project contract", () => {
   });
 
   it("rejects unsupported Project document versions", () => {
-    expect(projectDocumentSchema.safeParse({ ...projectDocument(), version: 4 }).success).toBe(false);
+    expect(projectDocumentSchema.safeParse({ ...projectDocument(), version: 2 }).success).toBe(false);
   });
 });

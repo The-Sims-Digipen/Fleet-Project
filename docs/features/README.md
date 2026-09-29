@@ -1,6 +1,6 @@
 # Product features
 
-These are the product features currently tracked for the Fleet Transition Planner. M1 features F01-F07 use the single version 5 Project aggregate; F08 and charging infrastructure remain later-scope requirements rather than persisted Scenario assumptions. The M1 contract proposal treats F01-F07 as **MUST** features; F08 is a **SHOULD** feature and is not required for the M1 core flow.
+These are the product features currently tracked for the Fleet Transition Planner. M1 features F01-F07 use the single version 1 Project format; F08 and charging infrastructure remain later-scope requirements rather than persisted Scenario assumptions. The M1 contract proposal treats F01-F07 as **MUST** features; F08 is a **SHOULD** feature and is not required for the M1 core flow.
 
 | ID | Feature | M1 priority | Primary feature owner |
 |---|---|---|---|
