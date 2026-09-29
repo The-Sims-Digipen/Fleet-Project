@@ -2,7 +2,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "../db/client.js";
 import { projects, scenarios } from "../db/schema.js";
-import type { CreateWorkspaceInput, ProjectDocument, ScenarioDocument, UpdateWorkspaceInput } from "./schemas.js";
+import { projectDocumentSchema, type CreateWorkspaceInput, type LegacyProjectDocument, type ProjectDocument, type ScenarioDocument, type UpdateWorkspaceInput } from "./schemas.js";
 
 export class PersistenceNotFoundError extends Error {
   constructor(message = "The requested record no longer exists.") { super(message); }
@@ -10,7 +10,10 @@ export class PersistenceNotFoundError extends Error {
 export class PersistenceConflictError extends Error {
   constructor(message = "This record was saved elsewhere. Reload it before saving again.") { super(message); }
 }
-export type ScenarioRecord = {
+export class PersistenceInvalidRecordError extends Error {
+  constructor() { super("The stored Project does not match the aggregate persistence contract."); }
+}
+export type LegacyScenarioRecord = {
   id: string;
   projectId: string;
   name: string;
@@ -20,21 +23,39 @@ export type ScenarioRecord = {
   updatedAt: string;
   document: ScenarioDocument;
 };
-export type ProjectRecord = {
+export type LegacyProjectRecord = {
   id: string;
   name: string;
   activeScenarioId?: string;
   revision: number;
   createdAt: string;
   updatedAt: string;
-  document: ProjectDocument;
+  document: LegacyProjectDocument;
 };
-export type WorkspaceRecord = { project: ProjectRecord; scenarios: ScenarioRecord[] };
-export type ProjectSummary = Pick<ProjectRecord, "id" | "name" | "revision" | "updatedAt"> & { scenarioCount: number };
+export type WorkspaceRecord = { project: LegacyProjectRecord; scenarios: LegacyScenarioRecord[] };
+export type ProjectRecord = {
+  document: ProjectDocument;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+};
+export type ProjectSummary = {
+  id: string;
+  name: string;
+  revision: number;
+  updatedAt: string;
+  scenarioCount: number;
+};
 
-export type PersistenceRepository = {
-  ready(): Promise<void>;
+export type ProjectPersistenceRepository = {
   listProjects(): Promise<ProjectSummary[]>;
+  getProject(projectId: string): Promise<ProjectRecord>;
+  createProject(document: ProjectDocument): Promise<ProjectRecord>;
+  updateProject(document: ProjectDocument, expectedRevision: number): Promise<ProjectRecord>;
+};
+
+export type PersistenceRepository = ProjectPersistenceRepository & {
+  ready(): Promise<void>;
   getWorkspace(projectId: string): Promise<WorkspaceRecord>;
   createWorkspace(input: CreateWorkspaceInput): Promise<WorkspaceRecord>;
   updateWorkspace(input: UpdateWorkspaceInput): Promise<WorkspaceRecord>;
@@ -42,18 +63,21 @@ export type PersistenceRepository = {
 
 const iso = (value: Date) => value.toISOString();
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
+}
 type ReadDatabase = Pick<Database, "select">;
 
-const toProject = (row: typeof projects.$inferSelect): ProjectRecord => ({
+const toLegacyProject = (row: typeof projects.$inferSelect): LegacyProjectRecord => ({
   id: row.id,
   name: row.name,
   activeScenarioId: row.activeScenarioId ?? undefined,
   revision: row.revision,
   createdAt: iso(row.createdAt),
   updatedAt: iso(row.updatedAt),
-  document: row.document as ProjectDocument,
+  document: row.document as LegacyProjectDocument,
 });
-const toScenario = (row: typeof scenarios.$inferSelect): ScenarioRecord => ({
+const toLegacyScenario = (row: typeof scenarios.$inferSelect): LegacyScenarioRecord => ({
   id: row.id,
   projectId: row.projectId,
   name: row.name,
@@ -64,13 +88,24 @@ const toScenario = (row: typeof scenarios.$inferSelect): ScenarioRecord => ({
   document: row.document as ScenarioDocument,
 });
 
+function toProjectRecord(row: typeof projects.$inferSelect): ProjectRecord {
+  let document: ProjectDocument;
+  try {
+    document = projectDocumentSchema.parse(row.document);
+  } catch {
+    throw new PersistenceInvalidRecordError();
+  }
+  if (document.id !== row.id || row.schemaVersion !== document.version) throw new PersistenceInvalidRecordError();
+  return { document, revision: row.revision, createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt) };
+}
+
 async function loadWorkspace(db: ReadDatabase, projectId: string): Promise<WorkspaceRecord> {
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
   if (!project) throw new PersistenceNotFoundError("This project no longer exists.");
   const scenarioRows = await db.select().from(scenarios)
     .where(eq(scenarios.projectId, projectId))
     .orderBy(asc(scenarios.position));
-  return { project: toProject(project), scenarios: scenarioRows.map(toScenario) };
+  return { project: toLegacyProject(project), scenarios: scenarioRows.map(toLegacyScenario) };
 }
 
 export function createPersistenceRepository(db: Database): PersistenceRepository {
@@ -83,13 +118,70 @@ export function createPersistenceRepository(db: Database): PersistenceRepository
         name: projects.name,
         revision: projects.revision,
         updatedAt: projects.updatedAt,
-        scenarioCount: sql<number>`count(${scenarios.id})::int`,
+        document: projects.document,
+        legacyScenarioCount: sql<number>`count(${scenarios.id})::int`,
       }).from(projects)
         .leftJoin(scenarios, eq(projects.id, scenarios.projectId))
         .groupBy(projects.id)
         .orderBy(desc(projects.updatedAt));
-      return rows.map((row) => ({ ...row, updatedAt: iso(row.updatedAt) }));
+      return rows.map((row) => {
+        const document = row.document as { name?: unknown; scenarios?: unknown };
+        return {
+          id: row.id,
+          name: typeof document.name === "string" ? document.name : row.name,
+          revision: row.revision,
+          updatedAt: iso(row.updatedAt),
+          scenarioCount: Array.isArray(document.scenarios) ? document.scenarios.length : row.legacyScenarioCount,
+        };
+      });
     },
+
+    getProject: async (projectId) => {
+      const [row] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+      if (!row) throw new PersistenceNotFoundError("This project no longer exists.");
+      return toProjectRecord(row);
+    },
+
+    createProject: async (document) => {
+      try {
+        return await db.transaction(async (tx) => {
+          const [existing] = await tx.select({ id: projects.id }).from(projects).where(eq(projects.id, document.id)).limit(1);
+          if (existing) throw new PersistenceConflictError("A project with this ID already exists.");
+          const now = new Date();
+          const [row] = await tx.insert(projects).values({
+            id: document.id,
+            name: document.name,
+            activeScenarioId: null,
+            revision: 1,
+            schemaVersion: document.version,
+            document,
+            createdAt: now,
+            updatedAt: now,
+          }).returning();
+          if (!row) throw new PersistenceConflictError("The project could not be created.");
+          return toProjectRecord(row);
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) throw new PersistenceConflictError("A project with this ID already exists.");
+        throw error;
+      }
+    },
+
+    updateProject: async (document, expectedRevision) => db.transaction(async (tx) => {
+      const [current] = await tx.select().from(projects).where(eq(projects.id, document.id)).limit(1);
+      if (!current) throw new PersistenceNotFoundError("This project no longer exists.");
+      if (current.revision !== expectedRevision) throw new PersistenceConflictError("This project was saved elsewhere. Reload it before saving.");
+      const [row] = await tx.update(projects).set({
+        name: document.name,
+        activeScenarioId: null,
+        document,
+        schemaVersion: document.version,
+        revision: current.revision + 1,
+        updatedAt: new Date(),
+      }).where(and(eq(projects.id, document.id), eq(projects.revision, expectedRevision))).returning();
+      if (!row) throw new PersistenceConflictError("This project was saved elsewhere. Reload it before saving.");
+      return toProjectRecord(row);
+    }),
 
     getWorkspace: (projectId) => loadWorkspace(db, projectId),
 

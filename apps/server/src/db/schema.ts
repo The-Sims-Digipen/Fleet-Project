@@ -1,7 +1,7 @@
 import { integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 export const projects = pgTable("projects", {
-  id: uuid("id").primaryKey(),
+  id: text("id").primaryKey(),
   name: text("name").notNull(),
   activeScenarioId: uuid("active_scenario_id"),
   revision: integer("revision").notNull(),
@@ -13,7 +13,7 @@ export const projects = pgTable("projects", {
 
 export const scenarios = pgTable("scenarios", {
   id: uuid("id").primaryKey(),
-  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   position: integer("position").notNull(),
   revision: integer("revision").notNull(),

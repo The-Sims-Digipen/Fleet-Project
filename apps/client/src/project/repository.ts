@@ -53,7 +53,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   throw apiError(response.status, body);
 }
 
-/** Future server adapter. Ticket 11 brings the server endpoints to this aggregate contract. */
+/** Server-backed adapter for the aggregate ProjectRepository contract. */
 export function createApiProjectRepository(): ProjectRepository {
   return {
     listProjects: () => request("/api/v1/projects"),
