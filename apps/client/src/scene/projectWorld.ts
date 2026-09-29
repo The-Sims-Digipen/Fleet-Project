@@ -30,11 +30,11 @@ function readonlyTransform(transform: Transform): ReadonlyTransform {
   return copied;
 }
 
-function vehicleView(document: ProjectDocument, vehicleId: string, year: number): WorldObjectView | undefined {
+function vehicleView(document: ProjectDocument, vehicleId: string, scenarioId: string | null, year: number): WorldObjectView | undefined {
   const vehicle = document.environment.vehicles.find((entry) => entry.id === vehicleId);
   if (!vehicle) return undefined;
 
-  const selectedPresetId = effectivePresetIdFor(document, document.activeScenarioId, vehicle.id, year);
+  const selectedPresetId = effectivePresetIdFor(document, scenarioId, vehicle.id, year);
   const presetId = selectedPresetId === undefined ? vehicle.baselinePresetId : selectedPresetId;
   const preset = presetId ? document.vehiclePresets.find((entry) => entry.id === presetId) : undefined;
   const definitionId = preset && getDefinition(preset.modelId)?.vehiclePresetCompatible ? preset.modelId : "van";
@@ -53,7 +53,11 @@ function vehicleView(document: ProjectDocument, vehicleId: string, year: number)
 }
 
 /** Read-only projection of typed Project entities for viewport consumers. */
-export function createProjectWorld(document: ProjectDocument, year: number): readonly WorldObjectView[] {
+export function createProjectWorld(
+  document: ProjectDocument,
+  year: number,
+  scenarioId: string | null = document.activeScenarioId,
+): readonly WorldObjectView[] {
   const { depot, vehicles } = document.environment;
   const objects: WorldObjectView[] = [{
     reference: { kind: "depot", id: depot.id },
@@ -64,7 +68,7 @@ export function createProjectWorld(document: ProjectDocument, year: number): rea
   }];
 
   for (const vehicle of vehicles) {
-    const view = vehicleView(document, vehicle.id, year);
+    const view = vehicleView(document, vehicle.id, scenarioId, year);
     if (view) objects.push(view);
   }
 
