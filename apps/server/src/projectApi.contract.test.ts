@@ -66,6 +66,7 @@ function createDatabaseDouble() {
   const rows: Row[] = [];
   let transactionCount = 0;
   let lastUpdateConditions: Array<{ name: string; value: unknown }> = [];
+  let failNextUpdate = false;
   type Method = (...args: unknown[]) => unknown;
   let database: Record<string, Method>;
 
@@ -119,6 +120,10 @@ function createDatabaseDouble() {
                 if (matchingRows.length === 0) return [];
                 const row = matchingRows[0];
                 Object.assign(row, value);
+                if (failNextUpdate) {
+                  failNextUpdate = false;
+                  throw new Error("Injected persistence failure after aggregate update.");
+                }
                 return [structuredClone(row)];
               },
             };
@@ -143,6 +148,7 @@ function createDatabaseDouble() {
     database: database as unknown as Database,
     get transactionCount() { return transactionCount; },
     get lastUpdateConditions() { return lastUpdateConditions; },
+    set failNextUpdate(value: boolean) { failNextUpdate = value; },
   };
 }
 
@@ -323,7 +329,12 @@ describe("Drizzle aggregate Project repository contract", () => {
       scenarioCount: document.scenarios.length,
     }]);
 
-    const updatedDocument = { ...document, name: "Updated fleet" };
+    const updatedDocument = {
+      ...document,
+      name: "Updated fleet",
+      activeScenarioId: "scenario-b",
+      scenarios: [...document.scenarios, { id: "scenario-b", name: "Plan B", vehiclePlans: {} }],
+    };
     const updated = await repository.updateProject(updatedDocument, created.revision);
     expect(updated).toMatchObject({ document: updatedDocument, revision: 2 });
     expect(database.transactionCount).toBe(2);
@@ -331,12 +342,15 @@ describe("Drizzle aggregate Project repository contract", () => {
       { name: "id", value: document.id },
       { name: "revision", value: created.revision },
     ]));
+    expect(await repository.listProjects()).toEqual([
+      expect.objectContaining({ id: document.id, name: "Updated fleet", revision: 2, scenarioCount: 2 }),
+    ]);
 
     const otherDocument = { ...document, id: "project-contract-other", name: "Other fleet" };
     const other = await repository.createProject(otherDocument);
     expect(await repository.getProject(otherDocument.id)).toEqual(other);
     expect(await repository.listProjects()).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: document.id, scenarioCount: document.scenarios.length }),
+      expect.objectContaining({ id: document.id, scenarioCount: updatedDocument.scenarios.length }),
       expect.objectContaining({ id: otherDocument.id, scenarioCount: otherDocument.scenarios.length }),
     ]));
 
@@ -344,5 +358,23 @@ describe("Drizzle aggregate Project repository contract", () => {
     expect(await repository.getProject(document.id)).toEqual(updated);
     expect(await repository.getProject(otherDocument.id)).toEqual(other);
     expect(database.transactionCount).toBe(4);
+  });
+
+  it("recovers after a failed aggregate update without replacing the stored Project", async () => {
+    const database = createDatabaseDouble();
+    const repository = createPersistenceRepository(database.database);
+    const document = projectDocument();
+    const created = await repository.createProject(document);
+    const updatedDocument = { ...document, name: "Recovered fleet" };
+
+    database.failNextUpdate = true;
+    await expect(repository.updateProject(updatedDocument, created.revision)).rejects.toThrow(/injected persistence failure/i);
+    expect(await repository.getProject(document.id)).toEqual(created);
+    expect(await repository.listProjects()).toEqual([
+      expect.objectContaining({ id: document.id, name: document.name, revision: 1, scenarioCount: 1 }),
+    ]);
+
+    const recovered = await repository.updateProject(updatedDocument, created.revision);
+    expect(recovered).toMatchObject({ document: updatedDocument, revision: 2 });
   });
 });

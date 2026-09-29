@@ -17,7 +17,15 @@ describe("portable aggregate Project files", () => {
   });
 
   it("rejects earlier pre-release formats and invalid aggregates", () => {
-    expect(() => parsePortableProject({ format: "fleet-transition-planner-project", version: 3 })).toThrow(/unsupported/i);
+    for (const version of [1, 2, 3]) {
+      expect(() => parsePortableProject({ format: "fleet-transition-planner-project", version })).toThrow(/unsupported/i);
+    }
+    expect(() => parsePortableProject({
+      format: "fleet-transition-planner-project",
+      version: 4,
+      exportedAt: new Date().toISOString(),
+      document: { ...createProjectFixture(), version: 4 },
+    })).toThrow(/unsupported Project document version/i);
     expect(() => parsePortableProject({
       format: "fleet-transition-planner-project",
       version: 4,

@@ -9,7 +9,8 @@ import {
 import type { ProjectRecord, ProjectSummary } from "./types";
 
 const DATABASE_NAME = "fleet-transition-planner";
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
+const LAST_LEGACY_DATABASE_VERSION = 4;
 const STORE_PROJECTS = "projects";
 
 const nowIso = () => new Date().toISOString();
@@ -33,11 +34,15 @@ function openDatabase(databaseName: string): Promise<IDBDatabase> {
   if (typeof indexedDB === "undefined") return Promise.reject(new DatabaseUnavailableError());
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(databaseName, DATABASE_VERSION);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const database = request.result;
-      // The current schema stores one complete Project aggregate per record.
-      for (const storeName of Array.from(database.objectStoreNames)) database.deleteObjectStore(storeName);
-      database.createObjectStore(STORE_PROJECTS, { keyPath: "document.id" });
+      if (event.oldVersion > 0 && event.oldVersion <= LAST_LEGACY_DATABASE_VERSION) {
+        // Pre-release records used superseded schemas and are intentionally reset.
+        for (const storeName of Array.from(database.objectStoreNames)) database.deleteObjectStore(storeName);
+      }
+      if (!database.objectStoreNames.contains(STORE_PROJECTS)) {
+        database.createObjectStore(STORE_PROJECTS, { keyPath: "document.id" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new DatabaseUnavailableError());

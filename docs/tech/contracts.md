@@ -42,6 +42,8 @@ UI/state code depends on `ProjectRepository`, which can:
 
 IndexedDB has one `projects` store keyed by `document.id`. Each record contains the complete Project document plus `revision`, `createdAt`, and `updatedAt`. Persistence metadata is deliberately outside the undoable domain document. A failed transaction exposes no partial save.
 
+Browser storage upgrades from IndexedDB versions 1–4 intentionally discard the pre-release stores and records, then create the aggregate `projects` store; those records are not migrated. Later IndexedDB version upgrades must define an explicit migration instead of repeating this reset. The server's final migration likewise discards unsupported pre-v5 Project records and removes separate Scenario tables. Runtime and import accept only Project document version 5. The portable-file envelope has its own version, independent of the Project document version.
+
 ## Portable project file
 
 Format `fleet-transition-planner-project` contains:

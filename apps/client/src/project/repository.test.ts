@@ -14,6 +14,35 @@ import type { ProjectRepository } from "./repository";
 
 const PROJECT_ID = "project-contract";
 
+function seedLegacyDatabase(databaseName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(databaseName, 4);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      database.createObjectStore("projects", { keyPath: "document.id" }).add({
+        document: { id: "legacy-project" },
+        revision: 1,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
+      database.createObjectStore("scenarios", { keyPath: "id" }).add({ id: "legacy-scenario" });
+    };
+    request.onsuccess = () => {
+      request.result.close();
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function openExistingDatabase(databaseName: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(databaseName);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 function createFetchBackedProjectRepository(): ProjectRepository {
   const persistence = createMemoryProjectRepository();
   const response = (status: number, body: unknown) => new Response(JSON.stringify(body), {
@@ -75,12 +104,20 @@ describe.each(adapters)("aggregate Project repository contract: $name", ({ creat
     ]);
     expect(await repository.getProject(PROJECT_ID)).toEqual(created);
 
-    const updatedDocument = { ...document, name: "Updated study" };
+    const updatedDocument = {
+      ...document,
+      name: "Updated study",
+      scenarios: [...document.scenarios, { id: "plan-c", name: "Plan C", vehiclePlans: {} }],
+      activeScenarioId: "plan-c",
+    };
     const updated = await repository.updateProject(updatedDocument, created.revision);
     expect(updated.revision).toBe(2);
-    expect(updated.document.name).toBe("Updated study");
+    expect(updated.document).toEqual(updatedDocument);
     expect(updated.document.scenarios[0].vehiclePlans["UNIT-01"].transitions).toEqual([
       { year: 2030, targetPresetId: "electric-van" },
+    ]);
+    expect(await repository.listProjects()).toEqual([
+      expect.objectContaining({ id: PROJECT_ID, name: "Updated study", revision: 2, scenarioCount: 3 }),
     ]);
   });
 
@@ -98,5 +135,22 @@ describe.each(adapters)("aggregate Project repository contract: $name", ({ creat
     const repository = createRepository();
     await expect(repository.createProject({ ...createProjectFixture(), version: 4 } as never)).rejects.toThrow(/unsupported Project document version/i);
     expect(await repository.listProjects()).toEqual([]);
+  });
+});
+
+describe("IndexedDB aggregate schema upgrade", () => {
+  it("clears pre-v5 records and leaves one usable aggregate store", async () => {
+    const databaseName = `fleet-project-legacy-test-${crypto.randomUUID()}`;
+    await seedLegacyDatabase(databaseName);
+    const repository = createIndexedDbProjectRepository(databaseName);
+
+    expect(await repository.listProjects()).toEqual([]);
+    const created = await repository.createProject(createProjectFixture("upgraded-project"));
+    expect(await repository.getProject(created.document.id)).toEqual(created);
+
+    const database = await openExistingDatabase(databaseName);
+    expect(database.version).toBe(5);
+    expect(Array.from(database.objectStoreNames)).toEqual(["projects"]);
+    database.close();
   });
 });
