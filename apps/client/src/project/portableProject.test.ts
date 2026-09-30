@@ -1,32 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { sim01Project, sim01Scenario } from "../domain/m1Fixture";
+
+import { createProjectFixture } from "../domain/projectFixture";
 import { createPortableProject, parsePortableProject, projectFileName } from "./portableProject";
 
-describe("portable project files", () => {
-  it("round-trips one project environment with multiple scenarios", () => {
-    const file = createPortableProject({
-      projectName: "Depot Study",
-      projectDocument: sim01Project,
-      scenarios: [
-        { name: "Plan A", document: sim01Scenario },
-        { name: "Plan B", document: sim01Scenario },
-      ],
-      activeScenarioIndex: 1,
-    });
+describe("portable aggregate Project files", () => {
+  it("round-trips the complete Project document without runtime state", () => {
+    const document = createProjectFixture();
+    const file = createPortableProject(document);
+
     expect(parsePortableProject(JSON.parse(JSON.stringify(file)))).toEqual(file);
-    expect(file).not.toHaveProperty("worlds");
+    expect(file).toMatchObject({ format: "fleet-transition-planner-project", version: 1, document });
+    expect(file).not.toHaveProperty("editor");
+    expect(file).not.toHaveProperty("history");
+    expect(file).not.toHaveProperty("revision");
     expect(projectFileName("Depot Study / 2026")).toBe("depot-study-2026.fleetproject");
   });
 
-  it("rejects legacy multi-world and malformed files instead of migrating them", () => {
+  it("rejects unsupported formats and invalid aggregates", () => {
     expect(() => parsePortableProject({ format: "fleet-transition-planner-project", version: 2 })).toThrow(/unsupported/i);
     expect(() => parsePortableProject({
       format: "fleet-transition-planner-project",
-      version: 3,
+      version: 1,
       exportedAt: new Date().toISOString(),
-      project: { name: "Bad", document: sim01Project },
-      scenarios: [],
-      activeScenarioIndex: 0,
-    })).toThrow(/scenario/i);
+      document: { ...createProjectFixture(), version: 2 },
+    })).toThrow(/unsupported Project document version/i);
+    expect(() => parsePortableProject({
+      format: "fleet-transition-planner-project",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      document: { ...createProjectFixture(), scenarios: [] },
+    })).toThrow(/at least one Scenario/i);
   });
 });

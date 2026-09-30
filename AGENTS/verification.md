@@ -2,6 +2,12 @@
 
 Technical acceptance criteria for the longer-term M1–M6 application. The current tracked implementation scope is listed in the [feature catalogue](../docs/features/README.md).
 
+## Project document format checks
+
+For changes to the current M1 aggregate, use the public `projectStore` command/selector seam and aggregate `ProjectRepository` contract seam. Verify dirty tracking against the last successfully saved Project document, history grouping/cancellation for active edits, persisted active Scenario identity, selection cleanup when typed Project entities disappear, ordered multi-transition resolution, and complete aggregate import/export behavior. Rendered world objects, chart values, Inspector state, timeline markers, simulation, and comparison results must agree with the canonical effective Vehicle for each selected Scenario and year.
+
+The current Project document and portable-file formats use version 1. IndexedDB uses internal database revision 5, independently of the Project format. Browser persistence tests should cover fresh initialization at the current revision and verify that incompatible prerelease records are not automatically ported or cleared. Incompatible local browser data may be manually cleared. Record PostgreSQL migration checks separately from server repository contract tests; a passing contract test is not evidence that a live migration ran.
+
 ## Acceptance scenarios
 
 | ID | Technical scenario and required evidence |

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { validateName, type ProjectSummary } from "../project/types";
+import { validateName } from "../project/types";
+import { useAppStore } from "../state/appStore";
 import { useProjectStore } from "../state/projectStore";
 
 const secondaryButton = "min-h-9 rounded border border-line-strong px-3 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
@@ -30,7 +31,7 @@ function DiscardWarning({ dirty, projectName }: { dirty: boolean; projectName: s
 }
 
 export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismiss: () => void }) {
-  const currentName = useProjectStore((state) => state.name);
+  const currentName = useProjectStore((state) => state.runtime.document.name);
   const [name, setName] = useState("Untitled project");
   const [touched, setTouched] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -38,7 +39,7 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
   const error = validateName(name);
   const inputId = useId();
 
-  return <Modal title="New Project" description="Starts with the default depot, its ten parking lots, and Plan A." onDismiss={onDismiss}>
+  return <Modal title="New Project" description="Starts with the default depot, ten initial Vehicle positions, and Plan A." onDismiss={onDismiss}>
     <form className="grid gap-5" onSubmit={async (event) => {
       event.preventDefault();
       setTouched(true);
@@ -70,24 +71,18 @@ export function NewProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismi
   </Modal>;
 }
 
-type ListState = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: ProjectSummary[] };
-
 export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDismiss: () => void }) {
-  const currentName = useProjectStore((state) => state.name);
-  const currentId = useProjectStore((state) => state.projectId);
-  const [list, setList] = useState<ListState>({ state: "loading" });
+  const currentName = useProjectStore((state) => state.runtime.document.name);
+  const currentId = useProjectStore((state) => state.runtime.record ? state.runtime.document.id : null);
+  const projects = useAppStore((state) => state.projectSummaries);
+  const repositoryStatus = useAppStore((state) => state.repositoryStatus);
+  const refreshProjects = useAppStore((state) => state.refreshProjects);
   const [openError, setOpenError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
-  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    useProjectStore.getState().listProjects().then(
-      (projects) => { if (active) setList({ state: "ready", projects }); },
-      (error: unknown) => { if (active) setList({ state: "error", message: error instanceof Error ? error.message : "Projects could not be loaded." }); },
-    );
-    return () => { active = false; };
-  }, [attempt]);
+    void refreshProjects().catch(() => undefined);
+  }, [refreshProjects]);
 
   async function open(id: string) {
     setOpening(true);
@@ -103,14 +98,14 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 
   return <Modal title="Open Project" description="Choose a project saved locally in this browser." onDismiss={onDismiss}>
     <DiscardWarning dirty={dirty} projectName={currentName} />
-    {list.state === "loading" && <p className="text-sm text-secondary" role="status">Loading projects…</p>}
-    {list.state === "error" && <div role="alert" className="grid gap-2 text-sm text-red-300">
-      <p>{list.message} Your open edits are retained.</p>
-      <button type="button" className={`${secondaryButton} justify-self-start`} onClick={() => { setList({ state: "loading" }); setAttempt((value) => value + 1); }}>Retry</button>
+    {repositoryStatus.state === "loading" && <p className="text-sm text-secondary" role="status">Loading projects…</p>}
+    {repositoryStatus.state === "error" && <div role="alert" className="grid gap-2 text-sm text-red-300">
+      <p>{repositoryStatus.message} Your open edits are retained.</p>
+      <button type="button" className={`${secondaryButton} justify-self-start`} onClick={() => { void refreshProjects().catch(() => undefined); }}>Retry</button>
     </div>}
-    {list.state === "ready" && (list.projects.length
+    {repositoryStatus.state === "idle" && (projects.length
       ? <ul aria-label="Saved projects" className="m-0 grid max-h-72 list-none gap-1.5 overflow-y-auto p-0">
-        {list.projects.map((project) => <li key={project.id} className="flex items-center gap-3 rounded-lg border border-line-strong px-3 py-2">
+        {projects.map((project) => <li key={project.id} className="flex items-center gap-3 rounded-lg border border-line-strong px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold" title={project.name}>{project.name}{project.id === currentId && <span className="ml-2 text-xs font-normal text-accent">(open)</span>}</p>
             <p className="text-xs text-secondary">{project.scenarioCount} {project.scenarioCount === 1 ? "scenario" : "scenarios"} · Updated {new Date(project.updatedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>
@@ -125,7 +120,7 @@ export function OpenProjectDialog({ dirty, onDismiss }: { dirty: boolean; onDism
 }
 
 export function DeleteScenarioDialog({ scenarioId, onDismiss }: { scenarioId: string; onDismiss: () => void }) {
-  const scenario = useProjectStore((state) => state.scenarios.find((item) => item.id === scenarioId));
+  const scenario = useProjectStore((state) => state.runtime.document.scenarios.find((item) => item.id === scenarioId));
   if (!scenario) return null;
   return <Modal title="Remove Scenario" description={`Remove “${scenario.name}” from this project? It disappears from the in-memory project immediately; Save Project persists the removal.`} onDismiss={onDismiss}>
     <div className="flex justify-end gap-2">

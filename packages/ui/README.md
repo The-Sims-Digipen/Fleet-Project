@@ -23,6 +23,6 @@ Run `pnpm dev:ui` from the repository root to launch the Vite React showcase app
 - Treat `status-danger` as a functional semantic token, not a brand colour.
 - Prefer semantic, reusable tokens over component-specific colours.
 - Preserve keyboard focus, disabled behavior, and native element semantics in new components.
-- Coordinate new public component APIs with T02 owner Dayton before product migrations.
+- Coordinate new public component APIs with the product workspace before product migrations.
 
 The remaining component catalogue and migration of existing product screens are intentionally outside this foundation slice.

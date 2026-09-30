@@ -81,4 +81,4 @@ Local tickets use the default canonical triage labels. See `docs/agents/triage-l
 
 ### Domain docs
 
-This repo uses a single-context layout with a machine-local root `CONTEXT.md` and shared ADRs under `docs/adr/`. See `docs/agents/domain.md`.
+This repo uses a single-context layout with a machine-local root `CONTEXT.md`; current architectural decisions are recorded in `docs/tech/architecture.md`. See `docs/agents/domain.md`.

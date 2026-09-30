@@ -32,23 +32,9 @@ The team has internally locked the following M1 proposal. It becomes the formal 
 
 See [features/README.md](features/README.md) for detailed scope and ownership.
 
-### Technical deliverables
-
-| ID | Technical deliverable | Owner |
-|---|---|---|
-| T01 | Project Persistence & Serialization Library | Chew Shee Yang |
-| T02 | Company Design System & UI Component Library | Dayton Ng Zhi Jie |
-| T03 | Fleet & Scenario Data Engine | Tan Wei Jun |
-| T04 | Timeline & Scenario Playback System | Jarrel Tay Wee Han |
-| T05 | Simulation & Financial Engine | Elijah Chua Jye Kang |
-| T06 | Project & Scenario Workspace Orchestration System | Brandon Koh Kai Yang |
-| T07 | Analytics Results & Visualization System | Yap Zhi Kai |
-
-See [tech-tasks/README.md](tech-tasks/README.md) for detailed scope, dependencies and M1 evidence.
-
 ### Supporting M1 technical work
 
-- Scenario/domain contracts are part of T03, with persistence-facing review by T01's owner.
+- Scenario/domain contracts are maintained in the shared technical contracts, with persistence-facing review by the Technical Lead.
 - CI pipeline is owned by Chew Shee Yang and remains a fixed rubric requirement rather than a separate Txx.
 - End-to-end M1 integration and automated integration testing are shared responsibilities.
 
@@ -63,4 +49,4 @@ See [tech-tasks/README.md](tech-tasks/README.md) for detailed scope, dependencie
 | M5 | Relative weeks 1-4 | All product features integrated with shared feasibility/recommendation state, responsive/error hardening, and performance optimization. |
 | M6 | Relative weeks 1-4 | Full regression, clean-environment/platform verification, final performance measurements, and release build. |
 
-M2/M3 Txx numbering is intentionally not locked here; later technical deliverables should be derived from the approved feature requirements and architecture for those milestones rather than from a fixed quota.
+Later technical work should be derived from the approved feature requirements and architecture rather than maintained as a second planning catalogue.

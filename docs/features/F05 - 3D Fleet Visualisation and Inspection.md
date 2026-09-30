@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads T03 `EffectiveVehicleState` using T04's selected year and renders it without independently applying transition rules or mutating scenario/simulation state.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads the typed Project world projection for the active Scenario and selected year and renders it without independently applying transition rules or mutating Project/simulation state. Rendered objects are derived views, not a second editable scene document.
 
 ## User capability
 
@@ -20,19 +20,15 @@ The 3D view provides a spatial representation of the plan and lets users verify 
 - Render the Project's physical environment and default depot.
 - Support the existing navigation and selection/inspection interactions required by the M1 build.
 - Render fleet vehicles from real project/scenario state rather than an independent hard-coded fleet source.
-- Place every fleet vehicle at its unique Project parking lot, using a generic visual when no preset is selected.
-- Use the shared selected year from T04.
+- Place every fleet vehicle at its unique Project-owned world transform, using a generic visual when no preset is selected.
+- Use the selected year from Project runtime state.
 - Display the current preset/state before a transition and the target preset/state from the transition year onward.
 - Keep rendering read-only with respect to authoritative simulation/scenario state.
-- Keep arbitrary scene-object editing controls out of production builds.
+- Use typed Depot/Vehicle references for picking, highlighting, Inspector routing, and development gizmo attachment.
+- Keep production Vehicle picking/highlighting available while generic development Inspector and gizmo controls remain development-only.
+- Keep development transform and Project-document inspection controls out of production builds.
 
 Detailed depot authoring, production asset polish and charging-layout feasibility are later milestone scope.
-
-## Technical dependencies
-
-- [T02 — Company Design System & UI Component Library](../tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-- [T04 — Timeline & Scenario Playback System](../tech-tasks/T04%20-%20Timeline%20and%20Scenario%20Playback%20System.md)
 
 ## M1 evidence
 

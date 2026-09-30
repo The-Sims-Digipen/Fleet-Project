@@ -5,7 +5,7 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 binds to the single T04 selected year, project `AnalysisSettings` and real T03 events; it must not own another clock or duplicate effective-preset logic.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 uses the current workspace's selected year and playback state in `projectStore`, Project `AnalysisSettings`, and derived events for every Scenario Vehicle transition. Plan and Compare have independent Project-scoped timelines; components inside either workspace must use that workspace's canonical clock and must not duplicate effective-preset logic.
 
 ## User capability
 
@@ -21,18 +21,10 @@ Users need to understand when planned transitions occur and how the fleet change
 - Select/seek to a year.
 - Play, pause and reset timeline playback.
 - Generate transition markers from real scenario transition data.
-- Drive one authoritative selected year through T04.
+- Drive the selected year through the Project runtime action.
 - Keep dependent fleet/3D/analytics views synchronized to that selected year where applicable.
 
 Charger-installation markers become required when charging infrastructure enters the approved product scope.
-
-## Technical dependencies
-
-- [T02 — Company Design System & UI Component Library](../tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-- [T04 — Timeline & Scenario Playback System](../tech-tasks/T04%20-%20Timeline%20and%20Scenario%20Playback%20System.md)
-- [T05 — Simulation & Financial Engine](../tech-tasks/T05%20-%20Simulation%20and%20Financial%20Engine.md)
-- [T07 — Analytics Results & Visualization System](../tech-tasks/T07%20-%20Analytics%20Results%20and%20Visualization%20System.md)
 
 ## M1 evidence
 

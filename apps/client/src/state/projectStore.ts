@@ -1,307 +1,381 @@
-import { useMemo } from "react";
 import { create } from "zustand";
 
-import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
-import { isYearInPeriod } from "../domain/fleet";
-import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
-import { createProjectDocument, toM1ProjectDocument } from "../domain/projectDocument";
-import { cloneScenarioDocument, createScenarioDocument } from "../domain/scenario";
-import { withoutVehiclePlan } from "../domain/references";
-import { createIndexedDbProjectRepository } from "../project/indexedDbRepository";
+import { DEFAULT_VEHICLE_SPAWN_TRANSFORMS, PROJECT_FLEET_CAPACITY } from "../domain/depotLayout";
+import { createMockPresets } from "../domain/mockProject";
+import {
+  copyProject,
+  createProject,
+  vehiclePresetReferences,
+  type ProjectAnalysisSettings,
+  type ProjectDocument,
+  type ProjectEntityReference,
+  type ProjectScenario,
+  type ProjectVehicle,
+  type VehicleTransition,
+} from "../domain/project";
 import { createPortableProject, type PortableProjectFile } from "../project/portableProject";
 import type { ProjectRepository } from "../project/repository";
-import { validateName, NAME_MAX_LENGTH, type ScenarioVehiclePlan, type WorkspaceRecord, type WorkspaceSaveInput, type WorkspaceScenario } from "../project/types";
-import type { SceneDocument } from "../scene/types";
+import { getProjectRepository, setProjectRepositoryInstance } from "../project/repositoryContext";
+import { NAME_MAX_LENGTH, validateName } from "../project/types";
+import type { Transform } from "../domain/spatial";
 import type { VehiclePreset } from "../vehicles/types";
-import { useFleetStore } from "./fleetStore";
-import { usePresetStore } from "./presetStore";
-import { createDocument, useSceneStore } from "./sceneStore";
+import { useAppStore } from "./appStore";
+import {
+  beginProjectEditorEdit,
+  beginProjectEdit,
+  cancelProjectEditorEdit,
+  cancelProjectEdit,
+  commitProjectEditorEdit,
+  commitProjectEdit,
+  createProjectRuntime,
+  DEFAULT_PROJECT_CAMERA,
+  executeProjectCommand,
+  isProjectDirty,
+  markProjectSaved,
+  previewProjectCommand,
+  redoProjectCommand,
+  replaceOpenProject,
+  undoProjectCommand,
+  updateProjectEditor,
+  type ProjectCommand,
+  type ProjectCamera,
+  type ProjectEditorState,
+  type ProjectRuntime,
+} from "./projectRuntime";
 
-export type SaveStatus = { state: "idle" } | { state: "saving" } | { state: "error"; message: string };
-
-type ProjectFields = {
-  projectId: string | null;
-  revision: number;
-  name: string;
-  scenarios: WorkspaceScenario[];
-  activeScenarioId: string;
-  baseline: string;
-  saveStatus: SaveStatus;
+export type ProjectStateFields = {
+  runtime: ProjectRuntime;
+  /** Changes whenever a different project replaces the workspace. */
   session: number;
 };
 
-type ProjectState = ProjectFields & {
+export type ProjectState = ProjectStateFields & {
   newProject: (name: string) => void;
   openProject: (id: string) => Promise<void>;
   saveProject: () => Promise<void>;
-  listProjects: () => ReturnType<ProjectRepository["listProjects"]>;
+  exportProject: () => PortableProjectFile;
+  importProject: (file: PortableProjectFile) => Promise<void>;
+
   renameProject: (name: string) => void;
   selectScenario: (id: string) => void;
   createScenario: () => void;
   duplicateScenario: (id: string) => void;
   renameScenario: (id: string, name: string) => void;
   deleteScenario: (id: string) => void;
-  updateScenarioVehiclePlan: (scenarioId: string, vehicleId: string, patch: Partial<ScenarioVehiclePlan>) => void;
-  removeVehiclePlans: (vehicleId: string) => void;
-  exportProject: () => PortableProjectFile;
-  importProject: (file: PortableProjectFile) => Promise<void>;
+  replaceVehicleTransitions: (scenarioId: string, vehicleId: string, transitions: VehicleTransition[]) => void;
+
+  createVehicle: () => string | null;
+  duplicateVehicle: (id: string) => string | null;
+  updateVehicle: (id: string, patch: Partial<ProjectVehicle>) => void;
+  deleteVehicle: (id: string) => void;
+
+  selectPreset: (id: string | null) => void;
+  createPreset: () => string;
+  duplicatePreset: (id: string) => string | null;
+  updatePreset: (id: string, patch: Partial<VehiclePreset>) => void;
+  deletePreset: (id: string) => boolean;
+  updateAnalysis: (patch: Partial<ProjectAnalysisSettings>) => void;
+
+  setPlanSelectedYear: (year: number) => void;
+  resetPlanSelectedYear: () => void;
+  setPlanPlaying: (playing: boolean) => void;
+  setCompareScenario: (slot: "A" | "B", id: string | null) => void;
+  setCompareSelectedYear: (year: number) => void;
+  resetCompareSelectedYear: () => void;
+  setComparePlaying: (playing: boolean) => void;
+  selectProjectEntity: (selection: ProjectEntityReference | null) => void;
+  setInteractionMode: (mode: ProjectEditorState["interactionMode"]) => void;
+  setTransformMode: (mode: ProjectEditorState["transformMode"]) => void;
+  setTransformSpace: (space: ProjectEditorState["transformSpace"]) => void;
+  setSnapEnabled: (enabled: boolean) => void;
+  setLightIntensity: (intensity: number) => void;
+  setCamera: (camera: ProjectCamera) => void;
+  resetCamera: () => void;
+  setProjectEntityTransform: (reference: ProjectEntityReference, transform: Transform) => void;
+
+  executeCommand: (command: ProjectCommand) => void;
+  beginEdit: () => void;
+  previewCommand: (command: ProjectCommand) => void;
+  commitEdit: () => void;
+  cancelEdit: () => void;
+  beginEditorEdit: () => void;
+  commitEditorEdit: () => void;
+  cancelEditorEdit: () => void;
+  undo: () => void;
+  redo: () => void;
+  updateEditor: (patch: Partial<ProjectEditorState>) => void;
 };
 
-let repository: ProjectRepository = createIndexedDbProjectRepository();
-export function setProjectRepository(next: ProjectRepository) { repository = next; }
-
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
-
-function newScenario(projectId: string, name: string, position: number): WorkspaceScenario {
-  return { id: crypto.randomUUID(), projectId, name, position, revision: 0, document: createScenarioDocument() };
+function initialProject(name: string): ProjectDocument {
+  return createProject({ id: crypto.randomUUID(), name, vehiclePresets: createMockPresets() });
 }
 
-function scenarioName(scenarios: readonly WorkspaceScenario[]) {
+export function createProjectState(document: ProjectDocument = initialProject("Untitled project"), session = 0): ProjectStateFields {
+  return { runtime: createProjectRuntime(document), session };
+}
+
+export function setProjectRepository(next: ProjectRepository): void {
+  setProjectRepositoryInstance(next);
+  useAppStore.getState().resetRepositoryState();
+}
+
+function nextScenarioName(scenarios: readonly ProjectScenario[]): string {
   const names = new Set(scenarios.map((scenario) => scenario.name));
-  for (let index = 0; ; index++) {
-    const name = `Plan ${index < 26 ? String.fromCharCode(65 + index) : index + 1}`;
-    if (!names.has(name)) return name;
+  for (let index = 0; ; index += 1) {
+    const candidate = `Plan ${index < 26 ? String.fromCharCode(65 + index) : index + 1}`;
+    if (!names.has(candidate)) return candidate;
   }
 }
 
-type ProjectInputs = { presets: VehiclePreset[]; fleet: FleetVehicle[]; analysis: AnalysisSettings };
-
-function serializeSnapshot(name: string, scene: SceneDocument, scenarios: readonly WorkspaceScenario[], activeScenarioId: string, inputs: ProjectInputs) {
-  return JSON.stringify({
-    name,
-    scene,
-    scenarios: scenarios.map(({ id, name: scenarioNameValue, document }) => ({ id, name: scenarioNameValue, document })),
-    activeScenarioId,
-    presets: inputs.presets,
-    fleet: inputs.fleet,
-    analysis: inputs.analysis,
-  });
+function nextEntityName(prefix: string, names: readonly string[]): string {
+  const used = new Set(names);
+  for (let index = 1; ; index += 1) {
+    const candidate = `${prefix} ${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
 }
 
-const mockInputs = (): ProjectInputs => ({ presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() });
+function positionsEqual(left: Transform["position"], right: Transform["position"]): boolean {
+  return left.every((value, index) => value === right[index]);
+}
 
-export function createProjectFields(name = "Untitled project", scene: SceneDocument = createDocument(), session = 0, inputs: ProjectInputs = mockInputs()): ProjectFields {
-  const scenarios = [newScenario("", "Plan A", 0)];
+function camerasEqual(left: ProjectCamera, right: ProjectCamera): boolean {
+  return left.position.every((value, index) => Math.abs(value - right.position[index]) < 1e-6)
+    && left.target.every((value, index) => Math.abs(value - right.target[index]) < 1e-6);
+}
+
+function nextSpawnTransform(vehicles: readonly ProjectVehicle[]): Transform | undefined {
+  const transform = DEFAULT_VEHICLE_SPAWN_TRANSFORMS.find((candidate) =>
+    !vehicles.some((vehicle) => positionsEqual(vehicle.transform.position, candidate.position)));
+  return transform ? structuredClone(transform) : undefined;
+}
+
+function newVehicle(document: ProjectDocument, transform: Transform): ProjectVehicle {
   return {
-    projectId: null,
-    revision: 0,
-    name,
-    scenarios,
-    activeScenarioId: scenarios[0].id,
-    baseline: serializeSnapshot(name, scene, scenarios, scenarios[0].id, inputs),
-    saveStatus: { state: "idle" },
-    session,
+    id: crypto.randomUUID(),
+    name: nextEntityName("Vehicle", document.environment.vehicles.map((vehicle) => vehicle.name)),
+    baselinePresetId: document.vehiclePresets[0]?.id ?? null,
+    transform,
+    annualKm: 0,
+    typicalDailyKm: 0,
+    operatingDays: 250,
+    utilisation: 1,
+    routePattern: "predictable",
+    returnsToDepot: true,
+    depotDwellHours: 12,
+    externalChargingAccess: false,
+    replacementYear: null,
+    currentHolding: { kind: "owned", currentValue: 0, endResidualValue: 0 },
+  };
+}
+
+function newPreset(document: ProjectDocument): VehiclePreset {
+  return {
+    id: crypto.randomUUID(),
+    name: nextEntityName("Vehicle preset", document.vehiclePresets.map((preset) => preset.name)),
+    category: "Van",
+    propulsion: "electric",
+    modelId: "van",
+    litresPer100Km: 0,
+    kWhPer100Km: 0,
+    batteryCapacityKWh: 0,
+    chargingPowerKW: 0,
+    purchaseCost: 0,
+    maintenanceCostPerYear: 0,
+    rangeKm: null,
+    chargingEfficiency: 1,
+    acquisition: { kind: "owned", endResidualValue: 0 },
   };
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => {
-  const scene = () => useSceneStore.getState();
-  const presets = () => usePresetStore.getState();
-  const fleet = () => useFleetStore.getState();
-  const inputs = (): ProjectInputs => ({ presets: clone(presets().presets), fleet: clone(fleet().vehicles), analysis: { ...fleet().analysis } });
-
-  const loadInputs = (document: ReturnType<typeof toM1ProjectDocument>) => {
-    scene().loadDocument(document.scene);
-    presets().replacePresets(document.vehiclePresets);
-    fleet().updateAnalysis(document.analysis);
-    fleet().replaceFleet(document.fleetVehicles);
+  const setRuntime = (runtime: ProjectRuntime, session = get().session) => set({ runtime, session });
+  const applyRuntime = (runtime: ProjectRuntime) => setRuntime(runtime);
+  const applyCommand = (command: ProjectCommand) => {
+    const runtime = get().runtime;
+    applyRuntime(runtime.history.activeEdit ? previewProjectCommand(runtime, command) : executeProjectCommand(runtime, command));
   };
-
-  const loadWorkspace = (record: WorkspaceRecord) => {
-    const document = toM1ProjectDocument(record.project.document);
-    const scenarios = clone(record.scenarios);
-    if (!scenarios.length) throw new Error("A project needs at least one scenario.");
-    const activeScenario = scenarios.find((scenario) => scenario.id === record.project.activeScenarioId) ?? scenarios[0];
-    set({
-      projectId: record.project.id,
-      revision: record.project.revision,
-      name: record.project.name,
-      scenarios,
-      activeScenarioId: activeScenario.id,
-      baseline: serializeSnapshot(record.project.name, document.scene, scenarios, activeScenario.id, {
-        presets: document.vehiclePresets,
-        fleet: document.fleetVehicles,
-        analysis: document.analysis,
-      }),
-      saveStatus: { state: "idle" },
-      session: get().session + 1,
-    });
-    loadInputs(document);
+  const safelyApply = (command: ProjectCommand) => {
+    try { applyCommand(command); } catch { /* Inputs may be temporarily invalid while a field is being edited. */ }
   };
+  const loadRecord = (record: Awaited<ReturnType<ProjectRepository["getProject"]>>) => {
+    const metadata = { revision: record.revision, createdAt: record.createdAt, updatedAt: record.updatedAt };
+    setRuntime(replaceOpenProject(get().runtime, record.document, metadata), get().session + 1);
+    useAppStore.getState().setRepositoryStatus({ state: "idle" });
+  };
+  const setSaveStatus = (saveStatus: ProjectRuntime["saveStatus"]) => setRuntime({ ...get().runtime, saveStatus });
 
   return {
-    ...createProjectFields("Untitled project", useSceneStore.getState().document, 0, {
-      presets: usePresetStore.getState().presets,
-      fleet: useFleetStore.getState().vehicles,
-      analysis: useFleetStore.getState().analysis,
-    }),
+    ...createProjectState(),
 
     newProject: (name) => {
       if (validateName(name)) return;
-      const next = mockInputs();
-      const nextScene = createDocument();
-      set(createProjectFields(name.trim(), nextScene, get().session + 1, next));
-      loadInputs(createProjectDocument(next.presets, next.fleet, next.analysis, nextScene));
+      set(createProjectState(initialProject(name.trim()), get().session + 1));
+      useAppStore.getState().setRepositoryStatus({ state: "idle" });
     },
-
-    openProject: async (id) => loadWorkspace(await repository.getWorkspace(id)),
-    listProjects: () => repository.listProjects(),
-
+    openProject: async (id) => {
+      useAppStore.getState().setRepositoryStatus({ state: "loading" });
+      try { loadRecord(await getProjectRepository().getProject(id)); }
+      catch (error) {
+        useAppStore.getState().setRepositoryStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be opened." });
+        throw error;
+      }
+    },
     saveProject: async () => {
-      const state = get();
-      if (state.saveStatus.state === "saving") return;
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-
-      const capturedScene = clone(scene().document);
-      const capturedInputs = inputs();
-      const projectId = state.projectId ?? crypto.randomUUID();
-      const base: WorkspaceSaveInput = {
-        project: {
-          id: projectId,
-          name: state.name,
-          activeScenarioId: state.activeScenarioId,
-          document: createProjectDocument(capturedInputs.presets, capturedInputs.fleet, capturedInputs.analysis, capturedScene),
-        },
-        scenarios: state.scenarios.map((scenario) => ({
-          id: scenario.id,
-          name: scenario.name,
-          expectedRevision: scenario.revision,
-          document: clone(scenario.document),
-        })),
-      };
-      const capturedBaseline = serializeSnapshot(state.name, capturedScene, state.scenarios, state.activeScenarioId, capturedInputs);
-      const session = state.session;
-      const preferredScenarioId = state.activeScenarioId;
-      set({ saveStatus: { state: "saving" } });
-
+      if (get().runtime.saveStatus.state === "saving") return;
+      const capturedRuntime = commitProjectEdit(get().runtime);
+      setRuntime({ ...capturedRuntime, saveStatus: { state: "saving" } });
+      const capturedDocument = copyProject(capturedRuntime.document);
+      const capturedSession = get().session;
       try {
-        const record = state.projectId
-          ? await repository.updateWorkspace({ ...base, project: { ...base.project, expectedRevision: state.revision } })
-          : await repository.createWorkspace(base);
-        if (get().session !== session) return;
-        const activeScenario = record.scenarios.find((scenario) => scenario.id === record.project.activeScenarioId)
-          ?? record.scenarios.find((scenario) => scenario.id === preferredScenarioId)
-          ?? record.scenarios[0];
-        if (!activeScenario) throw new Error("The saved project has no scenarios.");
-        set({
-          projectId: record.project.id,
-          revision: record.project.revision,
-          name: record.project.name,
-          scenarios: clone(record.scenarios),
-          activeScenarioId: activeScenario.id,
-          baseline: capturedBaseline,
-          saveStatus: { state: "idle" },
-        });
+        const record = capturedRuntime.record
+          ? await getProjectRepository().updateProject(capturedDocument, capturedRuntime.record.revision)
+          : await getProjectRepository().createProject(capturedDocument);
+        if (get().session !== capturedSession) return;
+        setRuntime(markProjectSaved(get().runtime, {
+          revision: record.revision,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+        }, capturedDocument));
+        setSaveStatus({ state: "idle" });
       } catch (error) {
-        if (get().session !== session) return;
-        set({ saveStatus: { state: "error", message: error instanceof Error ? error.message : "The project could not be saved." } });
+        if (get().session !== capturedSession) return;
+        setSaveStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be saved." });
+      }
+    },
+    exportProject: () => {
+      const runtime = commitProjectEdit(get().runtime);
+      setRuntime(runtime);
+      return createPortableProject(runtime.document);
+    },
+    importProject: async (file) => {
+      const source = file.document;
+      const document = createProject({
+        id: crypto.randomUUID(),
+        name: source.name,
+        depot: source.environment.depot,
+        vehicles: source.environment.vehicles,
+        vehiclePresets: source.vehiclePresets,
+        scenarios: source.scenarios,
+        activeScenarioId: source.activeScenarioId,
+        analysis: source.analysis,
+      });
+      useAppStore.getState().setRepositoryStatus({ state: "loading" });
+      try { loadRecord(await getProjectRepository().createProject(document)); }
+      catch (error) {
+        useAppStore.getState().setRepositoryStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be imported." });
+        throw error;
       }
     },
 
-    renameProject: (name) => { if (!validateName(name)) set({ name: name.trim() }); },
-    selectScenario: (id) => { if (get().scenarios.some((scenario) => scenario.id === id)) set({ activeScenarioId: id }); },
-
-    createScenario: () => {
-      const scenarios = get().scenarios;
-      const scenario = newScenario(get().projectId ?? "", scenarioName(scenarios), scenarios.length);
-      set({ scenarios: [...scenarios, scenario], activeScenarioId: scenario.id });
+    renameProject: (name) => { if (!validateName(name)) safelyApply({ type: "rename-project", name: name.trim() }); },
+    selectScenario: (id) => {
+      if (get().runtime.document.scenarios.some((scenario) => scenario.id === id)) safelyApply({ type: "set-active-scenario", scenarioId: id });
     },
-
+    createScenario: () => safelyApply({
+      type: "create-scenario",
+      scenario: { id: crypto.randomUUID(), name: nextScenarioName(get().runtime.document.scenarios) },
+    }),
     duplicateScenario: (id) => {
-      const scenarios = get().scenarios;
-      const index = scenarios.findIndex((scenario) => scenario.id === id);
-      if (index < 0) return;
-      const source = scenarios[index];
-      const copy: WorkspaceScenario = {
-        ...clone(source),
-        document: cloneScenarioDocument(source.document),
-        id: crypto.randomUUID(),
-        projectId: get().projectId ?? "",
-        revision: 0,
-        name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH),
-        createdAt: undefined,
-        updatedAt: undefined,
-        position: index + 1,
-      };
-      const next = scenarios.toSpliced(index + 1, 0, copy).map((scenario, position) => ({ ...scenario, position }));
-      set({ scenarios: next, activeScenarioId: copy.id });
-    },
-
-    renameScenario: (id, name) => {
-      if (validateName(name)) return;
-      set({ scenarios: get().scenarios.map((scenario) => scenario.id === id ? { ...scenario, name: name.trim() } : scenario) });
-    },
-
-    deleteScenario: (id) => {
-      const scenarios = get().scenarios;
-      const index = scenarios.findIndex((scenario) => scenario.id === id);
-      if (index < 0 || scenarios.length <= 1) return;
-      const remaining = scenarios.toSpliced(index, 1).map((scenario, position) => ({ ...scenario, position }));
-      const activeScenarioId = get().activeScenarioId === id ? remaining[Math.min(index, remaining.length - 1)].id : get().activeScenarioId;
-      set({ scenarios: remaining, activeScenarioId });
-    },
-
-    updateScenarioVehiclePlan: (scenarioId, vehicleId, patch) => {
-      if (!fleet().vehicles.some((vehicle) => vehicle.id === vehicleId)) return;
-      if (!isYearInPeriod(fleet().analysis, patch.transitionYear)) return;
-      if (patch.targetPresetId !== undefined && !presets().presets.some((preset) => preset.id === patch.targetPresetId)) return;
-      set({ scenarios: get().scenarios.map((scenario) => {
-        if (scenario.id !== scenarioId) return scenario;
-        const current = scenario.document.vehiclePlans[vehicleId] ?? {};
-        return { ...scenario, document: { ...scenario.document, vehiclePlans: { ...scenario.document.vehiclePlans, [vehicleId]: { ...current, ...patch } } } };
-      }) });
-    },
-
-    removeVehiclePlans: (vehicleId) => {
-      set({ scenarios: get().scenarios.map((scenario) => scenario.document.vehiclePlans[vehicleId]
-        ? { ...scenario, document: { ...scenario.document, vehiclePlans: withoutVehiclePlan(scenario.document.vehiclePlans, vehicleId) } }
-        : scenario) });
-    },
-
-    exportProject: () => {
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-      const state = get();
-      const captured = inputs();
-      return createPortableProject({
-        projectName: state.name,
-        projectDocument: createProjectDocument(captured.presets, captured.fleet, captured.analysis, scene().document),
-        scenarios: state.scenarios.map((scenario) => ({ name: scenario.name, document: clone(scenario.document) })),
-        activeScenarioIndex: Math.max(0, state.scenarios.findIndex((scenario) => scenario.id === state.activeScenarioId)),
+      const source = get().runtime.document.scenarios.find((scenario) => scenario.id === id);
+      if (source) safelyApply({
+        type: "duplicate-scenario",
+        sourceScenarioId: id,
+        scenario: { id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) },
       });
     },
+    renameScenario: (id, name) => { if (!validateName(name)) safelyApply({ type: "rename-scenario", scenarioId: id, name: name.trim() }); },
+    deleteScenario: (id) => safelyApply({ type: "delete-scenario", scenarioId: id }),
+    replaceVehicleTransitions: (scenarioId, vehicleId, transitions) => safelyApply({ type: "replace-vehicle-transitions", scenarioId, vehicleId, transitions }),
 
-    importProject: async (file) => {
-      const projectId = crypto.randomUUID();
-      const scenarios = file.scenarios.map((scenario) => ({
-        id: crypto.randomUUID(),
-        name: scenario.name,
-        expectedRevision: 0,
-        document: clone(scenario.document),
-      }));
-      const activeScenarioId = scenarios[file.activeScenarioIndex]?.id;
-      if (!activeScenarioId) throw new Error("The imported project has no active Scenario.");
-      const record = await repository.createWorkspace({
-        project: { id: projectId, name: file.project.name, activeScenarioId, document: clone(file.project.document) },
-        scenarios,
-      });
-      loadWorkspace(record);
+    createVehicle: () => {
+      const document = get().runtime.document;
+      if (document.environment.vehicles.length >= PROJECT_FLEET_CAPACITY) return null;
+      const transform = nextSpawnTransform(document.environment.vehicles);
+      if (!transform) return null;
+      const vehicle = newVehicle(document, transform);
+      safelyApply({ type: "create-vehicle", vehicle });
+      return vehicle.id;
     },
+    duplicateVehicle: (id) => {
+      const document = get().runtime.document;
+      const source = document.environment.vehicles.find((vehicle) => vehicle.id === id);
+      const transform = nextSpawnTransform(document.environment.vehicles);
+      if (!source || !transform || document.environment.vehicles.length >= PROJECT_FLEET_CAPACITY) return null;
+      const vehicle = { ...structuredClone(source), id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH), transform };
+      safelyApply({ type: "create-vehicle", vehicle });
+      return vehicle.id;
+    },
+    updateVehicle: (id, patch) => safelyApply({ type: "update-vehicle", vehicleId: id, patch }),
+    deleteVehicle: (id) => safelyApply({ type: "delete-vehicle", vehicleId: id }),
+
+    selectPreset: (id) => get().updateEditor({ selectedPresetId: id }),
+    createPreset: () => {
+      const preset = newPreset(get().runtime.document);
+      safelyApply({ type: "create-vehicle-preset", preset });
+      get().updateEditor({ selectedPresetId: preset.id });
+      return preset.id;
+    },
+    duplicatePreset: (id) => {
+      const source = get().runtime.document.vehiclePresets.find((preset) => preset.id === id);
+      if (!source) return null;
+      const preset = { ...structuredClone(source), id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) };
+      safelyApply({ type: "create-vehicle-preset", preset });
+      get().updateEditor({ selectedPresetId: preset.id });
+      return preset.id;
+    },
+    updatePreset: (id, patch) => safelyApply({ type: "update-vehicle-preset", presetId: id, patch }),
+    deletePreset: (id) => {
+      const document = get().runtime.document;
+      if (!document.vehiclePresets.some((preset) => preset.id === id) || vehiclePresetReferences(document, id).length) return false;
+      safelyApply({ type: "delete-vehicle-preset", presetId: id });
+      return true;
+    },
+    updateAnalysis: (patch) => safelyApply({ type: "update-analysis", patch }),
+
+    setPlanSelectedYear: (year) => get().updateEditor({ plan: { ...get().runtime.editor.plan, selectedYear: year } }),
+    resetPlanSelectedYear: () => get().updateEditor({ plan: { ...get().runtime.editor.plan, selectedYear: get().runtime.document.analysis.startYear } }),
+    setPlanPlaying: (playing) => get().updateEditor({ plan: { ...get().runtime.editor.plan, playing } }),
+    setCompareScenario: (slot, id) => get().updateEditor({
+      compare: {
+        ...get().runtime.editor.compare,
+        ...(slot === "A" ? { scenarioAId: id } : { scenarioBId: id }),
+      },
+    }),
+    setCompareSelectedYear: (year) => get().updateEditor({ compare: { ...get().runtime.editor.compare, selectedYear: year } }),
+    resetCompareSelectedYear: () => get().updateEditor({ compare: { ...get().runtime.editor.compare, selectedYear: get().runtime.document.analysis.startYear } }),
+    setComparePlaying: (playing) => get().updateEditor({ compare: { ...get().runtime.editor.compare, playing } }),
+    selectProjectEntity: (selection) => get().updateEditor({ selection }),
+    setInteractionMode: (interactionMode) => get().updateEditor({ interactionMode }),
+    setTransformMode: (transformMode) => get().updateEditor({ transformMode }),
+    setTransformSpace: (transformSpace) => get().updateEditor({ transformSpace }),
+    setSnapEnabled: (snapEnabled) => get().updateEditor({ snapEnabled }),
+    setLightIntensity: (lightIntensity) => get().updateEditor({ lightIntensity: Math.max(0, Math.min(100, lightIntensity)) }),
+    setCamera: (camera) => {
+      if (!camerasEqual(get().runtime.editor.camera, camera)) get().updateEditor({ camera });
+    },
+    resetCamera: () => get().updateEditor({
+      camera: structuredClone(DEFAULT_PROJECT_CAMERA),
+      cameraRevision: get().runtime.editor.cameraRevision + 1,
+    }),
+    setProjectEntityTransform: (reference, transform) => safelyApply(reference.kind === "depot"
+      ? { type: "set-depot-transform", transform }
+      : { type: "set-vehicle-transform", vehicleId: reference.id, transform }),
+
+    executeCommand: (command) => applyRuntime(executeProjectCommand(get().runtime, command)),
+    beginEdit: () => setRuntime(beginProjectEdit(get().runtime)),
+    previewCommand: (command) => applyRuntime(previewProjectCommand(get().runtime, command)),
+    commitEdit: () => setRuntime(commitProjectEdit(get().runtime)),
+    cancelEdit: () => applyRuntime(cancelProjectEdit(get().runtime)),
+    beginEditorEdit: () => setRuntime(beginProjectEditorEdit(get().runtime)),
+    commitEditorEdit: () => setRuntime(commitProjectEditorEdit(get().runtime)),
+    cancelEditorEdit: () => setRuntime(cancelProjectEditorEdit(get().runtime)),
+    undo: () => applyRuntime(undoProjectCommand(get().runtime)),
+    redo: () => applyRuntime(redoProjectCommand(get().runtime)),
+    updateEditor: (patch) => setRuntime(updateProjectEditor(get().runtime, patch)),
   };
 });
 
-export function useProjectDirty() {
-  const scene = useSceneStore((state) => state.document);
-  const presets = usePresetStore((state) => state.presets);
-  const fleet = useFleetStore((state) => state.vehicles);
-  const analysis = useFleetStore((state) => state.analysis);
-  const name = useProjectStore((state) => state.name);
-  const scenarios = useProjectStore((state) => state.scenarios);
-  const activeScenarioId = useProjectStore((state) => state.activeScenarioId);
-  const baseline = useProjectStore((state) => state.baseline);
-  return useMemo(() => serializeSnapshot(name, scene, scenarios, activeScenarioId, { presets, fleet, analysis }) !== baseline,
-    [name, scene, scenarios, activeScenarioId, presets, fleet, analysis, baseline]);
+export function useProjectDirty(): boolean {
+  return useProjectStore((state) => isProjectDirty(state.runtime));
 }

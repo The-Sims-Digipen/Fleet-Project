@@ -12,10 +12,10 @@
 
 ## Technical implementation
 
-- [M1 technical deliverables](tech-tasks/README.md)
 - [Architecture](tech/architecture.md)
 - [Data model and API](tech/contracts.md)
 - [Simulation](tech/simulation.md)
 - [Depot editor](tech/depot-editor.md)
 - [Editing and history](tech/editing-and-history.md)
 - [Extending the 3D editor](tech/extending-the-editor.md)
+- [Project world source-of-truth verification report](tech/project-world-source-of-truth-verification.md)

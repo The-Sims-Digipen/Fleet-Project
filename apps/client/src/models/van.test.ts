@@ -24,17 +24,17 @@ describe("low-poly van", () => {
     expect(bounds.max.z - bounds.min.z).toBeLessThan(4.9);
   });
 
-  it("applies appearance per instance and disposes owned resources", () => {
+  it("applies projected vehicle tint per instance and disposes owned resources", () => {
     const first = createProceduralInstance(createVanModel);
     const second = createProceduralInstance(createVanModel);
     const firstBody = first.group.getObjectByName("Lower body") as Mesh;
     const secondBody = second.group.getObjectByName("Lower body") as Mesh;
     const originalColor = (secondBody.material as MeshStandardMaterial).color.clone();
-    first.applyAppearance({ tint: "#ff0000", material: "metal", wireframe: true });
+    first.applyTint("#ff0000");
     expect((firstBody.material as MeshStandardMaterial).color).not.toEqual(originalColor);
-    expect((firstBody.material as MeshStandardMaterial).metalness).toBe(0.85);
-    expect((firstBody.material as MeshStandardMaterial).wireframe).toBe(true);
     expect((secondBody.material as MeshStandardMaterial).color).toEqual(originalColor);
+    first.applyTint(null);
+    expect((firstBody.material as MeshStandardMaterial).color).toEqual(originalColor);
     const disposeGeometry = vi.spyOn(firstBody.geometry, "dispose");
     const disposeMaterial = vi.spyOn(firstBody.material as Material, "dispose");
     first.dispose();

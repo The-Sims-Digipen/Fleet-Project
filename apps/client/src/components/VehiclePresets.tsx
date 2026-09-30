@@ -1,22 +1,17 @@
 import { useState } from "react";
 
-import { deleteVehiclePreset, presetDeletionImpact } from "../domain/fleetCommands";
-import { describePresetReference } from "../domain/references";
 import { vehicleModelEntries } from "../scene/catalog";
-import { usePresetStore } from "../state/presetStore";
-import { useSceneStore } from "../state/sceneStore";
+import { vehiclePresetReferences } from "../domain/project";
+import { useProjectStore } from "../state/projectStore";
 import { ownershipKinds, propulsions, type PresetNumericField, type Propulsion, type VehiclePreset } from "../vehicles/types";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { NumberControl, SelectControl, TextControl } from "./controls";
+import { projectEditLifecycle } from "./projectEditLifecycle";
 
-const edit = {
-  beginEdit: () => usePresetStore.getState().beginEdit(),
-  commitEdit: () => usePresetStore.getState().commitEdit(),
-  cancelEdit: () => usePresetStore.getState().cancelEdit(),
-};
+const edit = projectEditLifecycle;
 
 const propulsionOptions = propulsions.map((value) => ({ value, label: `${value[0].toUpperCase()}${value.slice(1)}` }));
-const modelOptions = vehicleModelEntries.map(([value, definition]) => ({ value, label: definition.name }));
+const modelOptions = vehicleModelEntries.map(({ id: value, name: label }) => ({ value, label }));
 const ownershipOptions = ownershipKinds.map((value) => ({ value, label: value === "owned" ? "Owned" : "Leased" }));
 
 const energyFields: { field: PresetNumericField; label: string; step?: number }[] = [
@@ -27,7 +22,6 @@ const energyFields: { field: PresetNumericField; label: string; step?: number }[
 ];
 
 const actionClass = "min-h-8 rounded border border-line-strong px-2.5 text-xs font-semibold text-secondary enabled:hover:bg-white/5 enabled:hover:text-primary disabled:cursor-default disabled:opacity-40";
-const wideActionClass = "min-h-12 rounded-lg border border-line-strong bg-transparent px-[15px] text-xs font-bold text-secondary transition-colors duration-150 enabled:hover:border-[#668078] enabled:hover:text-primary disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none";
 
 function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return <fieldset className="m-0 min-w-0 border-0 p-0">
@@ -58,38 +52,36 @@ function AcquisitionFields({ preset, onChange }: { preset: VehiclePreset; onChan
 }
 
 export function VehiclePresets() {
-  const presets = usePresetStore((state) => state.presets);
-  const selectedId = usePresetStore((state) => state.selectedPresetId);
-  const updatePreset = usePresetStore((state) => state.updatePreset);
+  const document = useProjectStore((state) => state.runtime.document);
+  const presets = document.vehiclePresets;
+  const selectedId = useProjectStore((state) => state.runtime.editor.selectedPresetId);
+  const updatePreset = useProjectStore((state) => state.updatePreset);
   const preset = presets.find((item) => item.id === selectedId);
-  const instanceCount = useSceneStore((state) => state.document.objects.reduce((total, object) => total + (object.presetId === selectedId ? 1 : 0), 0));
 
   const [notice, setNotice] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
-  // T03 refuses to delete a preset the fleet or a scenario still points at.
-  const blockedBy = confirming ? presetDeletionImpact(confirming) : [];
+  const presetReferences = (presetId: string) => vehiclePresetReferences(document, presetId).map((reference) => reference.label);
+  const blockedBy = confirming ? presetReferences(confirming) : [];
 
   const requestDelete = () => {
     if (!selectedId || !preset) return;
     setNotice(null);
-    const references = presetDeletionImpact(selectedId);
-    if (references.length || (import.meta.env.DEV && instanceCount)) setConfirming(selectedId);
+    if (presetReferences(selectedId).length) setConfirming(selectedId);
     else removeSelected();
   };
 
   const removeSelected = () => {
     if (!selectedId) return;
-    // Routed through T03 so the reference guard applies however deletion starts.
-    const result = deleteVehiclePreset(selectedId);
-    setConfirming(result.ok ? null : selectedId);
-    if (result.ok) setNotice(import.meta.env.DEV && instanceCount ? `Preset deleted. ${instanceCount} placed ${instanceCount === 1 ? "object keeps" : "objects keep"} its geometry.` : null);
+    const removed = useProjectStore.getState().deletePreset(selectedId);
+    setConfirming(removed ? null : selectedId);
+    setNotice(removed ? "Preset deleted." : null);
   };
 
-  return <CollapsibleSection title="Vehicle Presets" defaultOpen description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
+  return <CollapsibleSection panelId="vehicle-presets" title="Vehicle Presets" description="Reusable vehicle types. Each preset chooses the 3D model its instances render with." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded border border-line-strong bg-control">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line-strong px-2 py-1.5">
-        <button type="button" aria-label="New vehicle preset" className={actionClass} onClick={() => { setConfirming(null); usePresetStore.getState().createPreset(); }}>New</button>
-        <button type="button" aria-label="Duplicate vehicle preset" className={actionClass} disabled={!preset} onClick={() => { if (selectedId) usePresetStore.getState().duplicatePreset(selectedId); }}>Duplicate</button>
+        <button type="button" aria-label="New vehicle preset" className={actionClass} onClick={() => { setConfirming(null); useProjectStore.getState().createPreset(); }}>New</button>
+        <button type="button" aria-label="Duplicate vehicle preset" className={actionClass} disabled={!preset} onClick={() => { if (selectedId) useProjectStore.getState().duplicatePreset(selectedId); }}>Duplicate</button>
         <button type="button" aria-label="Delete vehicle preset" className={actionClass} disabled={!preset} onClick={requestDelete}>Delete</button>
         <span className="ml-auto text-xs text-secondary">{presets.length}</span>
       </div>
@@ -99,7 +91,7 @@ export function VehiclePresets() {
           {presets.map((item) => <li key={item.id}>
             <button type="button" aria-label={`Select ${item.name}`} aria-pressed={item.id === selectedId}
               className="flex h-9 w-full items-center gap-2 rounded-sm px-2 text-left text-xs text-secondary hover:bg-white/5 aria-pressed:bg-accent/15 aria-pressed:text-primary"
-              onClick={() => { setConfirming(null); usePresetStore.getState().selectPreset(item.id); }}>
+              onClick={() => { setConfirming(null); useProjectStore.getState().selectPreset(item.id); }}>
               <span aria-hidden="true" className="shrink-0 text-accent">◇</span>
               <span className="min-w-0 flex-1 truncate" title={item.name}>{item.name}</span>
               <span className="shrink-0 font-mono text-[10px] opacity-60">{item.category}</span>
@@ -115,16 +107,10 @@ export function VehiclePresets() {
           <b className="text-primary">{preset.name}</b> is still in use and cannot be deleted. Reassign or clear these first:
         </p>
         <ul className="mb-2.5 list-disc pl-4">
-          {blockedBy.map((reference) => <li key={describePresetReference(reference)}>{describePresetReference(reference)}</li>)}
+          {blockedBy.map((reference) => <li key={reference}>{reference}</li>)}
         </ul>
         <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Close</button>
-      </> : <>
-        <p className="mb-2.5">Delete <b className="text-primary">{preset.name}</b>? {instanceCount} placed {instanceCount === 1 ? "object" : "objects"} will keep rendering with the same geometry but lose the preset link.</p>
-        <span className="flex gap-2">
-          <button type="button" className={actionClass} onClick={removeSelected}>Delete preset</button>
-          <button type="button" className={actionClass} onClick={() => setConfirming(null)}>Cancel</button>
-        </span>
-      </>}
+      </> : null}
     </div>}
 
     {notice && <p role="status" className="mt-3 text-xs text-secondary">{notice}</p>}
@@ -161,20 +147,13 @@ export function VehiclePresets() {
         <AcquisitionFields preset={preset} onChange={(acquisition) => updatePreset(preset.id, { acquisition })} />
       </FieldGroup>
 
-      <FieldGroup title="Appearance">
+      <FieldGroup title="Rendering">
         <SelectControl label="3D model" value={preset.modelId} options={modelOptions}
           onChange={(modelId) => { edit.commitEdit(); updatePreset(preset.id, { modelId }); }} />
         <p className="text-xs text-secondary">
           {modelOptions.length === 1 ? "One model is registered so far; more become selectable as they are added to the catalog." : "Changing the model updates every placed instance of this preset."}
         </p>
       </FieldGroup>
-
-      {import.meta.env.DEV && <>
-        <button type="button" className={wideActionClass} onClick={() => { edit.commitEdit(); useSceneStore.getState().addObject(preset.modelId, preset.id, preset.name); }}>
-          Add to Scene
-        </button>
-        <p className="text-xs text-secondary">{instanceCount} placed {instanceCount === 1 ? "object uses" : "objects use"} this preset. This is development-only scene tooling; client fleet vehicles are added in Fleet Management.</p>
-      </>}
     </div> : <p className="mt-4 text-[0.76rem] leading-relaxed text-secondary">No preset selected. Choose one above to edit its attributes.</p>}
   </CollapsibleSection>;
 }

@@ -30,29 +30,19 @@ The versioned domain handoff, shared-file ownership and merge sequence are fixed
 - [F07 — Timeline Control](features/F07%20-%20Timeline%20Control.md) — MUST — Jarrel Tay Wee Han
 - [F08 — Power & Feasibility Information](features/F08%20-%20Power%20and%20Feasibility%20Information.md) — SHOULD — Dayton Ng Zhi Jie
 
-## M1 technical deliverables
-
-- [T01 — Project Persistence & Serialization Library](tech-tasks/T01%20-%20Project%20Persistence%20and%20Serialization%20Library.md) — Chew Shee Yang
-- [T02 — Company Design System & UI Component Library](tech-tasks/T02%20-%20Company%20Design%20System%20and%20UI%20Component%20Library.md) — Dayton Ng Zhi Jie
-- [T03 — Fleet & Scenario Data Engine](tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md) — Tan Wei Jun
-- [T04 — Timeline & Scenario Playback System](tech-tasks/T04%20-%20Timeline%20and%20Scenario%20Playback%20System.md) — Jarrel Tay Wee Han
-- [T05 — Simulation & Financial Engine](tech-tasks/T05%20-%20Simulation%20and%20Financial%20Engine.md) — Elijah Chua Jye Kang
-- [T06 — Project & Scenario Workspace Orchestration System](tech-tasks/T06%20-%20Project%20and%20Scenario%20Workspace%20Orchestration%20System.md) — Brandon Koh Kai Yang
-- [T07 — Analytics Results & Visualization System](tech-tasks/T07%20-%20Analytics%20Results%20and%20Visualization%20System.md) — Yap Zhi Kai
-
 ## Integration order
 
-1. Lock T03 domain contracts and T06 workspace boundaries; T01 reviews serialization-facing types.
-2. Replace mock fleet/scenario state with T03 and ensure T01 can save/reopen it.
-3. Implement T05 as a pure deterministic engine using T03 inputs.
-4. Connect T07 to T05 outputs and remove hard-coded primary financial results.
-5. Connect T04 to real scenario transition events and one authoritative selected year.
-6. Drive F05 3D state from T03 + T04 rather than independent transition logic.
+1. Lock domain contracts and workspace boundaries; the Technical Lead reviews serialization-facing types.
+2. Replace mock fleet/scenario state and ensure the aggregate can be saved and reopened.
+3. Implement the simulation as a pure deterministic engine using canonical Project inputs.
+4. Connect analytics views to simulation outputs and remove hard-coded primary financial results.
+5. Connect timeline controls to real Scenario transition events and workspace-scoped runtime state.
+6. Drive F05 3D state from the canonical Project and Plan timeline rather than independent transition logic.
 7. Exercise the full M1 path and keep CI green.
 
 ## Supporting technical work
 
-- **Scenario/domain contracts:** part of T03; Tan Wei Jun primary, Chew Shee Yang reviews persistence-facing contracts.
+- **Scenario/domain contracts:** Tan Wei Jun primary; Chew Shee Yang reviews persistence-facing contracts.
 - **CI pipeline:** Chew Shee Yang; install/typecheck/tests/build on PR/integration branch.
 - **M1 smoke path:** create/open -> preset/fleet edit -> scenario transition -> simulation -> real analytics -> selected-year 3D -> save/reopen.
 - **Tests:** each engine owns unit tests; cross-system behavior gets integration coverage before M1 submission.

@@ -1,66 +1,62 @@
 # Data model and persistence contract
 
-A Project is one physical planning environment. It owns its scene, authoritative fleet, reusable vehicle presets, shared assumptions, and multiple Scenarios. Save/load preserves authoritative inputs, not Three.js meshes or calculated results.
+The version 1 Project document is one physical planning environment and one aggregate persistence record. It owns its Depot, authoritative Vehicle baselines, reusable Vehicle Presets, shared Analysis Settings, active Scenario identity, and ordered Scenarios. Save/load preserves authoritative inputs, not Three.js meshes, editor state, or calculated results.
 
 ## Data model
 
 | Entity | Principal data | Relationship / purpose |
 |---|---|---|
-| Project | ID, name, revision, active Scenario ID, scene, fleet, presets, shared analysis settings | Aggregate and atomic persistence boundary |
-| Fleet vehicle | Stable ID, optional preset ID, parking lot ID, operational inputs | One physical vehicle instance owned by the Project |
-| Vehicle preset | Stable ID, model/type, powertrain, energy, cost, efficiency | Reusable configuration referenced by multiple vehicles |
-| Scenario | ID, Project ID, order, revision, transition plans and assumptions | Alternative plan over the Project baseline |
+| Project | ID, name, active Scenario ID, environment, presets, analysis settings | Aggregate and atomic persistence boundary |
+| Depot | Stable ID, name, world transform | The Project's physical site |
+| Vehicle | Stable ID, baseline preset ID, world transform, operational and holding inputs | One physical fleet unit owned by the Project |
+| Vehicle preset | Stable ID, model/type, powertrain, energy, cost, efficiency | Reusable configuration referenced by vehicles and transitions |
+| Scenario | Stable ID, name, per-vehicle transition sequences | Alternative plan over the Project baseline |
 | Result | Annual counts, cash flows, energy, emissions, feasibility issues | Derived; never authoritative persistence |
 
-Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication deep-copies planning data only.
+In the M1 contract, a Scenario stores Vehicle transition plans only. It does not own a copy of a Vehicle, charging strategy, depot charging share, charger availability, or separate energy tariffs. Later charging and feasibility requirements remain in [F08](../features/F08%20-%20Power%20and%20Feasibility%20Information.md) and [the product specification](../SPECS.md).
 
-Project document version 4 contains `scene`, `vehiclePresets`, `fleetVehicles`, and `analysis`. Scenario document version 2 contains `vehiclePlans`, keyed by stable vehicle ID, and Scenario assumptions. Legacy multi-World Project documents and portable files are rejected; pre-release data is reset rather than migrated.
+Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication deep-copies planning data only. The Project document's `version` field is 1 and identifies its serialized format; code uses unversioned domain names because one current schema is authoritative at runtime.
 
-## Fleet invariants
+## Project invariants
 
+- Project, depot, vehicle, preset, and Scenario IDs are valid and unique in their scopes.
 - The Project fleet is authoritative; rendered vehicles are derived.
-- Fleet vehicle IDs and preset IDs are unique within their collections.
-- A vehicle has exactly one valid `parkingLotId`; no two vehicles share a lot.
-- A vehicle has `presetId: null` or references one Project preset.
-- The default depot exposes ten lots, so `fleetVehicles.length <= 10`.
+- A vehicle's `baselinePresetId` is null or resolves to a Project preset.
+- The depot and every vehicle own exactly one valid world transform.
+- The default depot supports at most ten fleet vehicles.
+- Vehicle creation copies the first unused default world-space spawn transform. Spawn positions are construction inputs; neither a spawn-slot identity nor a parking assignment is persisted.
 - Every Scenario plan key resolves to a Project vehicle.
-- Every target preset resolves to a Project preset.
-- Deleting a vehicle removes its fleet entry and every Scenario plan keyed by its ID in the same domain edit.
-- Changing a vehicle preset does not change its ID or invalidate Scenario references.
-- Every Project contains at least one Scenario and the default depot scene object.
+- Every transition target resolves to a Project preset.
+- Transition years for a vehicle are unique and ascending.
+- Deleting a vehicle removes every Scenario plan keyed by its ID in the same domain command.
+- A referenced preset cannot be deleted.
+- Every Project contains at least one Scenario, and `activeScenarioId` resolves to one of them.
+
+`normalizeProject` enforces these invariants at construction and every mutation boundary. Repository and portable-file adapters validate untrusted documents through the same function.
+
+`effectivePresetIdFor` is the canonical interpretation of a Vehicle baseline and a Scenario's ordered transitions at a selected year. Simulation and the typed Project world projection consume that same rule; the rendered Vehicle is not another authoritative entity.
 
 ## Repository contract
 
 UI/state code depends on `ProjectRepository`, which can:
 
 - list saved Projects;
-- load a complete Project workspace;
+- load one complete Project record;
 - create the aggregate atomically;
-- update it atomically with expected Project and Scenario revisions.
+- update it atomically with an expected revision.
 
-IndexedDB schema version 3 has two stores:
+IndexedDB has one `projects` store keyed by `document.id`. Each record contains the complete Project document plus `revision`, `createdAt`, and `updatedAt`. Persistence metadata is deliberately outside the undoable domain document. A failed transaction exposes no partial save.
 
-```mermaid
-erDiagram
-  PROJECTS ||--|{ SCENARIOS : "projectId"
-```
+The browser database is named `fleet-transition-planner` and currently uses internal IndexedDB revision 5. This storage revision is independent of the Project document format version 1. Initialization creates the current `projects` store; it does not transform or automatically clear incompatible prerelease data. Clear incompatible browser data manually.
 
-| Store | Key / indexes | Content |
-|---|---|---|
-| `projects` | key `id` | Project record and Project document |
-| `scenarios` | key `id`, index `projectId` | Ordered Scenario records |
-
-A failed transaction exposes no partial save. The PostgreSQL schema mirrors this relationship. Its destructive `0001_single_environment_projects.sql` migration deliberately drops pre-release multi-World tables and data.
-
-The Project record persists the active Scenario ID. Loading falls back to the first ordered Scenario if that optional value is absent or no longer resolves. Because the selection is persisted, switching Scenarios contributes to the dirty-state snapshot.
+The server row's `schema_version` mirrors the Project document version and is 1. The migration runner applies ordered SQL migrations; the current clean baseline creates only the aggregate `projects` table. Incompatible prerelease server data is not ported; recreate the server database when a breaking persistence change requires a clean start. Keep the migration mechanism for supported future schema changes.
 
 ## Portable project file
 
-Format `fleet-transition-planner-project`, version 3, contains:
+Format `fleet-transition-planner-project` at version 1 contains:
 
-- Project name and complete Project document;
-- ordered Scenario names and documents;
-- active Scenario index;
-- export timestamp.
+- the complete Project document;
+- an export timestamp;
+- the portable format version, independent of the Project document version.
 
-Import validates the current format and creates fresh Project and Scenario IDs. Camera state, selection, transform controls, undo history, and derived results are excluded.
+Import validates the current format and document, then creates a fresh Project ID. Persistence metadata, camera state, selection, transform controls, lighting, undo history, and derived results are excluded.

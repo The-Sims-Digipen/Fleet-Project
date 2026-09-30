@@ -1,85 +1,63 @@
 # M1 integration contract
 
-This is the shared handoff for replacing the completed UI stubs with one working M1 application. It does not create another task catalogue: feature scope remains in `docs/features/`, and owners remain in `docs/weekly-plan.md`.
-
-All implementation branches should start from a commit containing this contract with `pnpm verify` passing. Old UI-stub branches are reference history, not integration bases.
+This is the shared handoff for integrating the milestone-one features into one working application. Feature scope remains in `docs/features/`, and owners remain in `docs/weekly-plan.md`.
 
 ## Canonical code contract
 
-The importable, framework-independent contract is `apps/client/src/domain/contracts.ts`. The shared SIM01 fixture is `apps/client/src/domain/m1Fixture.ts`.
+The framework-independent aggregate is `apps/client/src/domain/project.ts`. Its version 1 `ProjectDocument` owns one environment, Vehicle Presets, Scenarios, active Scenario identity, and shared Analysis Settings. Code uses unversioned Project and domain names; the format field identifies the serialized contract, and normalizers reject an unsupported format.
 
 The contract fixes these decisions:
 
-- Project-owned inputs: one physical scene, vehicle presets, authoritative fleet vehicles, analysis period, currency, common fuel price, and common emissions factors.
-- Scenario-owned inputs: per-vehicle target preset/transition year and scenario electricity/charging assumptions.
-- Editor-only state: selection, camera, transform tool, drafts and undo mechanics.
-- Derived state: simulation, analytics and effective-year projections are recomputed and are never authoritative persisted data.
-- Transition semantics: current preset before the transition year and target preset from the transition year onward.
-- Time semantics: `startYear` through `startYear + yearCount - 1`, inclusive, with T04 owning the selected year.
+- Project-owned inputs: depot, authoritative vehicles and transforms, presets, analysis period, prices, emissions factors, and discount rate.
+- Scenario-owned inputs: ordered Vehicle transition plans only. Charging strategy, depot charging share, charging infrastructure, and feasibility are later scope; no such assumptions are persisted per Scenario in M1.
+- Project editor-only state: selection; independent Plan and Compare timeline state; Compare Scenario A/B choices; camera; lighting; transform tools; drafts; and undo mechanics. Application-wide workspace mode, Project catalogue/list status, global Project dialogs, and sidebar expansion remain in `appStore` across Project changes. Save status follows the open Project runtime.
+- Derived state: simulation, analytics, event lists, and render objects are recomputed and never authoritative persisted data.
+- Transition semantics: the baseline preset applies before the first transition, then the latest transition at or before the selected year applies.
+- Time semantics: `startYear` through `startYear + yearCount - 1`, inclusive.
 
-### Validation and reference invariants
+An Effective Vehicle is a derived, read-only interpretation of its Project Vehicle baseline and one Scenario's transitions at a selected year. Timeline, simulation, graphs, Inspector state, comparison metrics, and `createProjectWorld` must agree with this interpretation across every ordered transition.
 
-- IDs are stable and immutable after creation; project preset IDs and fleet vehicle IDs are unique.
-- Every numeric domain value is finite. Distances, prices, costs and emissions factors are nonnegative; `yearCount` is a positive integer; utilisation and charging share are within 0–1; charging efficiency is greater than 0 and at most 1.
-- Every fleet `presetId` is null or resolves inside the same Project; every Scenario `targetPresetId` and `vehiclePlans` key resolves inside that Project.
-- Every vehicle occupies one unique default-depot parking lot, and a Project contains at most ten fleet vehicles.
-- A transition year is null/absent or inside the project's inclusive analysis period.
-- Deleting a referenced preset is blocked and the UI lists the fleet/scenario references that must first be reassigned or cleared.
-- Deleting a fleet vehicle requires confirmation that lists affected scenario plans, then removes the vehicle and all of those plan entries as one domain edit.
-- Scenario duplication deep-copies plans and assumptions. The last Scenario for a Project cannot be deleted.
+## Validation and reference invariants
+
+- IDs are stable and unique in their scope.
+- Numeric domain values are finite and respect their documented ranges.
+- Every vehicle baseline preset and Scenario target preset resolves inside the same Project.
+- Every Scenario plan key resolves to a Project vehicle.
+- Every vehicle owns a valid world transform, and a Project contains at most ten vehicles.
+- Vehicle transition years are unique and ascending.
+- Deleting a referenced preset is blocked.
+- Deleting a vehicle removes all of its Scenario plan entries in the same command.
+- Scenario duplication deep-copies plans. The last Scenario cannot be deleted.
 - Invalid form drafts remain component-local and never replace the last valid domain value.
-- When the analysis period changes, T04 clamps the selected year to the new period and stops playback. Scenario switching retains the selected year because the period is project-owned.
+- Changing the analysis period clamps both workspace selected years. Leaving a workspace pauses its playback while preserving its selected year and Scenario choices.
 
-The authoritative shapes are Project document version 4 and Scenario document version 2. Legacy multi-World Project data is intentionally discarded during this pre-release change; feature components must not implement migrations.
+`normalizeProject` enforces these invariants at creation, mutation, repository, and import boundaries.
 
-## Ownership and shared-file boundaries
+## State and integration boundaries
 
-| Area | Owner | Contract boundary | Shared files controlled during integration |
-|---|---|---|---|
-| T01 persistence | Chew Shee Yang | Save/load/export/import authoritative documents; never persist results | `project/repository.ts`, `project/indexedDbRepository.ts`, `project/portableProject.ts` |
-| T02 design system | Dayton Ng Zhi Jie | Presentation primitives only; no product state | `components/controls.tsx`, global tokens in `index.css` |
-| T03 domain | Tan Wei Jun | Fleet/preset CRUD, reference integrity, effective-year state | `domain/contracts.ts`, the real fleet/scenario domain store and selectors |
-| T04 timeline | Jarrel Tay Wee Han | Selected year, seek/play/pause/reset, transition-event projection | `state/timelineStore.ts`, `components/TimelineControl.tsx` |
-| T05 simulation | Elijah Chua Jye Kang | Pure `SimulationInput -> SimulationResult`; no React/storage/chart imports | the new simulation engine directory |
-| T06 workspace | Brandon Koh Kai Yang | Active Project/Scenario, dirty state and valid snapshots | `state/projectStore.ts`, workspace panels |
-| T07 analytics | Yap Zhi Kai | Transform `SimulationResult` into KPI/chart view models; no recalculation | the new analytics directory and `components/CostAnalysis.tsx` |
-| F05/assembly | Chew Shee Yang | Read T03 + T04 state into 3D; final top-level composition | `App.tsx`, `components/Sidebar.tsx`, 3D integration adapters |
+`useProjectStore` is the application-facing module. It owns one `ProjectRuntime` containing:
 
-The listed owner coordinates changes to a controlled shared file. Feature owners should keep feature behavior inside isolated modules and request a small composition change instead of independently restructuring `App.tsx`, `Sidebar.tsx`, `projectStore.ts` or `index.css`.
+- the canonical `ProjectDocument`;
+- repository metadata and the saved dirty-state baseline;
+- editor-only state;
+- one undo/redo history for all Project edits.
 
-## Required integration sequence
+Feature components must not mirror Project slices into another authoritative store. Continuous controls use `beginEdit`, preview commands, `commitEdit`, and `cancelEdit`. Discrete actions issue one Project command. Viewport rendering, picking, and Inspector routing use `createProjectWorld` and typed Depot/Vehicle references; they do not persist a second scene document. The hardcoded ordered spawn transforms are copied onto new Vehicles and have no persisted parking-slot identity.
 
-1. **Contract and workspace foundation:** T03 and T06 implement the versioned domain/workspace shape; T01 adds migration and round-trip coverage.
-2. **Real fleet persistence:** replace `MockVehicle`, persist project fleet/settings, and prove save/reopen with stable references.
-3. **Pure calculation:** T05 implements `annual-v1` using the shared fixture and documented worked examples.
-4. **Product inputs:** F01-F04 bind existing forms to the authoritative project/scenario actions. Local component state is limited to uncommitted drafts.
-5. **Results:** T07/F06 consume `SimulationResult`; charts never derive independent financial truth.
-6. **Shared time:** T04/F07 use the project analysis period and expose the single selected year and real transition events.
-7. **3D:** F05 queries T03 for effective state using T04's selected year. It must not reimplement the transition rule.
-8. **End-to-end gate:** exercise create/open -> preset/fleet edit -> scenario transition -> simulation -> analytics -> selected-year 3D -> save/reopen.
+## Persistence boundary
 
-T02 may progress in parallel when changes remain inside reusable primitives. F08 may remain an explicitly labelled indicative/mock panel during M1; it must not present mock values as calculated output.
+`ProjectRepository` lists, loads, creates, and revision-checks complete Project records. IndexedDB and the future API adapter implement that interface. Portable export carries the complete Project document; import validates it and creates a fresh Project identity. Runtime editor state and calculated results never cross this boundary.
 
-## Known stub truth to remove
+## Merge gate
 
-- `state/fleetStore.ts`: `MockVehicle` and `initialVehicles`.
-- `project/analysisPeriod.ts` and `state/timelineStore.ts`: fixed analysis years.
-- `components/TimelineControl.tsx`: sample charger events and component-owned playback state.
-- `components/SimulationSettings.tsx`: local authoritative assumptions and local calculator.
-- `components/CostAnalysis.tsx`: hard-coded cost arrays and payback.
-- `components/CompareWorkspace.tsx`: demo plans and its independent selected year.
+At minimum, integration coverage proves:
 
-Do not replace these with another temporary authoritative store. During migration, an adapter may read legacy stub data, but new domain writes must go through T03/T06.
-
-## Shared acceptance fixture and merge gate
-
-All systems reuse SIM01 from `domain/m1Fixture.ts`; T05 supplements it with SIM02-SIM05 from `docs/tech/simulation.md`. At minimum, integration coverage proves:
-
-- stable vehicle/preset references across save/reopen;
-- scenario duplication is a deep copy and edits remain isolated;
-- before/at/after transition-year state agrees in fleet, timeline and 3D;
-- payback reached and not-reached are represented without invented values;
+- stable vehicle and preset references across save/reopen;
+- Scenario duplication is a deep copy and edits remain isolated;
+- before/at/after transition-year state agrees in timeline and 3D projections;
+- vehicle deletion removes dependent plans atomically;
+- referenced preset deletion is blocked;
 - unsupported versions and stale revisions fail without losing working edits;
 - empty and zero cases never emit `NaN` or `Infinity`.
 
-Every pull request runs `pnpm verify`. A change to the canonical contract must name all affected consumers and include their owner reviews before dependent branches update.
+Every pull request runs `pnpm verify`. A change to `ProjectDocument` must name and update all affected consumers.
