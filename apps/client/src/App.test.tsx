@@ -55,9 +55,10 @@ describe("inspector architecture", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Visualize active plan in 3D" }));
-    await user.selectOptions(screen.getByRole("combobox", { name: "Target preset for UNIT-01" }), "electric-van");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-01" }), "2028");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Year to change for UNIT-02" }), "");
+    await user.selectOptions(screen.getByRole("combobox", { name: /^Target preset/ }), "electric-van");
+    await user.selectOptions(screen.getByRole("combobox", { name: /^Year to change/ }), "2028");
+    await user.click(screen.getByRole("button", { name: "Select Regional Hauler" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: /^Year to change/ }), "");
     expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#ffffff");
     act(() => useTimelineStore.getState().setSelectedYear(2028));
     expect(screen.getByTestId("fleet-preview-UNIT-01")).toHaveAttribute("data-tint", "#39ff14");

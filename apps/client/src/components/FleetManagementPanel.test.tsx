@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
 import { useFleetStore } from "../state/fleetStore";
@@ -19,16 +19,31 @@ beforeEach(() => {
   useProjectStore.setState(createProjectFields("Fleet panel test", document, 0, inputs));
 });
 
-describe("fleet vehicle distance editing", () => {
-  it("replaces an initial zero with the first typed distance", async () => {
+afterEach(cleanup);
+
+describe("fleet vehicle selection", () => {
+  it("shows one selected vehicle's settings below the fleet list", async () => {
     const user = userEvent.setup();
-    const select = vi.spyOn(HTMLInputElement.prototype, "select");
     render(<FleetManagementPanel onVisualize={() => undefined} previewOpen={false} onClosePreview={() => undefined} />);
 
-    const distance = screen.getByRole("spinbutton", { name: "Annual distance for UNIT-01" });
+    expect(screen.getAllByRole("button", { name: /^Select / })).toHaveLength(6);
+    expect(screen.getByRole("textbox", { name: "Vehicle name" })).toHaveValue("City Delivery Van");
+    expect(screen.getAllByRole("combobox", { name: /preset/ })).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Select Regional Hauler" }));
+
+    expect(screen.getByRole("textbox", { name: "Vehicle name" })).toHaveValue("Regional Hauler");
+    expect(screen.getByRole("button", { name: "Select Regional Hauler" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("edits the selected vehicle's distance", async () => {
+    const user = userEvent.setup();
+    render(<FleetManagementPanel onVisualize={() => undefined} previewOpen={false} onClosePreview={() => undefined} />);
+
+    const distance = screen.getByRole("spinbutton", { name: "Annual distance (km)" });
     expect(distance).toHaveValue(0);
     await user.click(distance);
-    expect(select).toHaveBeenCalledOnce();
+    await user.keyboard("{Control>}a{/Control}");
     await user.keyboard("123");
 
     expect(distance).toHaveValue(123);
