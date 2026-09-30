@@ -10,6 +10,30 @@ afterEach(cleanup);
 beforeEach(() => useProjectStore.setState(createProjectState(createProjectFixture())));
 
 describe("Fleet Management", () => {
+  it("replaces an initial zero distance and keeps the edit cancellable and undoable", async () => {
+    const document = createProjectFixture();
+    document.environment.vehicles[0].annualKm = 0;
+    useProjectStore.setState(createProjectState(document));
+    const user = userEvent.setup();
+    render(<FleetManagementPanel />);
+    const distance = screen.getByRole("spinbutton", { name: "Annual distance (km)" });
+
+    await user.click(distance);
+    await user.keyboard("123");
+    expect(distance).toHaveDisplayValue("123");
+    expect(useProjectStore.getState().runtime.document.environment.vehicles[0].annualKm).toBe(123);
+    await user.keyboard("{Escape}");
+    expect(distance).toHaveValue(0);
+    expect(useProjectStore.getState().runtime.history.past).toHaveLength(0);
+
+    await user.click(distance);
+    await user.keyboard("456{Enter}");
+    expect(distance).toHaveDisplayValue("456");
+    expect(useProjectStore.getState().runtime.history.past).toHaveLength(1);
+    act(() => useProjectStore.getState().undo());
+    expect(distance).toHaveValue(0);
+  });
+
   it("uses shared typed Vehicle selection without creating a history entry", async () => {
     const user = userEvent.setup();
     render(<FleetManagementPanel />);

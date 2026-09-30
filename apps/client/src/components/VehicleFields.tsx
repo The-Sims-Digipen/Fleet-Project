@@ -35,7 +35,7 @@ export function VehicleFields({ vehicle, document, idPrefix, section = "all" }: 
       onChange={(name) => updateVehicle({ name })} />}
     {showSummary && <>
       {section === "summary" && <NumberControl label="Annual distance (km)" value={vehicle.annualKm} min={0} step={100}
-        edit={projectEditLifecycle} onChange={(annualKm) => updateVehicle({ annualKm })} />}
+        edit={projectEditLifecycle} selectZeroOnFocus onChange={(annualKm) => updateVehicle({ annualKm })} />}
       <label className={labelClass} htmlFor={`${idPrefix}-baseline-preset`}>
         Baseline preset
         <select id={`${idPrefix}-baseline-preset`} aria-label={section === "summary" ? `Baseline preset for ${vehicle.id}` : undefined}
@@ -46,7 +46,7 @@ export function VehicleFields({ vehicle, document, idPrefix, section = "all" }: 
         </select>
       </label>
       {section === "all" && <NumberControl label="Annual distance (km)" value={vehicle.annualKm} min={0} step={100}
-        edit={projectEditLifecycle} onChange={(annualKm) => updateVehicle({ annualKm })} />}
+        edit={projectEditLifecycle} selectZeroOnFocus onChange={(annualKm) => updateVehicle({ annualKm })} />}
     </>}
     {showDetails && <>
       <div className="grid grid-cols-2 gap-3">

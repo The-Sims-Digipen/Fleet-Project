@@ -3,14 +3,18 @@ import type { Vector3 } from "../domain/spatial";
 
 export type EditLifecycle = { beginEdit: () => void; commitEdit: () => void; cancelEdit: () => void };
 
-export function NumberControl({ label, value, onChange, min, step = 0.1, edit }: {
-  label: string; value: number; onChange: (value: number) => void; min?: number; step?: number; edit: EditLifecycle;
+export function NumberControl({ label, value, onChange, min, step = 0.1, edit, selectZeroOnFocus = false }: {
+  label: string; value: number; onChange: (value: number) => void; min?: number; step?: number; edit: EditLifecycle; selectZeroOnFocus?: boolean;
 }) {
   const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
   return <label className="grid min-w-0 gap-2 text-[0.72rem] font-semibold text-secondary" htmlFor={id}><span className="text-[0.62rem]">{label}</span>
     <input id={id} name={id} className="min-h-[42px] w-full min-w-0 cursor-text rounded-[7px] border border-line-strong bg-control px-2 py-1.5 text-primary" type="number" value={draft ?? Number(value.toFixed(4))} min={min} step={step}
-      onFocus={() => { edit.beginEdit(); setDraft(String(Number(value.toFixed(4)))); }}
+      onFocus={(event) => {
+        edit.beginEdit();
+        setDraft(String(Number(value.toFixed(4))));
+        if (selectZeroOnFocus && value === 0) event.currentTarget.select();
+      }}
       onChange={(event) => {
         const text = event.target.value;
         setDraft(text);
