@@ -32,6 +32,7 @@ export type SimulationTotals = {
   electricityCost: number;
   maintenanceCost: number;
   leasePayments: number;
+  operatingCost: number;
   vehicleAcquisitionCapex: number;
   transitionCapex: number;
   replacementCapex: number;
@@ -55,7 +56,13 @@ export type SimulationSeries = {
   totals: SimulationTotals;
 };
 
-export type ScenarioSimulation = SimulationSeries & {
+export type ScenarioSimulationYear = AnnualSimulationYear & {
+  annualCashSavings: number;
+  cumulativeCashSavings: number;
+};
+
+export type ScenarioSimulation = Omit<SimulationSeries, "annual"> & {
+  annual: ScenarioSimulationYear[];
   scenarioId: string;
   scenarioName: string;
   paybackYear: number | null;
@@ -241,6 +248,7 @@ function calculateSeries(document: ProjectDocument, scenarioId: string | null, y
       electricityCost,
       maintenanceCost,
       leasePayments,
+      operatingCost: fuelCost + electricityCost + maintenanceCost + leasePayments,
       vehicleAcquisitionCapex,
       transitionCapex,
       replacementCapex,
@@ -292,6 +300,11 @@ export function simulateProject(document: ProjectDocument): ProjectSimulation {
     const reached = payback(baseline, result);
     return [scenario.id, {
       ...result,
+      annual: result.annual.map((row, index) => ({
+        ...row,
+        annualCashSavings: baseline.annual[index].netCashCost - row.netCashCost,
+        cumulativeCashSavings: baseline.annual[index].cumulativeCashCost - row.cumulativeCashCost,
+      })),
       scenarioId: scenario.id,
       scenarioName: scenario.name,
       paybackYear: reached.year,

@@ -145,6 +145,10 @@ describe("Project simulation", () => {
     expect(scenario.annual.map(({ netCashCost }) => netCashCost)).toEqual([12_700, 700, 700, 700]);
     expect(scenario.annual.map(({ emissionsKgCo2e }) => emissionsKgCo2e)).toEqual([1_000, 1_000, 1_000, 1_000]);
     expect(scenario.totals.tco).toBe(12_800);
+    expect(simulation.baseline.totals.operatingCost).toBe(10_000);
+    expect(scenario.totals.operatingCost).toBe(2_800);
+    expect(scenario.annual.map((row) => row.annualCashSavings)).toEqual([-10_200, 1_800, 1_800, 1_800]);
+    expect(scenario.annual.map((row) => row.cumulativeCashSavings)).toEqual([-10_200, -8_400, -6_600, -4_800]);
     expect(scenario.totals.savings).toBe(-2_800);
     expect(scenario.totals.costDifference).toBe(2_800);
     expect(scenario.totals.costPerKm).toBe(0.32);
