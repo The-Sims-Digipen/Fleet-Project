@@ -8,6 +8,15 @@ import { CollapsibleSection } from "./CollapsibleSection";
 
 const number = new Intl.NumberFormat("en-SG", { maximumFractionDigits: 1 });
 
+function createFinancialChartOptions(years: number[], formatCurrency: (value: number) => string) {
+  return {
+    animation: false,
+    tooltip: { trigger: "axis", valueFormatter: formatCurrency },
+    xAxis: { type: "category", data: years, axisLine: { lineStyle: { color: "#405a53" } }, axisLabel: { color: "#b1c3bd" } },
+    yAxis: { type: "value", axisLabel: { color: "#b1c3bd", formatter: formatCurrency }, splitLine: { lineStyle: { color: "#273a35" } } },
+  };
+}
+
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return <article className="rounded-lg border border-line bg-panel p-4">
     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-secondary">{label}</p>
@@ -30,20 +39,17 @@ export function CostAnalysis() {
   const tcoLabel = document.analysis.discountRate > 0 ? "Present value TCO" : "TCO";
 
   const cumulativeOption = useMemo(() => ({
-    animation: false,
-    tooltip: { trigger: "axis", valueFormatter: (value: number) => formatCurrency(value) },
+    ...createFinancialChartOptions(simulation.years, formatCurrency),
     legend: { textStyle: { color: "#b1c3bd" }, bottom: 0 },
     grid: { left: 68, right: 22, top: 16, bottom: 58, containLabel: true },
-    xAxis: { type: "category", data: simulation.years, axisLine: { lineStyle: { color: "#405a53" } }, axisLabel: { color: "#b1c3bd" } },
-    yAxis: { type: "value", axisLabel: { color: "#b1c3bd", formatter: (value: number) => formatCurrency(value) }, splitLine: { lineStyle: { color: "#273a35" } } },
     series: [
       { name: "Current fleet baseline", type: "line", smooth: false, symbol: "circle", data: viewModel?.chart.baselineCumulativeCost ?? [], lineStyle: { width: 3, color: "#4f7cff" }, itemStyle: { color: "#4f7cff" } },
       { name: scenario?.scenarioName ?? "Active Scenario", type: "line", smooth: false, symbol: "circle", data: viewModel?.chart.scenarioCumulativeCost ?? [], lineStyle: { width: 3, color: "#55d6be" }, itemStyle: { color: "#55d6be" }, markLine: {
         silent: true, symbol: ["none", "none"], label: { show: false }, lineStyle: { color: "#b1c3bd", type: "dashed" },
         data: [
-          { xAxis: selectedYear },
+          { xAxis: String(selectedYear) },
           ...(scenario?.paybackStatus === "reached" && scenario.paybackYear !== null
-            ? [{ xAxis: scenario.paybackYear, lineStyle: { color: "#55d6be" }, label: { show: true, formatter: `Payback ${scenario.paybackYear}`, position: "insideEndTop" } }]
+            ? [{ xAxis: String(scenario.paybackYear), lineStyle: { color: "#55d6be" }, label: { show: true, formatter: `Payback ${scenario.paybackYear}`, position: "insideEndTop" } }]
             : []),
         ],
       } },
@@ -51,12 +57,9 @@ export function CostAnalysis() {
   }), [simulation, scenario, viewModel, selectedYear, document.analysis.currency]);
 
   const annualOption = useMemo(() => ({
-    animation: false,
-    tooltip: { trigger: "axis", valueFormatter: (value: number) => formatCurrency(value) },
+    ...createFinancialChartOptions(simulation.years, formatCurrency),
     legend: { textStyle: { color: "#b1c3bd" }, bottom: 0 },
     grid: { left: 68, right: 22, top: 16, bottom: 58, containLabel: true },
-    xAxis: { type: "category", data: simulation.years, axisLine: { lineStyle: { color: "#405a53" } }, axisLabel: { color: "#b1c3bd" } },
-    yAxis: { type: "value", axisLabel: { color: "#b1c3bd", formatter: (value: number) => formatCurrency(value) }, splitLine: { lineStyle: { color: "#273a35" } } },
     series: [
       { name: "Current fleet baseline", type: "bar", data: simulation.baseline.annual.map((row) => row.netCashCost), itemStyle: { color: "#4f7cff" } },
       { name: scenario?.scenarioName ?? "Active Scenario", type: "bar", data: scenario?.annual.map((row) => row.netCashCost) ?? [], itemStyle: { color: "#55d6be" } },
@@ -64,11 +67,8 @@ export function CostAnalysis() {
   }), [simulation, scenario, document.analysis.currency]);
 
   const savingsOption = useMemo(() => ({
-    animation: false,
-    tooltip: { trigger: "axis", valueFormatter: (value: number) => formatCurrency(value) },
+    ...createFinancialChartOptions(simulation.years, formatCurrency),
     grid: { left: 68, right: 22, top: 16, bottom: 32, containLabel: true },
-    xAxis: { type: "category", data: simulation.years, axisLine: { lineStyle: { color: "#405a53" } }, axisLabel: { color: "#b1c3bd" } },
-    yAxis: { type: "value", axisLabel: { color: "#b1c3bd", formatter: (value: number) => formatCurrency(value) }, splitLine: { lineStyle: { color: "#273a35" } } },
     series: [{ name: "Annual net saving", type: "bar", barMaxWidth: 24,
       data: viewModel?.chart.annualSavings.map((value) => ({ value, itemStyle: { color: value >= 0 ? "#55d6be" : "#d58b79" } })) ?? [],
     }],
