@@ -1,514 +1,381 @@
-import { useMemo } from "react";
 import { create } from "zustand";
 
-import type { AnalysisSettings, FleetVehicle } from "../domain/contracts";
-import { isYearInPeriod } from "../domain/fleet";
-import { createMockAnalysis, createMockFleet, createMockPresets } from "../domain/mockProject";
-import { createProjectDocument, toM1ProjectDocument } from "../domain/projectDocument";
-import { cloneScenarioDocument, createScenarioDocument, toM1ScenarioDocument } from "../domain/scenario";
-import { withoutVehiclePlan } from "../domain/references";
-import { createIndexedDbProjectRepository } from "../project/indexedDbRepository";
+import { DEFAULT_VEHICLE_SPAWN_TRANSFORMS, PROJECT_FLEET_CAPACITY } from "../domain/depotLayout";
+import { createMockPresets } from "../domain/mockProject";
+import {
+  copyProject,
+  createProject,
+  vehiclePresetReferences,
+  type ProjectAnalysisSettings,
+  type ProjectDocument,
+  type ProjectEntityReference,
+  type ProjectScenario,
+  type ProjectVehicle,
+  type VehicleTransition,
+} from "../domain/project";
 import { createPortableProject, type PortableProjectFile } from "../project/portableProject";
-import { type ProjectRepository } from "../project/repository";
-import { validateName, NAME_MAX_LENGTH, type Scenario, type ScenarioVehiclePlan, type WorkspaceRecord, type WorkspaceSaveInput, type WorkspaceScenario, type WorkspaceWorld, type WorldSummary } from "../project/types";
-import type { SceneDocument } from "../scene/types";
+import type { ProjectRepository } from "../project/repository";
+import { getProjectRepository, setProjectRepositoryInstance } from "../project/repositoryContext";
+import { NAME_MAX_LENGTH, validateName } from "../project/types";
+import type { Transform } from "../domain/spatial";
 import type { VehiclePreset } from "../vehicles/types";
-import { useFleetStore } from "./fleetStore";
-import { usePresetStore } from "./presetStore";
-import { createDocument, useSceneStore } from "./sceneStore";
+import { useAppStore } from "./appStore";
+import {
+  beginProjectEditorEdit,
+  beginProjectEdit,
+  cancelProjectEditorEdit,
+  cancelProjectEdit,
+  commitProjectEditorEdit,
+  commitProjectEdit,
+  createProjectRuntime,
+  DEFAULT_PROJECT_CAMERA,
+  executeProjectCommand,
+  isProjectDirty,
+  markProjectSaved,
+  previewProjectCommand,
+  redoProjectCommand,
+  replaceOpenProject,
+  undoProjectCommand,
+  updateProjectEditor,
+  type ProjectCommand,
+  type ProjectCamera,
+  type ProjectEditorState,
+  type ProjectRuntime,
+} from "./projectRuntime";
 
-export type SaveStatus = { state: "idle" } | { state: "saving" } | { state: "error"; message: string };
-
-type ProjectFields = {
-  projectId: string | null;
-  revision: number;
-  name: string;
-  worlds: WorkspaceWorld[];
-  worldId: string;
-  worldName: string;
-  worldRevision: number;
-  scenarios: WorkspaceScenario[];
-  activeScenarioId: string;
-  baseline: string;
-  saveStatus: SaveStatus;
+export type ProjectStateFields = {
+  runtime: ProjectRuntime;
+  /** Changes whenever a different project replaces the workspace. */
   session: number;
 };
 
-type ProjectState = ProjectFields & {
+export type ProjectState = ProjectStateFields & {
   newProject: (name: string) => void;
-  newProjectWithWorld: (name: string, worldId: string) => Promise<void>;
-  switchWorld: (worldId: string) => Promise<void>;
-  newWorld: () => void;
-  duplicateWorld: () => void;
-  deleteWorld: (id: string) => void;
-  renameWorld: (name: string) => void;
   openProject: (id: string) => Promise<void>;
   saveProject: () => Promise<void>;
-  listProjects: () => ReturnType<ProjectRepository["listProjects"]>;
-  listWorlds: () => Promise<WorldSummary[]>;
-  attachScenario: (scenario: Scenario) => void;
+  exportProject: () => PortableProjectFile;
+  importProject: (file: PortableProjectFile) => Promise<void>;
+
   renameProject: (name: string) => void;
   selectScenario: (id: string) => void;
   createScenario: () => void;
   duplicateScenario: (id: string) => void;
   renameScenario: (id: string, name: string) => void;
   deleteScenario: (id: string) => void;
-  updateScenarioVehiclePlan: (scenarioId: string, vehicleId: string, patch: Partial<ScenarioVehiclePlan>) => void;
-  /** Clears one vehicle's plan entry in every scenario of every world, as one edit. */
-  removeVehiclePlans: (vehicleId: string) => void;
-  exportProject: () => PortableProjectFile;
-  importProject: (file: PortableProjectFile) => Promise<void>;
+  replaceVehicleTransitions: (scenarioId: string, vehicleId: string, transitions: VehicleTransition[]) => void;
+
+  createVehicle: () => string | null;
+  duplicateVehicle: (id: string) => string | null;
+  updateVehicle: (id: string, patch: Partial<ProjectVehicle>) => void;
+  deleteVehicle: (id: string) => void;
+
+  selectPreset: (id: string | null) => void;
+  createPreset: () => string;
+  duplicatePreset: (id: string) => string | null;
+  updatePreset: (id: string, patch: Partial<VehiclePreset>) => void;
+  deletePreset: (id: string) => boolean;
+  updateAnalysis: (patch: Partial<ProjectAnalysisSettings>) => void;
+
+  setPlanSelectedYear: (year: number) => void;
+  resetPlanSelectedYear: () => void;
+  setPlanPlaying: (playing: boolean) => void;
+  setCompareScenario: (slot: "A" | "B", id: string | null) => void;
+  setCompareSelectedYear: (year: number) => void;
+  resetCompareSelectedYear: () => void;
+  setComparePlaying: (playing: boolean) => void;
+  selectProjectEntity: (selection: ProjectEntityReference | null) => void;
+  setInteractionMode: (mode: ProjectEditorState["interactionMode"]) => void;
+  setTransformMode: (mode: ProjectEditorState["transformMode"]) => void;
+  setTransformSpace: (space: ProjectEditorState["transformSpace"]) => void;
+  setSnapEnabled: (enabled: boolean) => void;
+  setLightIntensity: (intensity: number) => void;
+  setCamera: (camera: ProjectCamera) => void;
+  resetCamera: () => void;
+  setProjectEntityTransform: (reference: ProjectEntityReference, transform: Transform) => void;
+
+  executeCommand: (command: ProjectCommand) => void;
+  beginEdit: () => void;
+  previewCommand: (command: ProjectCommand) => void;
+  commitEdit: () => void;
+  cancelEdit: () => void;
+  beginEditorEdit: () => void;
+  commitEditorEdit: () => void;
+  cancelEditorEdit: () => void;
+  undo: () => void;
+  redo: () => void;
+  updateEditor: (patch: Partial<ProjectEditorState>) => void;
 };
 
-let repository: ProjectRepository = createIndexedDbProjectRepository();
-export function setProjectRepository(next: ProjectRepository) { repository = next; }
+function initialProject(name: string): ProjectDocument {
+  return createProject({ id: crypto.randomUUID(), name, vehiclePresets: createMockPresets() });
+}
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
-const newScenario = (worldId: string, name: string): WorkspaceScenario => ({
-  id: crypto.randomUUID(), worldId, name, revision: 0, worldRevision: 0, document: createScenarioDocument(),
-});
+export function createProjectState(document: ProjectDocument = initialProject("Untitled project"), session = 0): ProjectStateFields {
+  return { runtime: createProjectRuntime(document), session };
+}
 
-/** Stored scenarios may be legacy version 1, so every one is upgraded on the way in. */
-const toWorkspaceScenario = (scenario: Scenario): WorkspaceScenario => ({ ...clone(scenario), document: toM1ScenarioDocument(scenario.document) });
+export function setProjectRepository(next: ProjectRepository): void {
+  setProjectRepositoryInstance(next);
+  useAppStore.getState().resetRepositoryState();
+}
 
-function scenarioName(scenarios: WorkspaceScenario[]) {
+function nextScenarioName(scenarios: readonly ProjectScenario[]): string {
   const names = new Set(scenarios.map((scenario) => scenario.name));
-  for (let index = 0; ; index++) {
-    const name = `Plan ${index < 26 ? String.fromCharCode(65 + index) : index + 1}`;
-    if (!names.has(name)) return name;
+  for (let index = 0; ; index += 1) {
+    const candidate = `Plan ${index < 26 ? String.fromCharCode(65 + index) : index + 1}`;
+    if (!names.has(candidate)) return candidate;
   }
 }
 
-function createWorkspaceWorld(name: string, document: SceneDocument, id = crypto.randomUUID()): WorkspaceWorld {
-  const scenario = newScenario(id, "Plan A");
-  return { id, name, revision: 0, document: clone(document), scenarios: [scenario] };
+function nextEntityName(prefix: string, names: readonly string[]): string {
+  const used = new Set(names);
+  for (let index = 1; ; index += 1) {
+    const candidate = `${prefix} ${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
 }
 
-type ProjectInputs = { presets: VehiclePreset[]; fleet: FleetVehicle[]; analysis: AnalysisSettings };
-
-function serializeSnapshot(name: string, activeWorldId: string, worlds: WorkspaceWorld[], inputs: ProjectInputs) {
-  return JSON.stringify({
-    name,
-    activeWorldId,
-    worlds: worlds.map((world) => ({
-      id: world.id,
-      name: world.name,
-      document: world.document,
-      scenarios: world.scenarios.map(({ id, name: scenarioNameValue, document }) => ({ id, name: scenarioNameValue, document })),
-    })),
-    presets: inputs.presets,
-    fleet: inputs.fleet,
-    analysis: inputs.analysis,
-  });
+function positionsEqual(left: Transform["position"], right: Transform["position"]): boolean {
+  return left.every((value, index) => value === right[index]);
 }
 
-/** Everything a fresh, unsaved project starts from. */
-const mockInputs = (): ProjectInputs => ({ presets: createMockPresets(), fleet: createMockFleet(), analysis: createMockAnalysis() });
-
-function withActiveScene(worlds: WorkspaceWorld[], activeWorldId: string, document: SceneDocument): WorkspaceWorld[] {
-  return worlds.map((world) => world.id === activeWorldId ? { ...world, document: clone(document) } : world);
+function camerasEqual(left: ProjectCamera, right: ProjectCamera): boolean {
+  return left.position.every((value, index) => Math.abs(value - right.position[index]) < 1e-6)
+    && left.target.every((value, index) => Math.abs(value - right.target[index]) < 1e-6);
 }
 
-function activeFields(world: WorkspaceWorld, preferredScenarioId?: string) {
-  const scenario = world.scenarios.find((item) => item.id === preferredScenarioId) ?? world.scenarios[0];
-  if (!scenario) throw new Error("A world needs at least one scenario.");
+function nextSpawnTransform(vehicles: readonly ProjectVehicle[]): Transform | undefined {
+  const transform = DEFAULT_VEHICLE_SPAWN_TRANSFORMS.find((candidate) =>
+    !vehicles.some((vehicle) => positionsEqual(vehicle.transform.position, candidate.position)));
+  return transform ? structuredClone(transform) : undefined;
+}
+
+function newVehicle(document: ProjectDocument, transform: Transform): ProjectVehicle {
   return {
-    worldId: world.id,
-    worldName: world.name,
-    worldRevision: world.revision,
-    scenarios: clone(world.scenarios),
-    activeScenarioId: scenario.id,
+    id: crypto.randomUUID(),
+    name: nextEntityName("Vehicle", document.environment.vehicles.map((vehicle) => vehicle.name)),
+    baselinePresetId: document.vehiclePresets[0]?.id ?? null,
+    transform,
+    annualKm: 0,
+    typicalDailyKm: 0,
+    operatingDays: 250,
+    utilisation: 1,
+    routePattern: "predictable",
+    returnsToDepot: true,
+    depotDwellHours: 12,
+    externalChargingAccess: false,
+    replacementYear: null,
+    currentHolding: { kind: "owned", currentValue: 0, endResidualValue: 0 },
   };
 }
 
-export function createProjectFields(name = "Untitled project", world: SceneDocument = createDocument(), session = 0, inputs: ProjectInputs = mockInputs()): ProjectFields {
-  const workspaceWorld = createWorkspaceWorld(`${name} world`, world);
+function newPreset(document: ProjectDocument): VehiclePreset {
   return {
-    projectId: null,
-    revision: 0,
-    name,
-    worlds: [workspaceWorld],
-    ...activeFields(workspaceWorld),
-    baseline: serializeSnapshot(name, workspaceWorld.id, [workspaceWorld], inputs),
-    saveStatus: { state: "idle" },
-    session,
+    id: crypto.randomUUID(),
+    name: nextEntityName("Vehicle preset", document.vehiclePresets.map((preset) => preset.name)),
+    category: "Van",
+    propulsion: "electric",
+    modelId: "van",
+    litresPer100Km: 0,
+    kWhPer100Km: 0,
+    batteryCapacityKWh: 0,
+    chargingPowerKW: 0,
+    purchaseCost: 0,
+    maintenanceCostPerYear: 0,
+    rangeKm: null,
+    chargingEfficiency: 1,
+    acquisition: { kind: "owned", endResidualValue: 0 },
   };
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => {
-  const scene = () => useSceneStore.getState();
-  const presets = () => usePresetStore.getState();
-  const fleet = () => useFleetStore.getState();
-  const inputs = (): ProjectInputs => ({ presets: clone(presets().presets), fleet: clone(fleet().vehicles), analysis: { ...fleet().analysis } });
-
-  /** Applies project-owned inputs to the stores that own them. */
-  const loadInputs = (document: ReturnType<typeof toM1ProjectDocument>) => {
-    presets().replacePresets(document.vehiclePresets);
-    fleet().updateAnalysis(document.analysis);
-    fleet().replaceFleet(document.fleetVehicles);
+  const setRuntime = (runtime: ProjectRuntime, session = get().session) => set({ runtime, session });
+  const applyRuntime = (runtime: ProjectRuntime) => setRuntime(runtime);
+  const applyCommand = (command: ProjectCommand) => {
+    const runtime = get().runtime;
+    applyRuntime(runtime.history.activeEdit ? previewProjectCommand(runtime, command) : executeProjectCommand(runtime, command));
   };
-
-  const captureWorlds = () => withActiveScene(get().worlds, get().worldId, scene().document);
-
-  const setActiveWorld = (worlds: WorkspaceWorld[], worldId: string, preferredScenarioId?: string) => {
-    const world = worlds.find((item) => item.id === worldId);
-    if (!world) throw new Error("The selected world is not part of this project.");
-    set({ worlds, ...activeFields(world, preferredScenarioId), saveStatus: { state: "idle" } });
-    scene().loadDocument(world.document);
+  const safelyApply = (command: ProjectCommand) => {
+    try { applyCommand(command); } catch { /* Inputs may be temporarily invalid while a field is being edited. */ }
   };
-
-  const replaceActiveWorld = (update: (world: WorkspaceWorld) => WorkspaceWorld) => {
-    const worlds = captureWorlds();
-    const index = worlds.findIndex((world) => world.id === get().worldId);
-    if (index < 0) return;
-    const nextWorld = update(worlds[index]);
-    const nextWorlds = worlds.with(index, nextWorld);
-    set({ worlds: nextWorlds, ...activeFields(nextWorld, get().activeScenarioId) });
+  const loadRecord = (record: Awaited<ReturnType<ProjectRepository["getProject"]>>) => {
+    const metadata = { revision: record.revision, createdAt: record.createdAt, updatedAt: record.updatedAt };
+    setRuntime(replaceOpenProject(get().runtime, record.document, metadata), get().session + 1);
+    useAppStore.getState().setRepositoryStatus({ state: "idle" });
   };
-
-  const loadWorkspace = (record: WorkspaceRecord) => {
-    const scenariosByWorld = new Map<string, Scenario[]>();
-    for (const scenario of record.scenarios) {
-      const list = scenariosByWorld.get(scenario.worldId) ?? [];
-      list.push(scenario);
-      scenariosByWorld.set(scenario.worldId, list);
-    }
-    const worlds: WorkspaceWorld[] = record.worlds.map((world) => {
-      const worldScenarios = scenariosByWorld.get(world.id) ?? [];
-      return {
-        ...clone(world),
-        scenarios: worldScenarios.length ? worldScenarios.map(toWorkspaceScenario) : [newScenario(world.id, "Plan A")],
-      };
-    });
-    if (!worlds.length) throw new Error("This project has no worlds.");
-    const activeWorld = worlds.find((world) => world.id === record.project.worldId) ?? worlds[0];
-    // Legacy version 2 documents carry presets only; T03 supplies the M1 shape.
-    const document = toM1ProjectDocument(record.project.document);
-    set({
-      projectId: record.project.id,
-      revision: record.project.revision,
-      name: record.project.name,
-      worlds,
-      ...activeFields(activeWorld),
-      baseline: serializeSnapshot(record.project.name, activeWorld.id, worlds, { presets: document.vehiclePresets, fleet: document.fleetVehicles, analysis: document.analysis }),
-      saveStatus: { state: "idle" },
-      session: get().session + 1,
-    });
-    scene().loadDocument(activeWorld.document);
-    loadInputs(document);
-  };
+  const setSaveStatus = (saveStatus: ProjectRuntime["saveStatus"]) => setRuntime({ ...get().runtime, saveStatus });
 
   return {
-    ...createProjectFields("Untitled project", useSceneStore.getState().document, 0, {
-      presets: usePresetStore.getState().presets,
-      fleet: useFleetStore.getState().vehicles,
-      analysis: useFleetStore.getState().analysis,
-    }),
+    ...createProjectState(),
 
     newProject: (name) => {
       if (validateName(name)) return;
-      const next = mockInputs();
-      const world = createDocument();
-      set(createProjectFields(name.trim(), world, get().session + 1, next));
-      scene().loadDocument(world);
-      loadInputs(createProjectDocument(next.presets, next.fleet, next.analysis));
+      set(createProjectState(initialProject(name.trim()), get().session + 1));
+      useAppStore.getState().setRepositoryStatus({ state: "idle" });
     },
-
-    newProjectWithWorld: async (name, worldId) => {
-      if (validateName(name)) return;
-      const world = await repository.getWorld(worldId);
-      const next = mockInputs();
-      const workspaceWorld: WorkspaceWorld = { ...clone(world), scenarios: [newScenario(world.id, "Plan A")] };
-      set({
-        projectId: null,
-        revision: 0,
-        name: name.trim(),
-        worlds: [workspaceWorld],
-        ...activeFields(workspaceWorld),
-        baseline: serializeSnapshot(name.trim(), world.id, [workspaceWorld], next),
-        saveStatus: { state: "idle" },
-        session: get().session + 1,
-      });
-      scene().loadDocument(world.document);
-      loadInputs(createProjectDocument(next.presets, next.fleet, next.analysis));
-    },
-
-    switchWorld: async (worldId) => {
-      if (worldId === get().worldId) return;
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-      let worlds = captureWorlds();
-      let target = worlds.find((world) => world.id === worldId);
-      if (!target) {
-        const saved = await repository.getWorld(worldId);
-        target = { ...clone(saved), scenarios: [newScenario(saved.id, "Plan A")] };
-        worlds = [...worlds, target];
+    openProject: async (id) => {
+      useAppStore.getState().setRepositoryStatus({ state: "loading" });
+      try { loadRecord(await getProjectRepository().getProject(id)); }
+      catch (error) {
+        useAppStore.getState().setRepositoryStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be opened." });
+        throw error;
       }
-      setActiveWorld(worlds, target.id);
     },
-
-    newWorld: () => {
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-      const worlds = captureWorlds();
-      const world = createWorkspaceWorld("New world", createDocument());
-      const nextWorlds = [...worlds, world];
-      set({ worlds: nextWorlds, ...activeFields(world), saveStatus: { state: "idle" } });
-      scene().loadDocument(world.document);
-    },
-
-    duplicateWorld: () => {
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-      const worlds = captureWorlds();
-      const source = worlds.find((world) => world.id === get().worldId);
-      if (!source) return;
-      const world = createWorkspaceWorld(`${source.name} copy`.slice(0, NAME_MAX_LENGTH), source.document);
-      const nextWorlds = [...worlds, world];
-      set({ worlds: nextWorlds, ...activeFields(world), saveStatus: { state: "idle" } });
-      scene().loadDocument(world.document);
-    },
-
-    deleteWorld: (id) => {
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-      const worlds = captureWorlds();
-      if (worlds.length <= 1) return;
-      const index = worlds.findIndex((world) => world.id === id);
-      if (index < 0) return;
-      const remaining = worlds.toSpliced(index, 1);
-
-      if (id !== get().worldId) {
-        set({ worlds: remaining, saveStatus: { state: "idle" } });
-        return;
-      }
-
-      const nextWorld = remaining[Math.min(index, remaining.length - 1)];
-      if (!nextWorld) return;
-      set({ worlds: remaining, ...activeFields(nextWorld), saveStatus: { state: "idle" } });
-      scene().loadDocument(nextWorld.document);
-    },
-
-    renameWorld: (name) => {
-      if (validateName(name)) return;
-      replaceActiveWorld((world) => ({ ...world, name: name.trim() }));
-    },
-
-    openProject: async (id) => loadWorkspace(await repository.getWorkspace(id)),
-    listProjects: () => repository.listProjects(),
-    listWorlds: () => repository.listWorlds(),
-
     saveProject: async () => {
-      const state = get();
-      if (state.saveStatus.state === "saving") return;
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-
-      const capturedWorlds = captureWorlds();
-      const capturedInputs = inputs();
-      const projectId = state.projectId ?? crypto.randomUUID();
-      const allScenarios = capturedWorlds.flatMap((world) => world.scenarios.map((scenario) => ({ ...scenario, worldId: world.id })));
-      const base: WorkspaceSaveInput = {
-        project: { id: projectId, name: state.name, activeWorldId: state.worldId, document: createProjectDocument(capturedInputs.presets, capturedInputs.fleet, capturedInputs.analysis) },
-        worlds: capturedWorlds.map((world) => ({ id: world.id, name: world.name, expectedRevision: world.revision, document: clone(world.document) })),
-        scenarios: allScenarios.map((scenario) => ({ id: scenario.id, worldId: scenario.worldId, name: scenario.name, expectedRevision: scenario.revision, document: clone(scenario.document) })),
-      };
-      const capturedBaseline = serializeSnapshot(state.name, state.worldId, capturedWorlds, capturedInputs);
-      const session = state.session;
-      const preferredScenarioId = state.activeScenarioId;
-      set({ worlds: capturedWorlds, saveStatus: { state: "saving" } });
-
+      if (get().runtime.saveStatus.state === "saving") return;
+      const capturedRuntime = commitProjectEdit(get().runtime);
+      setRuntime({ ...capturedRuntime, saveStatus: { state: "saving" } });
+      const capturedDocument = copyProject(capturedRuntime.document);
+      const capturedSession = get().session;
       try {
-        const record = state.projectId
-          ? await repository.updateWorkspace({ ...base, project: { ...base.project, expectedRevision: state.revision } })
-          : await repository.createWorkspace(base);
-        if (get().session !== session) return;
-
-        const scenariosByWorld = new Map<string, Scenario[]>();
-        for (const scenario of record.scenarios) {
-          const list = scenariosByWorld.get(scenario.worldId) ?? [];
-          list.push(scenario);
-          scenariosByWorld.set(scenario.worldId, list);
-        }
-        const savedWorlds: WorkspaceWorld[] = record.worlds.map((world) => ({
-          ...clone(world),
-          scenarios: (scenariosByWorld.get(world.id) ?? []).map(toWorkspaceScenario),
-        }));
-        const activeWorld = savedWorlds.find((world) => world.id === state.worldId) ?? savedWorlds[0];
-        if (!activeWorld) throw new Error("The saved project has no worlds.");
-        set({
-          projectId: record.project.id,
-          revision: record.project.revision,
-          name: record.project.name,
-          worlds: savedWorlds,
-          ...activeFields(activeWorld, preferredScenarioId),
-          baseline: capturedBaseline,
-          saveStatus: { state: "idle" },
-        });
+        const record = capturedRuntime.record
+          ? await getProjectRepository().updateProject(capturedDocument, capturedRuntime.record.revision)
+          : await getProjectRepository().createProject(capturedDocument);
+        if (get().session !== capturedSession) return;
+        setRuntime(markProjectSaved(get().runtime, {
+          revision: record.revision,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+        }, capturedDocument));
+        setSaveStatus({ state: "idle" });
       } catch (error) {
-        if (get().session !== session) return;
-        set({ saveStatus: { state: "error", message: error instanceof Error ? error.message : "The project could not be saved." } });
+        if (get().session !== capturedSession) return;
+        setSaveStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be saved." });
       }
     },
-
-    renameProject: (name) => { if (!validateName(name)) set({ name: name.trim() }); },
-    selectScenario: (id) => { if (get().scenarios.some((scenario) => scenario.id === id)) set({ activeScenarioId: id }); },
-
-    createScenario: () => {
-      replaceActiveWorld((world) => {
-        const scenario = newScenario(world.id, scenarioName(world.scenarios));
-        set({ activeScenarioId: scenario.id });
-        return { ...world, scenarios: [...world.scenarios, scenario] };
-      });
-    },
-
-    duplicateScenario: (id) => {
-      replaceActiveWorld((world) => {
-        const index = world.scenarios.findIndex((scenario) => scenario.id === id);
-        if (index < 0) return world;
-        const source = world.scenarios[index];
-        const copy: WorkspaceScenario = {
-          ...clone(source),
-          document: cloneScenarioDocument(source.document),
-          id: crypto.randomUUID(),
-          worldId: world.id,
-          revision: 0,
-          worldRevision: world.revision,
-          name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH),
-          createdAt: undefined,
-          updatedAt: undefined,
-        };
-        set({ activeScenarioId: copy.id });
-        return { ...world, scenarios: world.scenarios.toSpliced(index + 1, 0, copy) };
-      });
-    },
-
-    renameScenario: (id, name) => {
-      if (validateName(name)) return;
-      replaceActiveWorld((world) => ({ ...world, scenarios: world.scenarios.map((scenario) => scenario.id === id ? { ...scenario, name: name.trim() } : scenario) }));
-    },
-
-    deleteScenario: (id) => {
-      const world = captureWorlds().find((item) => item.id === get().worldId);
-      if (!world) return;
-      const index = world.scenarios.findIndex((scenario) => scenario.id === id);
-      if (index < 0 || world.scenarios.length <= 1) return;
-      const remaining = world.scenarios.toSpliced(index, 1);
-      const activeScenarioId = get().activeScenarioId === id ? remaining[Math.min(index, remaining.length - 1)].id : get().activeScenarioId;
-      const worlds = captureWorlds().map((item) => item.id === world.id ? { ...item, scenarios: remaining } : item);
-      set({ worlds, scenarios: clone(remaining), activeScenarioId });
-    },
-
-    updateScenarioVehiclePlan: (scenarioId, vehicleId, patch) => {
-      // T03 reference rules: a plan may only name a vehicle and preset this
-      // project has, in a year inside its analysis period.
-      if (!fleet().vehicles.some((vehicle) => vehicle.id === vehicleId)) return;
-      if (!isYearInPeriod(fleet().analysis, patch.transitionYear)) return;
-      if (patch.targetPresetId !== undefined && !presets().presets.some((preset) => preset.id === patch.targetPresetId)) return;
-
-      replaceActiveWorld((world) => ({
-        ...world,
-        scenarios: world.scenarios.map((scenario) => {
-          if (scenario.id !== scenarioId) return scenario;
-          const current = scenario.document.vehiclePlans[vehicleId] ?? {};
-          return {
-            ...scenario,
-            document: {
-              ...scenario.document,
-              vehiclePlans: { ...scenario.document.vehiclePlans, [vehicleId]: { ...current, ...patch } },
-            },
-          };
-        }),
-      }));
-    },
-
-    removeVehiclePlans: (vehicleId) => {
-      const worlds = captureWorlds().map((world) => ({
-        ...world,
-        scenarios: world.scenarios.map((scenario) => scenario.document.vehiclePlans[vehicleId]
-          ? { ...scenario, document: { ...scenario.document, vehiclePlans: withoutVehiclePlan(scenario.document.vehiclePlans, vehicleId) } }
-          : scenario),
-      }));
-      const active = worlds.find((world) => world.id === get().worldId);
-      set(active ? { worlds, ...activeFields(active, get().activeScenarioId) } : { worlds });
-    },
-
     exportProject: () => {
-      scene().commitEdit();
-      presets().commitEdit();
-      fleet().commitEdit();
-      const state = get();
-      const captured = inputs();
-      const worlds = withActiveScene(state.worlds, state.worldId, scene().document);
-      return createPortableProject({
-        projectName: state.name,
-        projectDocument: createProjectDocument(captured.presets, captured.fleet, captured.analysis),
-        worlds: worlds.map((world) => ({ name: world.name, document: clone(world.document), scenarios: world.scenarios.map((scenario) => ({ name: scenario.name, document: clone(scenario.document) })) })),
-        activeWorldIndex: Math.max(0, worlds.findIndex((world) => world.id === state.worldId)),
-        activeScenarioIndex: Math.max(0, state.scenarios.findIndex((scenario) => scenario.id === state.activeScenarioId)),
-      });
+      const runtime = commitProjectEdit(get().runtime);
+      setRuntime(runtime);
+      return createPortableProject(runtime.document);
     },
-
     importProject: async (file) => {
-      const projectId = crypto.randomUUID();
-      const worlds = file.worlds.map((world) => {
-        const worldId = crypto.randomUUID();
-        return {
-          id: worldId,
-          name: world.name,
-          expectedRevision: 0,
-          document: clone(world.document),
-          scenarios: world.scenarios.map((scenario) => ({ id: crypto.randomUUID(), worldId, name: scenario.name, expectedRevision: 0, document: clone(scenario.document) })),
-        };
+      const source = file.document;
+      const document = createProject({
+        id: crypto.randomUUID(),
+        name: source.name,
+        depot: source.environment.depot,
+        vehicles: source.environment.vehicles,
+        vehiclePresets: source.vehiclePresets,
+        scenarios: source.scenarios,
+        activeScenarioId: source.activeScenarioId,
+        analysis: source.analysis,
       });
-      const activeWorld = worlds[file.activeWorldIndex] ?? worlds[0];
-      if (!activeWorld) throw new Error("The imported project has no worlds.");
-      const record = await repository.createWorkspace({
-        project: { id: projectId, name: file.project.name, activeWorldId: activeWorld.id, document: clone(file.project.document) },
-        worlds: worlds.map(({ scenarios: _scenarios, ...world }) => world),
-        scenarios: worlds.flatMap((world) => world.scenarios),
-      });
-      loadWorkspace(record);
-      const importedActiveWorld = get().worlds[file.activeWorldIndex];
-      if (importedActiveWorld) {
-        const importedScenario = importedActiveWorld.scenarios[file.activeScenarioIndex];
-        setActiveWorld(get().worlds, importedActiveWorld.id, importedScenario?.id);
+      useAppStore.getState().setRepositoryStatus({ state: "loading" });
+      try { loadRecord(await getProjectRepository().createProject(document)); }
+      catch (error) {
+        useAppStore.getState().setRepositoryStatus({ state: "error", message: error instanceof Error ? error.message : "The project could not be imported." });
+        throw error;
       }
     },
 
-    attachScenario: (scenario) => {
-      if (scenario.worldId !== get().worldId || get().scenarios.some((item) => item.id === scenario.id)) return;
-      replaceActiveWorld((world) => ({ ...world, scenarios: [...world.scenarios, toWorkspaceScenario(scenario)] }));
-      set({ activeScenarioId: scenario.id });
+    renameProject: (name) => { if (!validateName(name)) safelyApply({ type: "rename-project", name: name.trim() }); },
+    selectScenario: (id) => {
+      if (get().runtime.document.scenarios.some((scenario) => scenario.id === id)) safelyApply({ type: "set-active-scenario", scenarioId: id });
     },
+    createScenario: () => safelyApply({
+      type: "create-scenario",
+      scenario: { id: crypto.randomUUID(), name: nextScenarioName(get().runtime.document.scenarios) },
+    }),
+    duplicateScenario: (id) => {
+      const source = get().runtime.document.scenarios.find((scenario) => scenario.id === id);
+      if (source) safelyApply({
+        type: "duplicate-scenario",
+        sourceScenarioId: id,
+        scenario: { id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) },
+      });
+    },
+    renameScenario: (id, name) => { if (!validateName(name)) safelyApply({ type: "rename-scenario", scenarioId: id, name: name.trim() }); },
+    deleteScenario: (id) => safelyApply({ type: "delete-scenario", scenarioId: id }),
+    replaceVehicleTransitions: (scenarioId, vehicleId, transitions) => safelyApply({ type: "replace-vehicle-transitions", scenarioId, vehicleId, transitions }),
+
+    createVehicle: () => {
+      const document = get().runtime.document;
+      if (document.environment.vehicles.length >= PROJECT_FLEET_CAPACITY) return null;
+      const transform = nextSpawnTransform(document.environment.vehicles);
+      if (!transform) return null;
+      const vehicle = newVehicle(document, transform);
+      safelyApply({ type: "create-vehicle", vehicle });
+      return vehicle.id;
+    },
+    duplicateVehicle: (id) => {
+      const document = get().runtime.document;
+      const source = document.environment.vehicles.find((vehicle) => vehicle.id === id);
+      const transform = nextSpawnTransform(document.environment.vehicles);
+      if (!source || !transform || document.environment.vehicles.length >= PROJECT_FLEET_CAPACITY) return null;
+      const vehicle = { ...structuredClone(source), id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH), transform };
+      safelyApply({ type: "create-vehicle", vehicle });
+      return vehicle.id;
+    },
+    updateVehicle: (id, patch) => safelyApply({ type: "update-vehicle", vehicleId: id, patch }),
+    deleteVehicle: (id) => safelyApply({ type: "delete-vehicle", vehicleId: id }),
+
+    selectPreset: (id) => get().updateEditor({ selectedPresetId: id }),
+    createPreset: () => {
+      const preset = newPreset(get().runtime.document);
+      safelyApply({ type: "create-vehicle-preset", preset });
+      get().updateEditor({ selectedPresetId: preset.id });
+      return preset.id;
+    },
+    duplicatePreset: (id) => {
+      const source = get().runtime.document.vehiclePresets.find((preset) => preset.id === id);
+      if (!source) return null;
+      const preset = { ...structuredClone(source), id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) };
+      safelyApply({ type: "create-vehicle-preset", preset });
+      get().updateEditor({ selectedPresetId: preset.id });
+      return preset.id;
+    },
+    updatePreset: (id, patch) => safelyApply({ type: "update-vehicle-preset", presetId: id, patch }),
+    deletePreset: (id) => {
+      const document = get().runtime.document;
+      if (!document.vehiclePresets.some((preset) => preset.id === id) || vehiclePresetReferences(document, id).length) return false;
+      safelyApply({ type: "delete-vehicle-preset", presetId: id });
+      return true;
+    },
+    updateAnalysis: (patch) => safelyApply({ type: "update-analysis", patch }),
+
+    setPlanSelectedYear: (year) => get().updateEditor({ plan: { ...get().runtime.editor.plan, selectedYear: year } }),
+    resetPlanSelectedYear: () => get().updateEditor({ plan: { ...get().runtime.editor.plan, selectedYear: get().runtime.document.analysis.startYear } }),
+    setPlanPlaying: (playing) => get().updateEditor({ plan: { ...get().runtime.editor.plan, playing } }),
+    setCompareScenario: (slot, id) => get().updateEditor({
+      compare: {
+        ...get().runtime.editor.compare,
+        ...(slot === "A" ? { scenarioAId: id } : { scenarioBId: id }),
+      },
+    }),
+    setCompareSelectedYear: (year) => get().updateEditor({ compare: { ...get().runtime.editor.compare, selectedYear: year } }),
+    resetCompareSelectedYear: () => get().updateEditor({ compare: { ...get().runtime.editor.compare, selectedYear: get().runtime.document.analysis.startYear } }),
+    setComparePlaying: (playing) => get().updateEditor({ compare: { ...get().runtime.editor.compare, playing } }),
+    selectProjectEntity: (selection) => get().updateEditor({ selection }),
+    setInteractionMode: (interactionMode) => get().updateEditor({ interactionMode }),
+    setTransformMode: (transformMode) => get().updateEditor({ transformMode }),
+    setTransformSpace: (transformSpace) => get().updateEditor({ transformSpace }),
+    setSnapEnabled: (snapEnabled) => get().updateEditor({ snapEnabled }),
+    setLightIntensity: (lightIntensity) => get().updateEditor({ lightIntensity: Math.max(0, Math.min(100, lightIntensity)) }),
+    setCamera: (camera) => {
+      if (!camerasEqual(get().runtime.editor.camera, camera)) get().updateEditor({ camera });
+    },
+    resetCamera: () => get().updateEditor({
+      camera: structuredClone(DEFAULT_PROJECT_CAMERA),
+      cameraRevision: get().runtime.editor.cameraRevision + 1,
+    }),
+    setProjectEntityTransform: (reference, transform) => safelyApply(reference.kind === "depot"
+      ? { type: "set-depot-transform", transform }
+      : { type: "set-vehicle-transform", vehicleId: reference.id, transform }),
+
+    executeCommand: (command) => applyRuntime(executeProjectCommand(get().runtime, command)),
+    beginEdit: () => setRuntime(beginProjectEdit(get().runtime)),
+    previewCommand: (command) => applyRuntime(previewProjectCommand(get().runtime, command)),
+    commitEdit: () => setRuntime(commitProjectEdit(get().runtime)),
+    cancelEdit: () => applyRuntime(cancelProjectEdit(get().runtime)),
+    beginEditorEdit: () => setRuntime(beginProjectEditorEdit(get().runtime)),
+    commitEditorEdit: () => setRuntime(commitProjectEditorEdit(get().runtime)),
+    cancelEditorEdit: () => setRuntime(cancelProjectEditorEdit(get().runtime)),
+    undo: () => applyRuntime(undoProjectCommand(get().runtime)),
+    redo: () => applyRuntime(redoProjectCommand(get().runtime)),
+    updateEditor: (patch) => setRuntime(updateProjectEditor(get().runtime, patch)),
   };
 });
 
-export function useProjectDirty() {
-  const world = useSceneStore((state) => state.document);
-  const presets = usePresetStore((state) => state.presets);
-  const fleet = useFleetStore((state) => state.vehicles);
-  const analysis = useFleetStore((state) => state.analysis);
-  const name = useProjectStore((state) => state.name);
-  const worlds = useProjectStore((state) => state.worlds);
-  const worldId = useProjectStore((state) => state.worldId);
-  const baseline = useProjectStore((state) => state.baseline);
-  return useMemo(() => serializeSnapshot(name, worldId, withActiveScene(worlds, worldId, world), { presets, fleet, analysis }) !== baseline,
-    [name, worlds, worldId, world, presets, fleet, analysis, baseline]);
+export function useProjectDirty(): boolean {
+  return useProjectStore((state) => isProjectDirty(state.runtime));
 }
-
-// Scene edits are workspace edits first. Keep the active World's in-memory document synchronized,
-// but do not touch IndexedDB until Save Project is explicitly used.
-useSceneStore.subscribe((state, previous) => {
-  if (state.document === previous.document) return;
-  const project = useProjectStore.getState();
-  if (!project.worlds.some((world) => world.id === project.worldId)) return;
-  useProjectStore.setState({
-    worlds: project.worlds.map((world) => world.id === project.worldId ? { ...world, document: state.document } : world),
-  });
-});

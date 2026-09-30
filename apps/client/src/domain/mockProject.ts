@@ -1,5 +1,5 @@
-import type { AnalysisSettings, FleetVehicle } from "./contracts";
-import { normalizeFleetVehicle } from "./fleet";
+import { DEFAULT_VEHICLE_SPAWN_TRANSFORMS } from "./depotLayout";
+import type { ProjectAnalysisSettings, ProjectVehicle } from "./project";
 import { normalizePreset, type VehiclePreset } from "../vehicles/types";
 
 /**
@@ -49,39 +49,39 @@ const presetSeed: VehiclePreset[] = [
 
 // Daily distance times operating days reproduces annual distance exactly, so the
 // seed cannot be read as two disagreeing statements about the same vehicle.
-const fleetSeed: FleetVehicle[] = [
+const fleetSeed: ProjectVehicle[] = [
   {
-    id: "UNIT-01", name: "City Delivery Van", currentPresetId: "diesel-van",
+    id: "UNIT-01", name: "City Delivery Van", baselinePresetId: "diesel-van", transform: structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS[0]),
     annualKm: 28_000, typicalDailyKm: 112, operatingDays: 250, utilisation: 0.85,
     routePattern: "predictable", returnsToDepot: true, depotDwellHours: 12, externalChargingAccess: true,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 18_000, endResidualValue: 4_000 },
   },
   {
-    id: "UNIT-02", name: "Regional Hauler", currentPresetId: "diesel-box-truck",
+    id: "UNIT-02", name: "Regional Hauler", baselinePresetId: "diesel-box-truck", transform: structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS[1]),
     annualKm: 54_000, typicalDailyKm: 216, operatingDays: 250, utilisation: 0.95,
     routePattern: "variable", returnsToDepot: true, depotDwellHours: 8, externalChargingAccess: false,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 34_000, endResidualValue: 7_000 },
   },
   {
-    id: "UNIT-03", name: "Urban Courier", currentPresetId: "electric-van",
+    id: "UNIT-03", name: "Urban Courier", baselinePresetId: "electric-van", transform: structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS[2]),
     annualKm: 19_000, typicalDailyKm: 76, operatingDays: 250, utilisation: 0.6,
     routePattern: "predictable", returnsToDepot: true, depotDwellHours: 14, externalChargingAccess: true,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 27_000, endResidualValue: 8_000 },
   },
   {
-    id: "UNIT-04", name: "Service Support", currentPresetId: "hybrid-van",
+    id: "UNIT-04", name: "Service Support", baselinePresetId: "hybrid-van", transform: structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS[3]),
     annualKm: 32_000, typicalDailyKm: 128, operatingDays: 250, utilisation: 0.8,
     routePattern: "variable", returnsToDepot: true, depotDwellHours: 10, externalChargingAccess: true,
     replacementYear: null, currentHolding: { kind: "leased", annualPayment: 7_200, exitFee: 1_500 },
   },
   {
-    id: "UNIT-05", name: "Depot Shuttle", currentPresetId: "diesel-van",
+    id: "UNIT-05", name: "Depot Shuttle", baselinePresetId: "diesel-van", transform: structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS[4]),
     annualKm: 24_000, typicalDailyKm: 96, operatingDays: 250, utilisation: 0.7,
     routePattern: "predictable", returnsToDepot: true, depotDwellHours: 13, externalChargingAccess: false,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 15_000, endResidualValue: 3_500 },
   },
   {
-    id: "UNIT-06", name: "Long-haul Supply", currentPresetId: "diesel-box-truck",
+    id: "UNIT-06", name: "Long-haul Supply", baselinePresetId: "diesel-box-truck", transform: structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS[5]),
     annualKm: 61_000, typicalDailyKm: 244, operatingDays: 250, utilisation: 1,
     routePattern: "variable", returnsToDepot: false, depotDwellHours: 4, externalChargingAccess: false,
     replacementYear: null, currentHolding: { kind: "owned", currentValue: 41_000, endResidualValue: 9_000 },
@@ -89,13 +89,15 @@ const fleetSeed: FleetVehicle[] = [
 ];
 
 /** Common assumptions a new project starts from. The period is inclusive: 2026-2035. */
-export const defaultAnalysisSettings: AnalysisSettings = {
+export const defaultAnalysisSettings: ProjectAnalysisSettings = {
   startYear: 2026,
   yearCount: 10,
   currency: "SGD",
   fuelPricePerLitre: 2.15,
+  electricityPricePerKWh: 0.3,
   fuelEmissionsKgCo2ePerLitre: 2.7,
   electricityEmissionsKgCo2ePerKWh: 0.4,
+  discountRate: 0.05,
 };
 
 function seeded<T>(records: unknown[], normalize: (record: unknown) => T | undefined, label: string): T[] {
@@ -113,11 +115,15 @@ export function createMockPresets(): VehiclePreset[] {
   return seeded(presetSeed, (record) => normalizePreset(record), "preset");
 }
 
-export function createMockFleet(): FleetVehicle[] {
-  const presetIds = new Set(presetSeed.map((preset) => preset.id));
-  return seeded(fleetSeed, (record) => normalizeFleetVehicle(record, presetIds), "fleet vehicle");
+/**
+ * Sample fleet used by tests and the bundled sample project. This is NOT a
+ * product seed: a new project starts with an empty fleet, because which vehicles
+ * a company runs is the user's own data.
+ */
+export function createMockVehicles(): ProjectVehicle[] {
+  return structuredClone(fleetSeed);
 }
 
-export function createMockAnalysis(): AnalysisSettings {
+export function createMockAnalysis(): ProjectAnalysisSettings {
   return { ...defaultAnalysisSettings };
 }

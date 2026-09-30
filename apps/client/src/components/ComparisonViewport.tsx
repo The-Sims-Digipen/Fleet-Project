@@ -2,44 +2,17 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { MOUSE } from "three";
-import { createObject } from "../scene/catalog";
-import type { SceneObject } from "../scene/types";
+
+import type { ProjectDocument } from "../domain/project";
+import { createProjectWorld, projectEntityReferenceKey } from "../scene/projectWorld";
 import { ModelObject } from "./ModelObject";
-
-export type DemoPlanKey = "gradual" | "accelerated";
-
-const START_YEAR = 2026;
-const END_YEAR = 2035;
-
-const PARKING_BAYS: Array<[number, number]> = [
-  [-6.4, -7],
-  [-3.2, -7],
-  [0, -7],
-  [3.2, -7],
-  [6.4, -7],
-  [-6.4, 1],
-  [-3.2, 1],
-  [0, 1],
-  [3.2, 1],
-  [6.4, 1],
-];
-
-const ROADMAPS: Record<DemoPlanKey, number[]> = {
-  gradual: [1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-  accelerated: [2, 2, 1, 1, 2, 1, 1, 0, 0, 0],
-};
-
-const ELECTRIFICATION_ORDER: Record<DemoPlanKey, number[]> = {
-  gradual: [0, 4, 6, 9, 1, 5, 2, 8, 3, 7],
-  accelerated: [0, 1, 2, 4, 5, 6, 8, 9, 3, 7],
-};
 
 function Camera({ reset }: { reset: number }) {
   const camera = useThree((state) => state.camera);
 
   useEffect(() => {
     camera.position.set(17, 15, 24);
-    camera.lookAt(0, 0, -0.5);
+    camera.lookAt(0, 0, 0);
   }, [camera, reset]);
 
   return <OrbitControls
@@ -55,39 +28,19 @@ function Camera({ reset }: { reset: number }) {
   />;
 }
 
-function tintFor(type: "diesel" | "electric") {
-  return type === "electric" ? "#3b82f6" : "#22c55e";
-}
-
-function electricCountAtYear(plan: DemoPlanKey, year: number) {
-  const clampedYear = Math.max(START_YEAR, Math.min(END_YEAR, year));
-  const index = clampedYear - START_YEAR;
-  return Math.min(10, ROADMAPS[plan].slice(0, index + 1).reduce((total, count) => total + count, 0));
-}
-
-export function buildDemoFleetObjects(plan: DemoPlanKey, year = 2030): SceneObject[] {
-  const electricCount = electricCountAtYear(plan, year);
-  const electricIndices = new Set(ELECTRIFICATION_ORDER[plan].slice(0, electricCount));
-
-  return PARKING_BAYS.map(([x, z], index) => {
-    const type = electricIndices.has(index) ? "electric" : "diesel";
-    const object = createObject("van", `demo-${plan}-van-${index + 1}`, undefined, `Vehicle ${index + 1}`)!;
-    object.transform.position = [x, 0, z];
-    // The depot building is at +Z and the van model faces -Z, so a zero
-    // Y rotation points every parked van away from the depot.
-    object.transform.rotation = [0, 0, 0];
-    object.appearance = { tint: tintFor(type) };
-    return object;
-  });
-}
-
-export function ComparisonViewport({ plan, year, reset }: { plan: DemoPlanKey; year: number; reset: number }) {
-  const depot = useMemo(() => createObject("depot", `demo-${plan}-depot`, undefined, "Fleet depot")!, [plan]);
-  const fleetObjects = useMemo(() => buildDemoFleetObjects(plan, year), [plan, year]);
+export function ComparisonViewport({ document, scenarioId, year, reset }: {
+  document: ProjectDocument;
+  scenarioId: string | null;
+  year: number;
+  reset: number;
+}) {
+  const objects = useMemo(() => createProjectWorld(document, year, scenarioId), [document, year, scenarioId]);
   const isClick = () => false;
 
   return <div
+    role="img"
     className="absolute inset-0"
+    aria-label={`${document.environment.vehicles.length} Project vehicles in ${scenarioId ? "the selected Scenario" : "the baseline fleet"} at ${year}`}
     onMouseDownCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
     onAuxClickCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
     onPointerDownCapture={(event) => { if (event.button === 1) event.preventDefault(); }}
@@ -102,8 +55,8 @@ export function ComparisonViewport({ plan, year, reset }: { plan: DemoPlanKey; y
       <ambientLight intensity={0.7} />
       <directionalLight position={[8, 14, 6]} intensity={1.6} castShadow />
       <directionalLight position={[-8, 7, -8]} intensity={0.45} />
-      <ModelObject object={depot} isClick={isClick} selectable={false} />
-      {fleetObjects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selectable={false} />)}
+      {objects.map((object) => <ModelObject key={projectEntityReferenceKey(object.reference)} object={object}
+        isClick={isClick} selected={false} onSelect={() => undefined} />)}
       <Camera reset={reset} />
     </Canvas>
   </div>;

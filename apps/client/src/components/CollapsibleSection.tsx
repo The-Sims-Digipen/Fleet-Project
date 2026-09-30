@@ -1,19 +1,21 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { useAppStore, type SidebarPanelId } from "../state/appStore";
 
-export function CollapsibleSection({ title, description, defaultOpen = false, children, onBeforeCollapse }: {
+export function CollapsibleSection({ panelId, title, description, children, onBeforeCollapse }: {
+  panelId: SidebarPanelId;
   title: string;
   description?: string;
-  defaultOpen?: boolean;
   children: ReactNode;
   onBeforeCollapse?: () => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const open = useAppStore((state) => state.sidebarPanels[panelId]);
+  const setExpanded = useAppStore((state) => state.setSidebarPanelExpanded);
   const id = useId();
   return <section className="-mx-7 border-t border-line bg-[#10201d] px-7 max-[560px]:-mx-5 max-[560px]:px-5">
     <h3 className="m-0">
       <button className="flex min-h-[58px] w-full items-center justify-between border-0 bg-transparent py-2.5 text-[0.9rem] font-semibold text-primary" type="button" id={`${id}-heading`} aria-expanded={open} aria-controls={id} onClick={() => {
         if (open) onBeforeCollapse?.();
-        setOpen(!open);
+        setExpanded(panelId, !open);
       }}>
         <span>{title}</span><span className="text-[1.2rem] text-accent" aria-hidden="true">{open ? "−" : "+"}</span>
       </button>

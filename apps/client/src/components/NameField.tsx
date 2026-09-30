@@ -2,8 +2,8 @@ import { useId, useRef, useState } from "react";
 import { validateName } from "../project/types";
 
 /** Text field that commits a valid name on blur or Enter and restores the last valid name on Escape. */
-export function NameField({ label, value, onCommit, compact = false }: {
-  label: string; value: string; onCommit: (name: string) => void; compact?: boolean;
+export function NameField({ label, value, onCommit, compact = false, readOnly = false }: {
+  label: string; value: string; onCommit: (name: string) => void; compact?: boolean; readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const cancelled = useRef(false);
@@ -12,14 +12,15 @@ export function NameField({ label, value, onCommit, compact = false }: {
 
   return <div className={compact ? "relative grid min-w-0" : "grid min-w-0 gap-2"}>
     <label htmlFor={id} className={compact ? "sr-only" : "text-[0.72rem] font-semibold text-secondary"}>{label}</label>
-    <input id={id} type="text" value={draft ?? value} spellCheck={false} aria-invalid={error !== null} aria-describedby={error ? `${id}-error` : undefined}
+    <input id={id} type="text" value={draft ?? value} spellCheck={false} readOnly={readOnly}
+      aria-invalid={error !== null} aria-describedby={error ? `${id}-error` : undefined}
       className={compact
         ? "h-9 w-full min-w-0 truncate rounded-lg border border-line-strong bg-control px-3 text-sm font-semibold text-primary transition-colors duration-150 hover:border-[#668078] focus:border-accent aria-invalid:border-red-400 motion-reduce:transition-none"
         : "min-h-11 w-full min-w-0 rounded-lg border border-line-strong bg-control px-[11px] text-sm text-primary aria-invalid:border-red-400"}
-      onFocus={() => setDraft(value)}
-      onChange={(event) => setDraft(event.target.value)}
+      onFocus={() => { if (!readOnly) setDraft(value); }}
+      onChange={(event) => { if (!readOnly) setDraft(event.target.value); }}
       onBlur={() => {
-        if (!cancelled.current && draft !== null && !error && draft.trim() !== value) onCommit(draft.trim());
+        if (!readOnly && !cancelled.current && draft !== null && !error && draft.trim() !== value) onCommit(draft.trim());
         cancelled.current = false;
         setDraft(null);
       }}

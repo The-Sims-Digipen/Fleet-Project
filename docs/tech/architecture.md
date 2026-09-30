@@ -1,93 +1,66 @@
 # System architecture
 
-Design for the [Fleet Transition Planner](../proposal.md): a single-user browser application with persistent projects, an interactive depot, and deterministic scenario calculations. The [repository README](../../README.md) describes the current implementation.
+Design for the [Fleet Transition Planner](../proposal.md): a single-user browser application with persistent Projects, an interactive depot, and deterministic Scenario calculations.
 
 ## Technology stack
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Browser interface | React, TypeScript, Vite, Tailwind CSS | Fleet inputs, scenario controls, and accessible interface |
-| Application state | Zustand | Editable project, selected scenario/year, editor state, and undo history |
-| Visualization | Three.js, React Three Fiber, Drei | Interactive depot and two-plan scenes |
+| Browser interface | React, TypeScript, Vite, Tailwind CSS | Fleet inputs, Scenario controls, and accessible interface |
+| Application state | Zustand | One editable Project aggregate plus editor state and history |
+| Visualization | Three.js, React Three Fiber, Drei | Derived depot and vehicle views |
 | Charts | ECharts | Costs, emissions, and annual roadmaps |
-| Prototype persistence | IndexedDB | Browser-local Project / World / Scenario storage |
-| Future backend | Fastify, Zod | Retained for later server-side features/cloud persistence |
-| Verification | Vitest, Testing Library, browser checks | Calculations, controls, integration, and visual behavior |
+| Prototype persistence | IndexedDB | Browser-local Project records |
+| Server API | Fastify, Zod, PostgreSQL | Aggregate Project persistence contract |
+| Verification | Vitest, Testing Library, browser checks | Domain, state, integration, and visual behavior |
 
-## Component relationships
-
-The M1 architecture is organized around seven owned technical deliverables rather than around screen-local state.
+## Ownership boundaries
 
 ```mermaid
 flowchart LR
-  Operator[Fleet operator] --> UI[Product feature UI]
-  UI --> Design[T02 Design system]
-  UI <--> Workspace[T06 Workspace orchestration]
-  Workspace <--> Domain[T03 Fleet & scenario data]
-  Domain --> Timeline[T04 Timeline / playback]
-  Domain --> Simulation[T05 Simulation / financial]
-  Timeline --> Scene[3D fleet / depot view]
-  Timeline --> Analytics[T07 Analytics results]
-  Simulation --> Analytics
-  Domain --> Scene
-  Workspace <--> Repo[T01 Persistence / serialization]
+  Operator[Fleet operator] --> UI[Feature UI]
+  UI <--> Store[Project store]
+  UI <--> AppState[App store]
+  AppState -. cross-Project interface preferences .-> UI
+  Store <--> Project[Project domain aggregate]
+  Project --> Timeline[Timeline projection]
+  Project --> Simulation[Simulation projection]
+  Project --> Scene[3D scene projection]
+  Store <--> Repo[Project repository]
   Repo --> IDB[(IndexedDB)]
-  Repo -. future adapter .-> API[Fastify API]
+  Repo -. optional server adapter .-> API[Fastify API]
 ```
 
-The ownership boundaries are deliberate:
+The version 1 Project format is the sole editable domain and persistence boundary:
 
-- **T01** stores/restores authoritative workspace data and portable project files.
-- **T02** supplies reusable company-aligned UI primitives; it does not own product behavior.
-- **T03** owns fleet/scenario domain data, references and effective selected-year vehicle state.
-- **T04** owns the analysis clock, playback and event projection; it does not reimplement transition rules.
-- **T05** owns deterministic numerical/financial results and is independent of React/persistence.
-- **T06** owns Project/World/Scenario lifecycle, active selections, dirty state and workspace invariants.
-- **T07** turns T05 outputs into KPI/chart view models; it does not independently recalculate financial truth.
-
-Simulation, rendering and persistence remain separable so they can be tested independently and integrated through typed contracts.
-
-## Data ownership and interaction
-
-A project shares its vehicle presets, fleet, analysis period, currency, fuel price and emissions factors across one or more reusable 3D Worlds. Scenarios are separate saved transition plans bound to a World; they own transition decisions and scenario electricity/charging assumptions but do not own or duplicate the World document.
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant Editor
-  participant Repository
-  participant IndexedDB
-  User->>Editor: Change valid inputs
-  User->>Editor: Save Project
-  Editor->>Repository: Workspace snapshot + expected revisions
-  Repository->>IndexedDB: One read/write transaction
-  IndexedDB-->>Repository: Commit
-  Repository-->>Editor: Saved records + new revisions
+```text
+Project
+├── Environment
+│   ├── Depot
+│   └── Vehicles
+├── Vehicle preset catalogue
+├── Shared analysis settings
+└── Scenarios
 ```
 
-A project is edited as an in-memory workspace containing multiple Worlds and their world-bound Scenarios. Scene edits immediately update the active World in memory. Save Project is the persistence boundary: it captures every in-memory World and Scenario in one consistent snapshot. Failed saves preserve the working workspace. Revision conflicts can occur if another tab has updated a saved project/world/scenario since it was opened.
+One Project owns exactly one physical environment, its Depot, authoritative Vehicles and transforms, Vehicle Presets, shared Analysis Settings, and ordered Scenarios. A separate World lifecycle is not part of the model; independent depots are separate Projects. Moving the Depot does not move Vehicles. The renderer derives typed Depot and Vehicle views from Project entities instead of storing a second scene document.
+
+`useProjectStore` (`projectStore`) owns one `ProjectRuntime` for the complete `ProjectDocument`: the canonical document, repository metadata and save status, Project-scoped editor state, the saved baseline, and undo history. Plan runtime owns its selected year and playback state; Compare runtime independently owns Scenario A/B choices, selected year, and playback state. `ProjectDocument.activeScenarioId` remains the persisted and undoable Plan Scenario selection. Typed Project entities are world truth; rendered objects, simulation results, and analytics are projections. `useAppStore` (`appStore`) owns application-shell state that survives replacing the open Project: the derived Project catalogue, repository list/open status, global Project dialogs, workspace mode, and sidebar expansion. Project summaries are read-only repository projections, never editable copies of Project documents. Feature components issue Project commands; no feature mirrors authoritative Project data into another store. Validation, undo/redo, dirty state, save/load, simulation, and rendering therefore use the same Project source of truth. Scenarios own ordered Vehicle transition plans and reference Project Vehicles by stable identity.
+
+M1 Scenarios contain no charging strategy, depot charging share, charger inventory, or other charging assumptions; those remain later product scope. The current environment has no persisted parking assignments or spawn-slot entities.
 
 ## Persistence boundary
 
-IndexedDB database `fleet-transition-planner` stores `projects`, `worlds`, `scenarios`, ordered `projectWorlds` links, and ordered `projectScenarios` links as separate records. A Project may contain multiple Worlds; every Scenario references exactly one World. The repository validates every Scenario against a World included in the same project snapshot before committing.
+The Project document format is version 1. `normalizeProject` validates that format at construction, mutation, repository, and import boundaries. The portable `.fleetproject` envelope also uses format version 1, independently of the Project document version.
 
-The browser implementation is `IndexedDbProjectRepository`. Tests use the same `ProjectRepository` contract with an in-memory implementation. A future cloud/API adapter can replace the browser adapter without changing editor ownership or Scenario/World semantics.
+Save Project writes one complete Project document through `ProjectRepository`. IndexedDB uses the stable `fleet-transition-planner` database name and internal database revision 5; that storage revision is independent of Project format version 1. Browser initialization creates the current `projects` store but does not port or automatically clear incompatible prerelease data. Clear incompatible local browser data manually.
 
-Project files can also be exported as versioned `.fleetproject` JSON snapshots containing all project Worlds and Scenarios. Import validates the snapshot then creates fresh local Project/World/Scenario identities so importing cannot accidentally overwrite existing local data.
+The server's `schema_version` records the Project document format and is 1 for current rows. The migration runner remains the server schema-change mechanism; its prerelease SQL baseline deliberately drops the obsolete normalized `scenarios` and `projects` tables before creating the aggregate `projects` table. This destructive reset is allowed only before release. Future released schema changes must preserve supported data and can add versioned migrations without changing Project format version unless the document shape changes.
 
-## Engineering decisions
+## Scene implementation
 
-- Deterministic browser-side calculations support immediate feedback and independent numerical testing.
-- Stable vehicle/object identifiers maintain selection, schedules, and bay assignments across edits and saves.
-- A flat metre-based depot model provides space checks without implying civil or electrical engineering precision.
-- Invalid layouts remain editable and visibly constrained; financial results remain labeled indicative.
-- Model versions, explicit assumptions, and worked examples make results explainable and reproducible.
-- Browser-local persistence keeps the prototype zero-setup; cloud synchronization is deferred intentionally.
+Depot and Vehicle transforms are authoritative fields of the Project environment. `createProjectWorld` is a read-only projection that combines those transforms with the selected Scenario and year. Typed world-object references preserve domain identity through picking, highlighting, Inspector routing, and development gizmos. Three.js objects, meshes, materials, simulation results, selection, lighting controls, and camera state are not persisted in the Project document.
 
-The [simulation model](simulation.md) and [depot editor](depot-editor.md) define the detailed calculation and editing behavior.
+The model catalogue maps stable model IDs to runtime factories. Production users create typed Vehicles through Fleet Management. Development tools may inspect and transform the typed Depot and Vehicles through Project commands; the catalogue does not create independently persisted scene instances.
 
-## Current scene-editor architecture
-
-The editor keeps the active version 3 world document in Zustand while it is being edited, with separate editor selection/transform-tool settings and snapshot undo history. Serializable types live in `apps/client/src/scene/types.ts`; the developer catalog maps stable object definitions to procedural `THREE.Group` factories under `apps/client/src/models`. The viewport iterates document objects and dispatches through a typed renderer registry rather than depending on particular object IDs or shapes.
-
-Each factory call creates an independently owned hierarchy, geometry, and materials. The renderer applies instance appearance overrides and creates a bounding outline, then disposes those resources on unmount. Inspector and viewport-gizmo editing change document transforms only; gizmo mode, world/local space, and snapping remain editor-only state. Project/scenario controls save through the browser-local repository; the 3D world remains in the scene store while editing but is persisted as its own World record. M1 simulation work is owned by T05 and consumes T03 contracts rather than scene/rendering objects. See [extending the editor](extending-the-editor.md) for catalog registration and resource ownership.
+See [contracts](contracts.md), [simulation](simulation.md), and [depot editor](depot-editor.md).

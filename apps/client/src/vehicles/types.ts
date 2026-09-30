@@ -5,9 +5,8 @@
  * Zustand, or the object catalog. Callers that know the catalog pass its keys to
  * `normalizePreset` instead, so a preset never depends on rendering.
  *
- * The shape here is the canonical M1 preset described in docs/tech/contracts.md:
- * identity, propulsion, efficiency, range, charging capability and economics.
- * `domain/contracts.ts` re-exports it as `M1VehiclePreset` for T05/T07.
+ * The shape here is the canonical Project preset: identity, propulsion,
+ * efficiency, range, charging capability and economics.
  */
 
 export type Propulsion = "diesel" | "petrol" | "electric" | "hybrid";

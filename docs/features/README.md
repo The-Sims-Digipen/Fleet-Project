@@ -1,6 +1,6 @@
 # Product features
 
-These are the product features currently tracked for the Fleet Transition Planner. The M1 contract proposal treats F01-F07 as **MUST** features; F08 is a **SHOULD** feature and is not required for the M1 core flow.
+These are the product features currently tracked for the Fleet Transition Planner. M1 features F01-F07 use the single version 1 Project format; F08 and charging infrastructure remain later-scope requirements rather than persisted Scenario assumptions. The M1 contract proposal treats F01-F07 as **MUST** features; F08 is a **SHOULD** feature and is not required for the M1 core flow.
 
 | ID | Feature | M1 priority | Primary feature owner |
 |---|---|---|---|
@@ -24,4 +24,4 @@ The MUST features should combine into one demonstrable workflow:
 5. Change the selected year and show the fleet/3D state update consistently.
 6. Save the project, reload/reopen it, and restore the authoritative project/scenario state.
 
-F08 remains useful product scope, but the full charging/power feasibility engine is intentionally deferred beyond the M1 MUST contract.
+F08 remains long-term product scope, including charging choices, Charger visualization, and power/space feasibility. M1 persists neither parking assignments nor Scenario charging strategies; it retains only Project-owned Vehicle baselines and Scenario-owned Vehicle transition plans.

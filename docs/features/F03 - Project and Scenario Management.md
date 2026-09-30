@@ -5,11 +5,11 @@
 
 ## Shared integration contract
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses T06 workspace actions and T01 repository operations for versioned `M1ProjectDocument`/`M1ScenarioDocument` data; UI code must not access IndexedDB or implement migrations directly.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F03 uses `projectStore` and aggregate `ProjectRepository` for one complete version 1 Project document; UI code must not access IndexedDB or implement migrations directly. `appStore` owns application-shell state: the derived Project catalogue, repository list/open status, global Project dialogs, workspace mode, and sidebar preferences. It does not own an editable copy of any Project document.
 
 ## User capability
 
-Users can create, open, save and reopen projects; manage reusable Worlds; create, rename, duplicate, remove and switch Scenarios; and retain project/scenario data after reloading the application.
+Users can create, open, save and reopen Projects; create, rename, duplicate, remove and switch Scenarios; and retain the Project environment, fleet, presets, assumptions and Scenario data after reloading.
 
 ## User need
 
@@ -17,30 +17,25 @@ Users need a structured workspace for exploring transition plans without losing 
 
 ## Workspace semantics
 
-- A Project contains one or more reusable Worlds and the Scenarios linked to those Worlds.
-- World and Scenario editing is in-memory first.
-- Switching Worlds or Scenarios must not discard unsaved workspace state.
+- A Project represents exactly one physical planning environment and owns its Scenarios.
+- Project and Scenario editing is in-memory first.
+- Switching Scenarios must not discard unsaved Project state.
+- Save and reopen restores the active Scenario; if it no longer exists, the first ordered Scenario becomes active.
+- Switching the active Scenario is an unsaved Project change because that selection is persisted.
 - Duplicating a Scenario copies its planning inputs without sharing mutable scenario state.
-- Every World must retain at least one Scenario.
-- Removing a World removes its linked Scenarios from the in-memory project workspace and is persisted only on Save Project.
-- Save Project is the persistence boundary and writes a consistent workspace snapshot through T01.
+- Every Project must retain at least one Scenario.
+- New Projects automatically contain the default depot and ordered Vehicle spawn positions.
+- Save Project is the persistence boundary and writes one complete Project aggregate through `ProjectRepository`.
+- Scenario owns transition plans only; M1 has no Scenario-owned charging strategy, charger inventory, or parking assignment.
 
 ## M1 scope
 
 - New/Open/Save Project.
-- Create/switch/rename/duplicate/remove World and Scenario where supported by the current workspace design.
-- Maintain valid active Project/World/Scenario selections.
+- Create/switch/rename/duplicate/remove Scenarios.
+- Maintain valid active Project/Scenario selections.
 - Preserve dirty/unsaved state until Save Project.
 - Reopen a saved project with its workspace relationships intact.
 
-## Technical dependencies
-
-- [T01 — Project Persistence & Serialization Library](../tech-tasks/T01%20-%20Project%20Persistence%20and%20Serialization%20Library.md)
-- [T03 — Fleet & Scenario Data Engine](../tech-tasks/T03%20-%20Fleet%20and%20Scenario%20Data%20Engine.md)
-- [T06 — Project & Scenario Workspace Orchestration System](../tech-tasks/T06%20-%20Project%20and%20Scenario%20Workspace%20Orchestration%20System.md)
-
-F03 must not access IndexedDB directly; storage is owned by T01.
-
 ## M1 evidence
 
-Create/switch/duplicate scenarios, make different transition edits, save the project, reload/reopen it, and verify the same valid workspace and scenario-specific state is restored.
+Create/switch/duplicate Scenarios over one Project fleet, make different transition edits, save the Project, reload/reopen it, and verify the one environment, active Scenario, and Scenario-specific state are restored from the aggregate.

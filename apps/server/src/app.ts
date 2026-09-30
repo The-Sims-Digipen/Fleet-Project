@@ -7,14 +7,19 @@ import {
   createPersistenceRepository,
   PersistenceConflictError,
   PersistenceNotFoundError,
+  type ProjectPersistenceRepository,
   type PersistenceRepository,
-  WorldCompatibilityError,
 } from "./persistence/repository.js";
-import { createWorkspaceSchema, updateWorkspaceSchema } from "./persistence/schemas.js";
+import {
+  createProjectSchema,
+  projectIdParamsSchema,
+  updateProjectSchema,
+} from "./persistence/schemas.js";
 
 type BuildAppOptions = {
   fastify?: FastifyServerOptions;
   repository?: PersistenceRepository;
+  projectRepository?: ProjectPersistenceRepository;
 };
 
 type ApiError = { code: string; message: string; fields?: unknown };
@@ -26,8 +31,20 @@ function validationError(error: ZodError): ApiError {
 function sendError(reply: { code(statusCode: number): { send(payload: ApiError): unknown } }, error: unknown) {
   if (error instanceof PersistenceNotFoundError) return reply.code(404).send({ code: "NOT_FOUND", message: error.message });
   if (error instanceof PersistenceConflictError) return reply.code(409).send({ code: "REVISION_CONFLICT", message: error.message });
-  if (error instanceof WorldCompatibilityError) return reply.code(409).send({ code: "WORLD_MISMATCH", message: error.message });
   if (error instanceof ZodError) return reply.code(400).send(validationError(error));
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = error.code;
+    const statusCode = "statusCode" in error && typeof error.statusCode === "number" ? error.statusCode : undefined;
+    if (code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+      return reply.code(413).send({ code: "PAYLOAD_TOO_LARGE", message: "The request body exceeds the supported size." });
+    }
+    if (statusCode === 400 && typeof code === "string" && code.startsWith("FST_ERR_CTP_")) {
+      return reply.code(400).send({ code: "VALIDATION_ERROR", message: "The request body is not valid JSON." });
+    }
+    if (statusCode === 415) {
+      return reply.code(415).send({ code: "UNSUPPORTED_MEDIA_TYPE", message: "The request must use application/json." });
+    }
+  }
   throw error;
 }
 
@@ -39,14 +56,21 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(cors, { origin: true });
 
   let repository = options.repository;
-  if (!repository && process.env.DATABASE_URL) {
+  let projectRepository = options.projectRepository ?? repository;
+  if ((!repository || !projectRepository) && process.env.DATABASE_URL) {
     const { db } = createDatabase(process.env.DATABASE_URL);
-    repository = createPersistenceRepository(db);
+    const databaseRepository = createPersistenceRepository(db);
+    repository ??= databaseRepository;
+    projectRepository ??= databaseRepository;
   }
 
   const requireRepository = () => {
     if (!repository) throw new Error("DATABASE_UNAVAILABLE");
     return repository;
+  };
+  const requireProjectRepository = () => {
+    if (!projectRepository) throw new Error("DATABASE_UNAVAILABLE");
+    return projectRepository;
   };
 
   app.setErrorHandler((error, _request, reply) => {
@@ -76,29 +100,26 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
   });
 
-  app.get("/api/v1/projects", async () => requireRepository().listProjects());
+  app.get("/api/v1/projects", async () => requireProjectRepository().listProjects());
 
-  app.get<{ Params: { id: string } }>("/api/v1/projects/:id/workspace", async (request) => {
-    return requireRepository().getWorkspace(request.params.id);
+  app.get<{ Params: { id: string } }>("/api/v1/projects/:id", async (request) => {
+    const { id } = parse(projectIdParamsSchema, request.params);
+    return requireProjectRepository().getProject(id);
   });
 
-  app.post("/api/v1/workspaces", async (request, reply) => {
-    const input = parse(createWorkspaceSchema, request.body);
-    const record = await requireRepository().createWorkspace(input);
-    return reply.code(201).send(record);
+  app.post("/api/v1/projects", async (request, reply) => {
+    const { document } = parse(createProjectSchema, request.body);
+    return reply.code(201).send(await requireProjectRepository().createProject(document));
   });
 
-  app.put<{ Params: { id: string } }>("/api/v1/projects/:id/workspace", async (request, reply) => {
-    const input = parse(updateWorkspaceSchema, request.body);
-    if (input.project.id !== request.params.id) {
+  app.put<{ Params: { id: string } }>("/api/v1/projects/:id", async (request, reply) => {
+    const { id } = parse(projectIdParamsSchema, request.params);
+    const input = parse(updateProjectSchema, request.body);
+    if (input.document.id !== id) {
       return reply.code(400).send({ code: "VALIDATION_ERROR", message: "Project ID does not match the URL." });
     }
-    return requireRepository().updateWorkspace(input);
+    return requireProjectRepository().updateProject(input.document, input.expectedRevision);
   });
-
-  app.get("/api/v1/worlds", async () => requireRepository().listWorlds());
-  app.get<{ Params: { id: string } }>("/api/v1/worlds/:id", async (request) => requireRepository().getWorld(request.params.id));
-  app.get<{ Params: { id: string } }>("/api/v1/worlds/:id/scenarios", async (request) => requireRepository().listScenariosByWorld(request.params.id));
 
   return app;
 }
