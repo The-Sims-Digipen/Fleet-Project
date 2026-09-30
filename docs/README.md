@@ -13,6 +13,7 @@
 ## Technical implementation
 
 - [Architecture](tech/architecture.md)
+- [Ubuntu VM setup and CI/CD](tech/deployment.md)
 - [Data model and API](tech/contracts.md)
 - [Simulation](tech/simulation.md)
 - [Depot editor](tech/depot-editor.md)
