@@ -40,6 +40,103 @@ function workedTransitionProject() {
 }
 
 describe("Project simulation", () => {
+  it.each([
+    { transitionYear: 2027, scenarioTco: 4_000, disposalCredits: 4_000 },
+    { transitionYear: 2028, scenarioTco: 7_000, disposalCredits: 10_000 },
+  ])("preserves SIM02 replacement/disposal accounting for a transition in $transitionYear", ({ transitionYear, scenarioTco, disposalCredits }) => {
+    const document = workedTransitionProject();
+    const vehicle = document.environment.vehicles[0];
+    document.analysis.yearCount = 3;
+    document.environment.vehicles[0] = {
+      ...vehicle,
+      annualKm: 0,
+      replacementYear: 2027,
+      currentHolding: { kind: "owned", currentValue: 6_000, endResidualValue: 0 },
+    };
+    document.vehiclePresets = document.vehiclePresets.map((preset) => ({
+      ...preset,
+      maintenanceCostPerYear: 0,
+      ...(preset.id === "diesel-van" ? { purchaseCost: 9_000, acquisition: { kind: "owned" as const, endResidualValue: 3_000 } } : {}),
+      ...(preset.id === "electric-van" ? { purchaseCost: 12_000, acquisition: { kind: "owned" as const, endResidualValue: 4_000 } } : {}),
+    }));
+    document.scenarios[0].vehiclePlans[vehicle.id].transitions = [{ year: transitionYear, targetPresetId: "electric-van" }];
+
+    const simulation = simulateProject(normalizeProject(document));
+    const scenario = simulation.scenarios["plan-a"];
+
+    expect(simulation.baseline.totals.tco).toBe(2_000);
+    expect(scenario.totals.tco).toBe(scenarioTco);
+    expect(scenario.totals.disposalCredits).toBe(disposalCredits);
+    expect(scenario.totals.terminalCredit).toBe(4_000);
+    expect(scenario.totals.replacementCapex).toBe(transitionYear === 2027 ? 0 : 9_000);
+  });
+
+  it("preserves SIM01 lasting cash payback independently of terminal residual credits", () => {
+    const document = workedTransitionProject();
+    document.vehiclePresets = document.vehiclePresets.map((preset) => preset.id === "electric-van"
+      ? { ...preset, purchaseCost: 6_000 }
+      : preset);
+
+    const simulation = simulateProject(normalizeProject(document));
+    const scenario = simulation.scenarios["plan-a"];
+
+    expect(scenario.annual.map((row, index) => simulation.baseline.annual[index].cumulativeCashCost - row.cumulativeCashCost))
+      .toEqual([-4_200, -2_400, -600, 1_200]);
+    expect(scenario.totals.tco).toBe(6_800);
+    expect(scenario.totals.savings).toBe(3_200);
+    expect(scenario.paybackYear).toBe(2029);
+    expect(scenario.paybackStatus).toBe("reached");
+  });
+
+  it("preserves SIM05 lease payments and one outgoing exit fee without purchase or residual credits", () => {
+    const document = workedTransitionProject();
+    document.analysis.yearCount = 2;
+    document.environment.vehicles[0] = {
+      ...document.environment.vehicles[0],
+      annualKm: 0,
+      currentHolding: { kind: "leased", annualPayment: 1_000, exitFee: 100 },
+    };
+    document.vehiclePresets = document.vehiclePresets.map((preset) => ({
+      ...preset,
+      maintenanceCostPerYear: 0,
+      ...(preset.id === "electric-van" ? { acquisition: { kind: "leased" as const, annualPayment: 800, exitFee: 250 } } : {}),
+    }));
+
+    const simulation = simulateProject(normalizeProject(document));
+    const scenario = simulation.scenarios["plan-a"];
+
+    expect(simulation.baseline.totals.tco).toBe(2_000);
+    expect(scenario.annual.map((row) => row.netCashCost)).toEqual([900, 800]);
+    expect(scenario.totals.tco).toBe(1_700);
+    expect(scenario.totals.vehicleAcquisitionCapex).toBe(0);
+    expect(scenario.totals.terminalCredit).toBe(0);
+  });
+
+  it("returns finite empty-fleet results with unavailable ratios", () => {
+    const document = workedTransitionProject();
+    document.environment.vehicles = [];
+    document.scenarios[0].vehiclePlans = {};
+    const simulation = simulateProject(normalizeProject(document));
+
+    for (const series of [simulation.baseline, ...Object.values(simulation.scenarios)]) {
+      expect(series.totals.tco).toBe(0);
+      expect(series.totals.costPerKm).toBeNull();
+      expect(series.totals.costPerVehicle).toBeNull();
+      expect(series.annual).toHaveLength(4);
+      for (const row of series.annual) expect(Object.values(row).every(Number.isFinite)).toBe(true);
+    }
+    expect(simulation.scenarios["plan-a"].totals.emissionsReductionPercentage).toBeNull();
+  });
+
+  it("is deterministic and leaves the authoritative Project unchanged", () => {
+    const document = workedTransitionProject();
+    const before = structuredClone(document);
+    const first = simulateProject(document);
+
+    expect(simulateProject(document)).toEqual(first);
+    expect(document).toEqual(before);
+  });
+
   it("derives worked annual energy, cost, emissions, and payback from Project inputs", () => {
     const simulation = simulateProject(workedTransitionProject());
     const scenario = simulation.scenarios["plan-a"];
