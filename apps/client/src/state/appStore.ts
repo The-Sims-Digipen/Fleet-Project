@@ -22,6 +22,7 @@ export const SIDEBAR_PANEL_IDS = [
   "scene",
   "cost-analysis",
   "debug",
+  "audio-demo",
 ] as const;
 
 export type SidebarPanelId = (typeof SIDEBAR_PANEL_IDS)[number];
@@ -38,6 +39,7 @@ export const DEFAULT_SIDEBAR_PANELS: SidebarPanelState = {
   scene: false,
   "cost-analysis": true,
   debug: false,
+  "audio-demo": false,
 };
 
 type AppState = {
