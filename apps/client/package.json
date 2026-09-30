@@ -1,5 +1,5 @@
 {
-  "name": "@starter/client",
+  "name": "@fleet-project/client",
   "version": "0.0.0",
   "private": true,
   "type": "module",

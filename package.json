@@ -1,18 +1,18 @@
 {
-  "name": "threejs-app-starter",
+  "name": "fleet-project",
   "private": true,
   "packageManager": "pnpm@11.24.0",
   "scripts": {
-    "dev": "concurrently \"pnpm --filter @starter/client dev\" \"pnpm --filter @starter/server dev\"",
-    "dev:client": "pnpm --filter @starter/client dev",
-    "dev:server": "pnpm --filter @starter/server dev",
+    "dev": "concurrently \"pnpm --filter @fleet-project/client dev\" \"pnpm --filter @fleet-project/server dev\"",
+    "dev:client": "pnpm --filter @fleet-project/client dev",
+    "dev:server": "pnpm --filter @fleet-project/server dev",
     "dev:ui": "pnpm --filter @chargedup/ui-docs dev",
     "dev:docs": "pnpm --filter @chargedup/ui-docs dev",
-    "build": "pnpm --filter @chargedup/ui build && pnpm --filter @chargedup/ui-docs build && pnpm --filter @starter/server build && pnpm --filter @starter/client build",
+    "build": "pnpm --filter @chargedup/ui build && pnpm --filter @chargedup/ui-docs build && pnpm --filter @fleet-project/server build && pnpm --filter @fleet-project/client build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @chargedup/ui build && pnpm --filter @chargedup/ui-docs build && pnpm --filter @starter/server build && pnpm --filter @starter/client build",
-    "db:migrate": "pnpm --filter @starter/server db:migrate",
+    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @chargedup/ui build && pnpm --filter @chargedup/ui-docs build && pnpm --filter @fleet-project/server build && pnpm --filter @fleet-project/client build",
+    "db:migrate": "pnpm --filter @fleet-project/server db:migrate",
     "vercel-build": "node scripts/vercel-build.mjs"
   },
   "devDependencies": {
