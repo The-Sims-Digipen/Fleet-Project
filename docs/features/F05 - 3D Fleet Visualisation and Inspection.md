@@ -1,0 +1,35 @@
+# F05 — 3D Fleet Visualisation & Inspection
+
+**M1 priority:** MUST  
+**Primary owner:** Chew Shee Yang
+
+## Shared integration contract
+
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads the typed Project world projection for the active Scenario and selected year and renders it without independently applying transition rules or mutating Project/simulation state. Rendered objects are derived views, not a second editable scene document.
+
+## User capability
+
+Users can view the depot/fleet in 3D, navigate the scene, select relevant objects or vehicles, inspect information, and see the displayed fleet state respond to the active scenario and selected year.
+
+## User need
+
+The 3D view provides a spatial representation of the plan and lets users verify that scenario/timeline changes are reflected visually rather than existing only in forms and charts.
+
+## M1 scope
+
+- Render the Project's physical environment and default depot.
+- Support the existing navigation and selection/inspection interactions required by the M1 build.
+- Render fleet vehicles from real project/scenario state rather than an independent hard-coded fleet source.
+- Place every fleet vehicle at its unique Project-owned world transform, using a generic visual when no preset is selected.
+- Use the selected year from Project runtime state.
+- Display the current preset/state before a transition and the target preset/state from the transition year onward.
+- Keep rendering read-only with respect to authoritative simulation/scenario state.
+- Use typed Depot/Vehicle references for picking, highlighting, Inspector routing, and development gizmo attachment.
+- Keep production Vehicle picking/highlighting available while generic development Inspector and gizmo controls remain development-only.
+- Keep development transform and Project-document inspection controls out of production builds.
+
+Detailed depot authoring, production asset polish and charging-layout feasibility are later milestone scope.
+
+## M1 evidence
+
+Select a scenario and move the timeline across a vehicle's transition year; the 3D representation must use the same selected year and show the appropriate pre/post-transition vehicle state.

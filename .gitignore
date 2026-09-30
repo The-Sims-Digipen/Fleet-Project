@@ -8,6 +8,8 @@ coverage/
 .cache/
 .vite/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # Local configuration and secrets (keep safe templates)
 .env
@@ -39,3 +41,7 @@ Desktop.ini
 
 # Exported local prototype projects
 *.fleetproject
+
+# Machine-local agent state
+/.scratch/
+/CONTEXT.md

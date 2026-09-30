@@ -2,9 +2,11 @@
 
 ## Purpose and scope
 
+This document preserves long-term product requirements across M1–M6. The current version 1 Project format is narrower: one Project aggregate owns a Depot, Vehicle baselines, Presets, shared Analysis Settings, and Scenarios whose plans contain Vehicle transitions only. M1 has no persisted parking assignments or Scenario charging strategy; charging, feasibility, Charger visualization, and charging-oriented comparison remain later scope, not removed requirements.
+
 Help fleet operators decide which vehicles should transition first, what user-defined vehicle preset they should transition to, when to transition them, and how those choices affect whole-fleet cost and emissions. Provide a decision-support product with clear, reusable calculation components.
 
-A fleet of 100 vans with different ages and daily distances is an illustrative scenario, not a fixed fleet size or vehicle-type restriction. Vehicle utilisation, replacement timing and charging access can make different transition choices appropriate for different vehicles.
+A fleet of 100 vans remains an illustrative future-scale scenario, not a vehicle-type restriction. The current default depot has ten initial Vehicle positions and therefore limits a Project to ten vehicle instances. Vehicle utilisation, replacement timing and charging access can make different transition choices appropriate for different vehicles.
 
 
 ## Platform and simulation
@@ -19,6 +21,7 @@ A fleet of 100 vans with different ages and daily distances is an illustrative s
 ## Fleet and transition planning
 
 - Let users create reusable **user-defined vehicle presets** containing technical and economic parameters, then create or select a sample fleet whose individual vehicles reference those presets. Provide a vehicle list showing the fleet and its operational attributes.
+- Treat each fleet vehicle as a stable generic instance with an optional preset and one Project-owned world transform, initially selected from the default depot's ten spawn positions. Changing the preset preserves vehicle identity.
 - Support selecting individual vehicles, arbitrary combinations or categories, such as vehicle type, age or suitable routes. Assign both a **target vehicle preset** and transition year to each selected vehicle or group. Unscheduled vehicles continue using their current preset. The application must not hard-code diesel-to-electric as the only transition path.
 - Support staged adoption, such as 25%, 50%, 75% and 100%, and comparison of rapid transition with gradual replacement. These percentages are examples, not prescribed stages.
 - Include a simple vehicle/route suitability ranking to inform transition priority. Consider daily distance against the selected target preset's usable range where applicable, route predictability, depot return and charging access, available dwell time, replacement timing, utilisation and economics. Explain the reasons; no particular scoring formula or sophisticated routing model is required.
@@ -63,4 +66,3 @@ The application must support these acceptance scenarios:
 3. Keep the transition schedule fixed and compare depot, external and mixed charging. Infrastructure requirements and fleet costs reflect the strategy.
 4. Raise or lower fuel/electricity prices, for example by 20%. Results update immediately and explain the changed economics.
 5. Change charger installation years or quantities. Costs and the depot timeline update; space constraints are visible, and exceeding the connection limit produces red overload feedback.
-

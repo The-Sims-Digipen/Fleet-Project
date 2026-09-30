@@ -1,36 +1,29 @@
 # F01 — Vehicle Presets
 
-**Owner:** Tan Wei Jun
+**M1 priority:** MUST  
+**Primary owner:** Tan Wei Jun
 
-## Goal
+## Shared integration contract
 
-Create the frontend UI for managing reusable vehicle presets. This week is UI-only: use mock data and do not connect persistence or calculations yet.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F01 edits Project-owned Vehicle Presets through Project commands, preserves stable IDs, and uses Project reference-integrity rules before deletion. Presets supply baseline or transition state for Project Vehicles; they do not create independent scene objects.
 
-## What this feature should accomplish
+## User capability
 
-- Show a list of saved vehicle presets.
-- Provide controls to create, save, edit, and delete a preset.
-- Provide a form for editing preset attributes.
-- Allow a preset to choose which 3D vehicle model it uses.
+Users can view, create and edit reusable vehicle presets and select a target vehicle preset for replacement planning.
 
-## Required fields for the stub
+## User need
 
-- Preset name.
-- Fuel consumption.
-- Electric consumption.
-- Purchase price.
-- Battery capacity.
-- Charging power.
-- 3D model selection.
+Vehicle presets provide a consistent source of vehicle specifications for fleet management, transition planning, simulation and 3D representation.
 
-The UI should leave room for additional vehicle attributes later without requiring a redesign.
+## M1 scope
 
-## Stub behavior
+- List available vehicle presets.
+- Create and edit a preset.
+- Delete a preset only when reference integrity is preserved or the user is shown the affected references.
+- Configure the fields required by M1 annual calculations and visualisation, including propulsion/energy source, consumption, efficiency, purchase cost, and 3D model selection where applicable. Charging strategy, depot/external split, charger inventory, and charging feasibility are later scope.
+- Use stable preset IDs so fleet/scenario references survive edits and persistence.
+- Allow scenario transition planning to select a target preset.
 
-- Use mock preset data.
-- Buttons and forms may be non-functional.
-- The purpose this week is to establish the layout, interaction flow, and visual hierarchy.
+## M1 evidence
 
-## Done when
-
-A user can see how presets will be listed, created, edited, deleted, and configured, including all required fields above.
+Create or edit a preset, assign it to a fleet/scenario transition, save/reopen the project, and show that the same preset data is used by the transition and simulation workflow.

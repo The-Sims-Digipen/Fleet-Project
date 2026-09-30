@@ -1,32 +1,31 @@
 # F07 — Timeline Control
 
-**Owner:** Jarrel Tay Wee Han
+**M1 priority:** MUST  
+**Primary owner:** Jarrel Tay Wee Han
 
-## Goal
+## Shared integration contract
 
-Create the frontend timeline UI used to navigate through the years of a transition plan.
+Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 uses the current workspace's selected year and playback state in `projectStore`, Project `AnalysisSettings`, and derived events for every Scenario Vehicle transition. Plan and Compare have independent Project-scoped timelines; components inside either workspace must use that workspace's canonical clock and must not duplicate effective-preset logic.
 
-## What this feature should accomplish
+## User capability
 
-- Provide a timeline year slider.
-- Clearly show the currently selected year.
-- Provide Play / Pause controls.
-- Provide a Reset control.
-- Show transition markers for important events.
+Users can select a year and play/pause/reset the analysis timeline while time-dependent fleet and 3D views use the same selected-year state.
 
-## Required transition markers
+## User need
 
-At minimum, visually support markers for:
+Users need to understand when planned transitions occur and how the fleet changes over the analysis period.
 
-- Vehicle replacements.
-- Charger installations.
+## M1 scope
 
-## Stub behavior
+- Display the configured analysis-period years.
+- Select/seek to a year.
+- Play, pause and reset timeline playback.
+- Generate transition markers from real scenario transition data.
+- Drive the selected year through the Project runtime action.
+- Keep dependent fleet/3D/analytics views synchronized to that selected year where applicable.
 
-- Use mock years and mock transition events.
-- The timeline does not need to control the 3D world, graphs, fleet, or simulation yet.
-- Design it so those systems can later share the same selected-year state.
+Charger-installation markers become required when charging infrastructure enters the approved product scope.
 
-## Done when
+## M1 evidence
 
-The user can see how they will navigate years, play through the plan, reset it, and identify major transition events.
+Seek to years before and after a real transition, then play/pause/reset the timeline; the displayed selected year, transition markers and dependent views must agree.

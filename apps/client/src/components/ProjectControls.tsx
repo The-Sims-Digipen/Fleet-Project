@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { downloadPortableProject, parsePortableProject } from "../project/portableProject";
+import { useAppStore } from "../state/appStore";
 import { useProjectDirty, useProjectStore } from "../state/projectStore";
 import { NameField } from "./NameField";
 import { NewProjectDialog, OpenProjectDialog } from "./ProjectDialogs";
 import { topBarControl, topBarControlActive } from "./topBarStyles";
 
 /** Header controls for browser-local project persistence plus portable import/export. */
-export function ProjectControls() {
-  const name = useProjectStore((state) => state.name);
-  const projectId = useProjectStore((state) => state.projectId);
-  const saveStatus = useProjectStore((state) => state.saveStatus);
+export function ProjectControls({ readOnly = false }: { readOnly?: boolean }) {
+  const name = useProjectStore((state) => state.runtime.document.name);
+  const projectId = useProjectStore((state) => state.runtime.record ? state.runtime.document.id : null);
+  const saveStatus = useProjectStore((state) => state.runtime.saveStatus);
+  const dialog = useAppStore((state) => state.projectDialog);
+  const setDialog = useAppStore((state) => state.setProjectDialog);
   const dirty = useProjectDirty();
-  const [dialog, setDialog] = useState<"new" | "open" | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const importInput = useRef<HTMLInputElement>(null);
@@ -25,17 +27,24 @@ export function ProjectControls() {
 
   const status = saveStatus.state === "saving" ? { text: "Saving…", tone: "text-secondary" }
     : saveStatus.state === "error" ? { text: "Save failed", detail: `${saveStatus.message} Your edits are still here.`, tone: "text-red-300" }
+    : !projectId ? { text: "Not saved yet", tone: "text-amber-200" }
     : dirty ? { text: "Unsaved changes", tone: "text-amber-200" }
-    : projectId ? { text: "Saved locally", tone: "text-accent" }
-    : { text: "Not saved yet", tone: "text-secondary" };
+    : { text: "Saved locally", tone: "text-accent" };
 
   async function importFile(file: File) {
     if (dirty && !window.confirm(`Importing a project will replace the current unsaved workspace “${name}”. Continue?`)) return;
     setImporting(true);
     setFileError(null);
     try {
-      const parsed = parsePortableProject(JSON.parse(await file.text()));
-      await useProjectStore.getState().importProject(parsed);
+      const text = await file.text();
+      let data: unknown;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // A raw SyntaxError names a byte offset, which tells the reader nothing about the file.
+        throw new Error("This file is not a readable project file. Choose a .fleetproject file exported from this app.");
+      }
+      await useProjectStore.getState().importProject(parsePortableProject(data));
     } catch (error) {
       setFileError(error instanceof Error ? error.message : "The project file could not be imported.");
     } finally {
@@ -46,7 +55,7 @@ export function ProjectControls() {
 
   return <div className="flex shrink-0 items-center gap-2" aria-label="Project">
     <div className="w-[clamp(12rem,20vw,19rem)] shrink-0">
-      <NameField label="Project name" value={name} onCommit={(next) => useProjectStore.getState().renameProject(next)} compact />
+      <NameField label="Project name" value={name} onCommit={(next) => useProjectStore.getState().renameProject(next)} compact readOnly={readOnly} />
     </div>
     <button type="button" aria-label="New project" className={topBarControl} onClick={() => setDialog("new")}>New</button>
     <button type="button" aria-label="Open project" className={topBarControl} onClick={() => setDialog("open")}>Open</button>

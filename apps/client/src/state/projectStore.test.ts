@@ -1,225 +1,363 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { createMemoryProjectRepository, ProjectConflictError } from "../project/repository";
-import { createSampleProjects } from "../project/sampleProjects";
-import { validateName } from "../project/types";
-import { loadDefaultPresets } from "../vehicles/defaults";
-import { usePresetStore } from "./presetStore";
-import { createProjectFields, setProjectRepository, useProjectStore } from "./projectStore";
-import { createDocument, createEditorState, useSceneStore } from "./sceneStore";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const project = useProjectStore.getState;
-const scene = useSceneStore.getState;
-const activeName = () => project().scenarios.find((scenario) => scenario.id === project().activeScenarioId)!.name;
+import { createProjectFixture } from "../domain/projectFixture";
+import { DEFAULT_VEHICLE_SPAWN_TRANSFORMS } from "../domain/depotLayout";
+import { simulateProject } from "../domain/simulation";
+import { createPortableProject } from "../project/portableProject";
+import { createMemoryProjectRepository } from "../project/repository";
+import { DEFAULT_PROJECT_CAMERA } from "./projectRuntime";
+import { createProjectState, setProjectRepository, useProjectStore } from "./projectStore";
+
+const project = () => useProjectStore.getState();
 
 beforeEach(() => {
-  setProjectRepository(createMemoryProjectRepository(createSampleProjects()));
-  const document = createDocument();
-  const presets = loadDefaultPresets();
-  usePresetStore.getState().replacePresets(presets);
-  useSceneStore.setState({ document, editor: createEditorState(), history: { past: [], future: [], baseline: null } });
-  useProjectStore.setState(createProjectFields("Untitled project", document, 0, presets));
+  setProjectRepository(createMemoryProjectRepository());
+  useProjectStore.setState(createProjectState(createProjectFixture()));
 });
 
-describe("project/world/scenario workspace", () => {
-  it("creates a new project with one in-memory world and scenario", () => {
-    project().newProject(" Depot transition ");
-    expect(project()).toMatchObject({ name: "Depot transition", projectId: null, revision: 0, worldRevision: 0 });
-    expect(project().worlds).toHaveLength(1);
-    expect(project().scenarios).toHaveLength(1);
-    expect(project().scenarios[0]).toMatchObject({ name: "Plan A", worldId: project().worldId, revision: 0 });
+describe("Project store", () => {
+  it("creates Projects when HTTP does not expose crypto.randomUUID", () => {
+    vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    try {
+      const state = createProjectState();
+      expect(state.runtime.document.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
-  it("keeps world scene edits in memory while switching worlds", async () => {
-    const firstWorldId = project().worldId;
-    scene().setLight(22);
-    scene().addObject("van");
-    expect(project().worlds.find((world) => world.id === firstWorldId)?.document.light).toBe(22);
-    expect(project().worlds.find((world) => world.id === firstWorldId)?.document.objects).toHaveLength(2);
+  it("keeps viewport lighting in runtime editor state only", () => {
+    const document = structuredClone(project().runtime.document);
 
-    project().newWorld();
-    const secondWorldId = project().worldId;
-    expect(secondWorldId).not.toBe(firstWorldId);
-    scene().setLight(77);
+    project().setLightIntensity(120);
 
-    await project().switchWorld(firstWorldId);
-    expect(scene().document.light).toBe(22);
-    expect(scene().document.objects).toHaveLength(2);
+    expect(project().runtime.editor.lightIntensity).toBe(100);
+    expect(project().runtime.document).toEqual(document);
+    expect(project().runtime.history.past).toHaveLength(0);
 
-    await project().switchWorld(secondWorldId);
-    expect(scene().document.light).toBe(77);
-    expect(project().worlds).toHaveLength(2);
+    project().setLightIntensity(-5);
+
+    expect(project().runtime.editor.lightIntensity).toBe(0);
+    expect(project().runtime.document).toEqual(document);
+    expect(project().runtime.history.past).toHaveLength(0);
   });
 
-  it("keeps scenario vehicle plans independent when duplicating and editing a plan", () => {
-    const sourceId = project().activeScenarioId;
-    project().updateScenarioVehiclePlan(sourceId, "UNIT-01", { transitionYear: 2028, targetPresetId: "electric-van" });
-    project().duplicateScenario(sourceId);
-    const copyId = project().activeScenarioId;
+  it("edits scenarios and transitions inside the canonical aggregate", () => {
+    project().createScenario();
+    const scenario = project().runtime.document.scenarios.at(-1)!;
+    project().replaceVehicleTransitions(scenario.id, "UNIT-01", [{ year: 2030, targetPresetId: "electric-van" }]);
 
-    project().updateScenarioVehiclePlan(copyId, "UNIT-01", { transitionYear: 2026 });
-
-    const source = project().scenarios.find((scenario) => scenario.id === sourceId)!;
-    const copy = project().scenarios.find((scenario) => scenario.id === copyId)!;
-    expect(source.document.vehiclePlans?.["UNIT-01"]).toEqual({ transitionYear: 2028, targetPresetId: "electric-van" });
-    expect(copy.document.vehiclePlans?.["UNIT-01"]).toEqual({ transitionYear: 2026, targetPresetId: "electric-van" });
+    expect(project().runtime.document.activeScenarioId).toBe(scenario.id);
+    expect(project().runtime.document.scenarios.at(-1)?.vehiclePlans["UNIT-01"].transitions).toEqual([
+      { year: 2030, targetPresetId: "electric-van" },
+    ]);
   });
 
-  it("persists scenario vehicle plans through Save Project", async () => {
-    const scenarioId = project().activeScenarioId;
-    project().updateScenarioVehiclePlan(scenarioId, "UNIT-02", { transitionYear: 2030, targetPresetId: "electric-box-truck" });
+  it("keeps planned transitions outside the analysis window in the Project", () => {
+    project().replaceVehicleTransitions("plan-a", "UNIT-01", [
+      { year: 2040, targetPresetId: "electric-van" },
+      { year: 2025, targetPresetId: "hybrid-van" },
+    ]);
+
+    expect(project().runtime.document.scenarios[0].vehiclePlans["UNIT-01"].transitions).toEqual([
+      { year: 2025, targetPresetId: "hybrid-van" },
+      { year: 2040, targetPresetId: "electric-van" },
+    ]);
+  });
+
+  it("creates, duplicates, edits, and deletes Presets as undoable Project commands", () => {
+    const createdId = project().createPreset();
+    const created = project().runtime.document.vehiclePresets.find((preset) => preset.id === createdId)!;
+    expect(project().runtime.history.past).toHaveLength(1);
+
+    const duplicateId = project().duplicatePreset(createdId)!;
+    expect(duplicateId).not.toBe(createdId);
+    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === duplicateId)?.name).toBe(`${created.name} copy`);
+    expect(project().runtime.history.past).toHaveLength(2);
+
+    project().selectPreset(duplicateId);
+    expect(project().runtime.history.past).toHaveLength(2);
+    project().updatePreset(duplicateId, { name: "Custom electric van", purchaseCost: 28_000, maintenanceCostPerYear: 450 });
+    expect(project().runtime.history.past).toHaveLength(3);
+    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === duplicateId)).toMatchObject({
+      name: "Custom electric van", purchaseCost: 28_000, maintenanceCostPerYear: 450,
+    });
+
+    project().undo();
+    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === duplicateId)?.name).toBe(`${created.name} copy`);
+    project().redo();
+    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === duplicateId)?.purchaseCost).toBe(28_000);
+
+    expect(project().deletePreset(duplicateId)).toBe(true);
+    expect(project().runtime.document.vehiclePresets.some((preset) => preset.id === duplicateId)).toBe(false);
+    project().undo();
+    expect(project().runtime.document.vehiclePresets.some((preset) => preset.id === duplicateId)).toBe(true);
+  });
+
+  it("blocks referenced Preset deletion with Vehicle and Scenario details", () => {
+    project().replaceVehicleTransitions("plan-a", "UNIT-01", [{ year: 2029, targetPresetId: "diesel-van" }]);
+
+    expect(project().deletePreset("diesel-van")).toBe(false);
+    expect(() => project().executeCommand({ type: "delete-vehicle-preset", presetId: "diesel-van" }))
+      .toThrow(/Baseline for City Delivery Van.*Transition for City Delivery Van.*Plan A, 2029/);
+    expect(project().runtime.document.vehiclePresets.some((preset) => preset.id === "diesel-van")).toBe(true);
+  });
+
+  it("round-trips edited Presets and active Scenario through save, reopen, export, and import", async () => {
+    const presetId = project().createPreset();
+    project().updatePreset(presetId, { name: "Regional hybrid", propulsion: "hybrid", litresPer100Km: 4.8, kWhPer100Km: 9.2, purchaseCost: 31_500 });
+    project().updateAnalysis({ fuelPricePerLitre: 3.25, discountRate: 0.08 });
+    project().selectScenario("plan-b");
+    project().replaceVehicleTransitions("plan-b", "UNIT-01", [{ year: 2040, targetPresetId: presetId }]);
+    const savedDocument = structuredClone(project().runtime.document);
     await project().saveProject();
-    const projectId = project().projectId!;
+    const projectId = project().runtime.document.id;
+    const exportFile = project().exportProject();
 
-    project().newProject("Other");
+    project().newProject("Temporary");
     await project().openProject(projectId);
+    expect(project().runtime.document).toEqual(savedDocument);
+    expect(project().runtime.document.activeScenarioId).toBe("plan-b");
+    expect(project().runtime.document.scenarios[1].vehiclePlans["UNIT-01"].transitions).toEqual([{ year: 2040, targetPresetId: presetId }]);
+    expect(project().runtime.document.analysis).toMatchObject({ fuelPricePerLitre: 3.25, discountRate: 0.08 });
 
-    expect(project().scenarios.find((scenario) => scenario.id === scenarioId)?.document.vehiclePlans?.["UNIT-02"])
-      .toEqual({ transitionYear: 2030, targetPresetId: "electric-box-truck" });
+    await project().importProject(exportFile);
+    expect(project().runtime.document.id).not.toBe(projectId);
+    expect(project().runtime.document.vehiclePresets.find((preset) => preset.id === presetId)).toMatchObject({
+      name: "Regional hybrid", propulsion: "hybrid", litresPer100Km: 4.8, kWhPer100Km: 9.2, purchaseCost: 31_500,
+    });
+    expect(project().runtime.document.activeScenarioId).toBe("plan-b");
+    expect(project().runtime.document.scenarios[1].vehiclePlans["UNIT-01"].transitions).toEqual([{ year: 2040, targetPresetId: presetId }]);
+    expect(project().runtime.document.analysis).toMatchObject({ fuelPricePerLitre: 3.25, discountRate: 0.08 });
   });
 
-  it("keeps scenarios with their world when switching away and back", async () => {
-    const firstWorldId = project().worldId;
-    project().createScenario();
-    project().renameScenario(project().activeScenarioId, "Fast plan");
-    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "Fast plan"]);
+  it("uses one edit boundary and one history for every Project mutation", () => {
+    project().beginEdit();
+    project().updateVehicle("UNIT-01", { annualKm: 40_000 });
+    project().updateVehicle("UNIT-01", { annualKm: 42_000 });
+    project().commitEdit();
 
-    project().newWorld();
-    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A"]);
-
-    await project().switchWorld(firstWorldId);
-    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "Fast plan"]);
+    expect(project().runtime.history.past).toHaveLength(1);
+    expect(project().runtime.document.environment.vehicles[0].annualKm).toBe(42_000);
+    project().undo();
+    expect(project().runtime.document.environment.vehicles[0].annualKm).toBe(28_000);
+    project().redo();
+    expect(project().runtime.document.environment.vehicles[0].annualKm).toBe(42_000);
   });
 
-  it("removes a scenario from memory immediately and persists the removal on save", async () => {
-    project().createScenario();
-    const removedId = project().activeScenarioId;
-    project().deleteScenario(removedId);
-    expect(project().scenarios.some((scenario) => scenario.id === removedId)).toBe(false);
+  it("creates and deletes entities without leaving dangling references", () => {
+    const vehicleId = project().createVehicle();
+    expect(vehicleId).not.toBeNull();
+    project().replaceVehicleTransitions("plan-a", vehicleId!, [{ year: 2028, targetPresetId: "electric-van" }]);
+    project().deleteVehicle(vehicleId!);
+    expect(project().runtime.document.environment.vehicles.some((vehicle) => vehicle.id === vehicleId)).toBe(false);
+    expect(project().runtime.document.scenarios[0].vehiclePlans[vehicleId!]).toBeUndefined();
 
+    expect(project().deletePreset("diesel-van")).toBe(false);
+    project().updateVehicle("UNIT-01", { baselinePresetId: null });
+    expect(project().deletePreset("diesel-van")).toBe(true);
+  });
+
+  it("copies the next free spawn transform and restores vehicle data without selection on Undo", () => {
+    const first = project().createVehicle()!;
+    const firstVehicle = project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === first)!;
+    expect(firstVehicle.transform.position).toEqual([ -3.2, 0, -7 ]);
+    const second = project().createVehicle()!;
+    const secondVehicle = project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === second)!;
+    expect(secondVehicle.transform.position).toEqual([ 0, 0, -7 ]);
+
+    project().replaceVehicleTransitions("plan-a", first, [{ year: 2030, targetPresetId: "electric-van" }]);
+    project().replaceVehicleTransitions("plan-b", first, [{ year: 2040, targetPresetId: "hybrid-van" }]);
+    project().selectProjectEntity({ kind: "vehicle", id: first });
+    project().deleteVehicle(first);
+    expect(project().runtime.document.environment.vehicles.some((vehicle) => vehicle.id === first)).toBe(false);
+    expect(project().runtime.document.scenarios.every((scenario) => scenario.vehiclePlans[first] === undefined)).toBe(true);
+    expect(project().runtime.editor.selection).toBeNull();
+
+    project().undo();
+    expect(project().runtime.document.environment.vehicles.some((vehicle) => vehicle.id === first)).toBe(true);
+    expect(project().runtime.document.scenarios.map((scenario) => scenario.vehiclePlans[first]?.transitions[0].targetPresetId))
+      .toEqual(["electric-van", "hybrid-van"]);
+    expect(project().runtime.editor.selection).toBeNull();
+  });
+
+  it("reuses a deleted spawn transform without storing a spawn-slot identity", () => {
+    const createdId = project().createVehicle()!;
+    const transform = project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === createdId)!.transform;
+    project().deleteVehicle(createdId);
+    const replacementId = project().createVehicle()!;
+
+    expect(project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === replacementId)?.transform).toEqual(transform);
+    expect("spawnSlotId" in project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === replacementId)!).toBe(false);
+  });
+
+  it("keeps a spawn position occupied when a Vehicle is rotated or scaled", () => {
+    const firstId = project().createVehicle()!;
+    const first = project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === firstId)!;
+    project().setProjectEntityTransform({ kind: "vehicle", id: firstId }, {
+      ...first.transform,
+      rotation: [0, Math.PI / 2, 0],
+      scale: [1.1, 1.1, 1.1],
+    });
+
+    const secondId = project().createVehicle()!;
+    const second = project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === secondId)!;
+
+    expect(second.transform.position).toEqual([0, 0, -7]);
+  });
+
+  it("keeps default spawn transforms and existing Vehicle transforms independent of Depot movement", () => {
+    const spawnTransforms = structuredClone(DEFAULT_VEHICLE_SPAWN_TRANSFORMS);
+    const vehicleTransforms = structuredClone(project().runtime.document.environment.vehicles.map((vehicle) => vehicle.transform));
+    const depot = project().runtime.document.environment.depot;
+    project().setProjectEntityTransform({ kind: "depot", id: depot.id }, {
+      ...depot.transform,
+      position: [120, 0, -40],
+    });
+    const createdId = project().createVehicle()!;
+
+    expect(DEFAULT_VEHICLE_SPAWN_TRANSFORMS).toEqual(spawnTransforms);
+    expect(project().runtime.document.environment.vehicles[0].transform).toEqual(vehicleTransforms[0]);
+    expect(project().runtime.document.environment.vehicles.find((vehicle) => vehicle.id === createdId)?.transform)
+      .toEqual(spawnTransforms[1]);
+  });
+
+  it("groups live typed transform updates into one Undo entry and restores a cancelled drag", () => {
+    const reference = { kind: "vehicle" as const, id: "UNIT-01" };
+    const startingTransform = structuredClone(project().runtime.document.environment.vehicles[0].transform);
+    project().beginEdit();
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [1, 2, 3] });
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [4, 5, 6] });
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [7, 8, 9] });
+    project().commitEdit();
+
+    expect(project().runtime.document.environment.vehicles[0].transform.position).toEqual([7, 8, 9]);
+    expect(project().runtime.history.past).toHaveLength(1);
+    project().undo();
+    expect(project().runtime.document.environment.vehicles[0].transform).toEqual(startingTransform);
+
+    project().beginEdit();
+    project().setProjectEntityTransform(reference, { ...startingTransform, position: [10, 11, 12] });
+    project().cancelEdit();
+    expect(project().runtime.document.environment.vehicles[0].transform).toEqual(startingTransform);
+    expect(project().runtime.history.activeEdit).toBeNull();
+    expect(project().runtime.history.past).toHaveLength(0);
+  });
+
+  it("keeps typed selection identity when switching between Inspect and Gizmo modes", () => {
+    const selection = { kind: "vehicle" as const, id: "UNIT-01" };
+    project().selectProjectEntity(selection);
+    project().setInteractionMode("gizmo");
+    expect(project().runtime.editor.selection).toEqual(selection);
+    project().setInteractionMode("inspect");
+    expect(project().runtime.editor.selection).toEqual(selection);
+  });
+
+  it("duplicates Scenario plans independently and protects the final Scenario", () => {
+    project().replaceVehicleTransitions("plan-a", "UNIT-01", [{ year: 2030, targetPresetId: "electric-van" }]);
+    project().duplicateScenario("plan-a");
+    const duplicate = project().runtime.document.scenarios.at(-1)!;
+
+    expect(duplicate.vehiclePlans["UNIT-01"]).toEqual({ transitions: [{ year: 2030, targetPresetId: "electric-van" }] });
+    project().replaceVehicleTransitions(duplicate.id, "UNIT-01", [{ year: 2034, targetPresetId: "hybrid-van" }]);
+    expect(project().runtime.document.scenarios[0].vehiclePlans["UNIT-01"].transitions).toEqual([{ year: 2030, targetPresetId: "electric-van" }]);
+
+    project().deleteScenario("plan-b");
+    const remainingId = project().runtime.document.scenarios.find((scenario) => scenario.id !== duplicate.id)!.id;
+    project().deleteScenario(remainingId);
+    const count = project().runtime.document.scenarios.length;
+    project().deleteScenario(duplicate.id);
+    expect(project().runtime.document.scenarios).toHaveLength(count);
+    expect(project().runtime.document.activeScenarioId).toBe(duplicate.id);
+  });
+
+  it("undoes active-Scenario changes and picks the deterministic survivor on deletion", () => {
+    project().selectScenario("plan-b");
+    expect(project().runtime.document.activeScenarioId).toBe("plan-b");
+    project().undo();
+    expect(project().runtime.document.activeScenarioId).toBe("plan-a");
+
+    project().selectScenario("plan-b");
+    project().deleteScenario("plan-b");
+    expect(project().runtime.document.activeScenarioId).toBe("plan-a");
+    project().undo();
+    expect(project().runtime.document.activeScenarioId).toBe("plan-b");
+    expect(project().runtime.document.scenarios.map((scenario) => scenario.id)).toEqual(["plan-a", "plan-b"]);
+  });
+
+  it("recomputes every Scenario with shared assumptions without editing their plans", () => {
+    project().replaceVehicleTransitions("plan-a", "UNIT-01", [{ year: 2028, targetPresetId: "electric-van" }]);
+    project().replaceVehicleTransitions("plan-b", "UNIT-01", [{ year: 2032, targetPresetId: "hybrid-van" }]);
+    const plansBefore = structuredClone(project().runtime.document.scenarios.map((scenario) => scenario.vehiclePlans));
+    const before = simulateProject(project().runtime.document);
+
+    project().updateAnalysis({ fuelPricePerLitre: 3.25, electricityPricePerKWh: 0.4 });
+    const after = simulateProject(project().runtime.document);
+
+    expect(after.scenarios["plan-a"].totals.tco).not.toBe(before.scenarios["plan-a"].totals.tco);
+    expect(after.scenarios["plan-b"].totals.tco).not.toBe(before.scenarios["plan-b"].totals.tco);
+    expect(project().runtime.document.scenarios.map((scenario) => scenario.vehiclePlans)).toEqual(plansBefore);
+    expect(project().runtime.history.past).toHaveLength(3);
+    project().undo();
+    expect(project().runtime.document.analysis.fuelPricePerLitre).toBe(2.15);
+  });
+
+  it("clamps the runtime year when shared analysis settings change", () => {
+    project().setPlanSelectedYear(2034);
+    project().setCompareSelectedYear(2033);
+    project().updateAnalysis({ startYear: 2030, yearCount: 2 });
+
+    expect(project().runtime.editor.plan.selectedYear).toBe(2031);
+    expect(project().runtime.editor.compare.selectedYear).toBe(2031);
+  });
+
+  it("keeps Plan and Compare navigation independent and outside Project history", () => {
+    project().setPlanSelectedYear(2029);
+    project().setPlanPlaying(true);
+    project().setCompareScenario("A", "plan-b");
+    project().setCompareSelectedYear(2031);
+    project().setComparePlaying(true);
+
+    expect(project().runtime.editor.plan).toEqual({ selectedYear: 2029, playing: true });
+    expect(project().runtime.editor.compare).toEqual({
+      scenarioAId: "plan-b",
+      scenarioBId: "plan-a",
+      selectedYear: 2031,
+      playing: true,
+    });
+    expect(project().runtime.document.activeScenarioId).toBe("plan-a");
+    expect(project().runtime.history.past).toHaveLength(0);
+  });
+
+  it("updates and resets the runtime camera without adding history", () => {
+    project().setCamera({ position: [2, 3, 4], target: [1, 0, -1] });
+
+    expect(project().runtime.editor.camera).toEqual({ position: [2, 3, 4], target: [1, 0, -1] });
+    expect(project().runtime.history.past).toHaveLength(0);
+    project().resetCamera();
+    expect(project().runtime.editor.camera).toEqual(DEFAULT_PROJECT_CAMERA);
+    expect(project().runtime.editor.cameraRevision).toBe(1);
+    expect(project().runtime.history.past).toHaveLength(0);
+  });
+
+  it("persists and reopens the complete aggregate", async () => {
+    project().renameProject("Saved project");
     await project().saveProject();
-    const projectId = project().projectId!;
-    project().newProject("Other");
-    await project().openProject(projectId);
-    expect(project().scenarios.some((scenario) => scenario.id === removedId)).toBe(false);
-  });
+    const id = project().runtime.document.id;
+    expect(project().runtime.record?.revision).toBe(1);
 
-  it("saves every in-memory world and its scenarios in one Save Project", async () => {
-    const firstWorldId = project().worldId;
-    scene().setLight(40);
-    project().createScenario();
-    project().renameScenario(project().activeScenarioId, "World A plan");
-
-    project().newWorld();
-    const secondWorldId = project().worldId;
-    project().renameWorld("Second depot");
-    scene().setLight(80);
-    project().createScenario();
-    project().renameScenario(project().activeScenarioId, "World B plan");
-
-    await project().saveProject();
-    expect(project().projectId).not.toBeNull();
-    expect(project().worlds).toHaveLength(2);
-    expect(project().worlds.every((world) => world.revision === 1)).toBe(true);
-
-    const id = project().projectId!;
-    project().newProject("Other");
+    project().renameProject("Unsaved rename");
     await project().openProject(id);
-    expect(project().worlds.map((world) => world.id)).toEqual([firstWorldId, secondWorldId]);
-    expect(project().worlds[0].scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "World A plan"]);
-    expect(project().worlds[1].scenarios.map((scenario) => scenario.name)).toEqual(["Plan A", "World B plan"]);
-    expect(project().worldId).toBe(secondWorldId);
-    expect(scene().document.light).toBe(80);
+    expect(project().runtime.document.name).toBe("Saved project");
+    expect(project().runtime.history.past).toHaveLength(0);
   });
 
-  it("duplicates a world without copying its scenarios", () => {
-    scene().setLight(42);
-    project().createScenario();
-    const sourceId = project().worldId;
-    const sourceDocument = scene().document;
-    project().duplicateWorld();
+  it("imports as a new Project identity", async () => {
+    const source = createProjectFixture("source-project");
+    await project().importProject(createPortableProject(source));
 
-    expect(project().worldId).not.toBe(sourceId);
-    expect(project().worldName).toBe("Untitled project world copy");
-    expect(scene().document).toEqual(sourceDocument);
-    expect(project().scenarios).toHaveLength(1);
-    expect(project().scenarios[0].name).toBe("Plan A");
-    expect(project().worlds).toHaveLength(2);
-  });
-
-  it("removes a world from memory, switches safely, and persists the removal", async () => {
-    const firstWorldId = project().worldId;
-    project().newWorld();
-    const removedWorldId = project().worldId;
-    project().createScenario();
-    expect(project().worlds).toHaveLength(2);
-
-    project().deleteWorld(removedWorldId);
-    expect(project().worlds.map((world) => world.id)).toEqual([firstWorldId]);
-    expect(project().worldId).toBe(firstWorldId);
-
-    await project().saveProject();
-    const projectId = project().projectId!;
-    expect((await project().listWorlds()).some((world) => world.id === removedWorldId)).toBe(false);
-
-    project().newProject("Other");
-    await project().openProject(projectId);
-    expect(project().worlds.map((world) => world.id)).toEqual([firstWorldId]);
-  });
-
-  it("never removes the final world in a project", () => {
-    const onlyWorldId = project().worldId;
-    project().deleteWorld(onlyWorldId);
-    expect(project().worlds).toHaveLength(1);
-    expect(project().worldId).toBe(onlyWorldId);
-  });
-
-  it("never removes the final scenario in a world", () => {
-    project().deleteScenario(project().activeScenarioId);
-    expect(project().scenarios).toHaveLength(1);
-    project().createScenario();
-    project().deleteScenario(project().activeScenarioId);
-    expect(project().scenarios).toHaveLength(1);
-  });
-
-  it("validates project and scenario names", () => {
-    expect(validateName("")).not.toBeNull();
-    expect(validateName("x".repeat(101))).not.toBeNull();
-    project().renameProject("");
-    project().renameScenario(project().activeScenarioId, "x".repeat(101));
-    expect(project().name).toBe("Untitled project");
-    project().renameScenario(project().activeScenarioId, " Fast plan ");
-    expect(activeName()).toBe("Fast plan");
-  });
-
-  it("opens the sample workspace", async () => {
-    const sample = createSampleProjects()[0];
-    await project().openProject(sample.project.id);
-    expect(project().worldId).toBe(sample.worlds[0].id);
-    expect(scene().document.objects).toHaveLength(4);
-    expect(project().scenarios.map((scenario) => scenario.name)).toEqual(["Plan A · gradual", "Plan B · fast"]);
-  });
-
-  it("exports and imports all in-memory worlds", async () => {
-    project().newWorld();
-    project().renameWorld("Second world");
-    const exported = project().exportProject();
-    expect(exported.worlds).toHaveLength(2);
-
-    await project().importProject(exported);
-    expect(project().projectId).not.toBeNull();
-    expect(project().worlds).toHaveLength(2);
-    expect(project().worldName).toBe("Second world");
-  });
-
-  it("keeps edits and reports revision conflicts", async () => {
-    await project().saveProject();
-    const id = project().projectId!;
-    const base = createMemoryProjectRepository();
-    setProjectRepository({ ...base, updateWorkspace: async () => { throw new ProjectConflictError(); } });
-    scene().setLight(12);
-    await project().saveProject();
-    expect(project().saveStatus.state).toBe("error");
-    expect(project().projectId).toBe(id);
-    expect(scene().document.light).toBe(12);
+    expect(project().runtime.document.id).not.toBe(source.id);
+    expect(project().runtime.document.name).toBe(source.name);
+    expect(project().runtime.record?.revision).toBe(1);
   });
 });

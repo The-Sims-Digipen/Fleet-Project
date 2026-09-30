@@ -1,50 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { createDocument } from "../state/sceneStore";
-import { loadDefaultPresets } from "../vehicles/defaults";
+
+import { createProjectFixture } from "../domain/projectFixture";
 import { createPortableProject, parsePortableProject, projectFileName } from "./portableProject";
 
-describe("portable project files", () => {
-  it("round-trips a valid multi-world project snapshot", () => {
-    const file = createPortableProject({
-      projectName: "Depot Study",
-      projectDocument: { version: 2, vehiclePresets: loadDefaultPresets() },
-      worlds: [
-        { name: "Main Depot", document: createDocument(), scenarios: [{ name: "Plan A", document: { version: 1 } }] },
-        { name: "Second Depot", document: createDocument(), scenarios: [{ name: "Plan B", document: { version: 1 } }] },
-      ],
-      activeWorldIndex: 1,
-      activeScenarioIndex: 0,
-    });
+describe("portable aggregate Project files", () => {
+  it("round-trips the complete Project document without runtime state", () => {
+    const document = createProjectFixture();
+    const file = createPortableProject(document);
 
     expect(parsePortableProject(JSON.parse(JSON.stringify(file)))).toEqual(file);
+    expect(file).toMatchObject({ format: "fleet-transition-planner-project", version: 1, document });
+    expect(file).not.toHaveProperty("editor");
+    expect(file).not.toHaveProperty("history");
+    expect(file).not.toHaveProperty("revision");
     expect(projectFileName("Depot Study / 2026")).toBe("depot-study-2026.fleetproject");
   });
 
-  it("imports the previous single-world portable format", () => {
-    const oldFile = {
+  it("rejects unsupported formats and invalid aggregates", () => {
+    expect(() => parsePortableProject({ format: "fleet-transition-planner-project", version: 2 })).toThrow(/unsupported/i);
+    expect(() => parsePortableProject({
       format: "fleet-transition-planner-project",
       version: 1,
       exportedAt: new Date().toISOString(),
-      project: { name: "Old", document: { version: 2, vehiclePresets: loadDefaultPresets() } },
-      world: { name: "World", document: createDocument() },
-      scenarios: [{ name: "Plan A", document: { version: 1 } }],
-      activeScenarioIndex: 0,
-    };
-    const parsed = parsePortableProject(oldFile);
-    expect(parsed.version).toBe(2);
-    expect(parsed.worlds).toHaveLength(1);
-  });
-
-  it("rejects unsupported or malformed files", () => {
-    expect(() => parsePortableProject({ format: "other", version: 1 })).toThrow(/unsupported/i);
+      document: { ...createProjectFixture(), version: 2 },
+    })).toThrow(/unsupported Project document version/i);
     expect(() => parsePortableProject({
       format: "fleet-transition-planner-project",
-      version: 2,
+      version: 1,
       exportedAt: new Date().toISOString(),
-      project: { name: "Bad", document: { version: 2, vehiclePresets: [] } },
-      worlds: [],
-      activeWorldIndex: 0,
-      activeScenarioIndex: 0,
-    })).toThrow(/world/i);
+      document: { ...createProjectFixture(), scenarios: [] },
+    })).toThrow(/at least one Scenario/i);
   });
 });

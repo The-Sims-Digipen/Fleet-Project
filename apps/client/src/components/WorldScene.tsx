@@ -1,90 +1,114 @@
-import { Html, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { MOUSE, type Group } from "three";
-import type { SceneObject } from "../scene/types";
-import { useSceneStore } from "../state/sceneStore";
+import { createProjectWorld, projectEntityReferenceKey, type ProjectWorldObject } from "../scene/projectWorld";
+import type { ProjectEntityReference } from "../domain/project";
+import { useProjectStore } from "../state/projectStore";
 import { ModelObject } from "./ModelObject";
 import { TransformGizmo } from "./TransformGizmo";
 
 function Lighting() {
-  const light = useSceneStore((state) => state.document.light);
+  const light = useProjectStore((state) => state.runtime.editor.lightIntensity);
   return <><ambientLight intensity={0.35 + light / 100} /><directionalLight position={[6, 9, 5]} intensity={0.5 + light / 45} /></>;
 }
 
-function CameraControls({ reset, fleetCount }: { reset: number; fleetCount: number | null }) {
+function CameraControls() {
   const camera = useThree((state) => state.camera);
-  const size = useThree((state) => state.size);
-  useEffect(() => {
-    if (fleetCount !== null) {
-      const rowWidth = Math.max(5, (fleetCount - 1) * 4.5 + 3);
-      const aspect = size.width / Math.max(1, size.height);
-      const distance = Math.max(16, rowWidth / (2 * Math.tan(42 * Math.PI / 360) * aspect) * 1.25);
-      camera.position.set(0, distance * 0.42, distance);
+  const session = useProjectStore((state) => state.session);
+  const cameraRevision = useProjectStore((state) => state.runtime.editor.cameraRevision);
+  const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
+
+  useLayoutEffect(() => {
+    const next = useProjectStore.getState().runtime.editor.camera;
+    camera.position.fromArray(next.position);
+    if (controls.current) {
+      controls.current.target.fromArray(next.target);
+      controls.current.update();
     } else {
-      camera.position.set(8, 7, 9);
+      camera.lookAt(...next.target);
     }
-    camera.lookAt(0, 0, 0);
-  }, [camera, fleetCount, reset, size.width, size.height]);
+  }, [camera, cameraRevision, session]);
+
+  const synchronizeCamera = useCallback(() => {
+    if (!controls.current) return;
+    useProjectStore.getState().setCamera({
+      position: camera.position.toArray() as [number, number, number],
+      target: controls.current.target.toArray() as [number, number, number],
+    });
+  }, [camera]);
+
   return <OrbitControls
-    key={`${reset}-${fleetCount === null ? "scene" : "fleet"}`}
+    ref={controls}
     makeDefault
     enableDamping
     dampingFactor={0.06}
     minDistance={2}
-    maxDistance={fleetCount === null ? 60 : 120}
+    maxDistance={60}
     maxPolarAngle={Math.PI / 2.02}
-    target={[0, 0, 0]}
-    mouseButtons={fleetCount === null ? { LEFT: -1 as MOUSE, MIDDLE: MOUSE.ROTATE, RIGHT: -1 as MOUSE } : undefined}
+    onChange={synchronizeCamera}
+    mouseButtons={{ LEFT: -1 as MOUSE, MIDDLE: MOUSE.ROTATE, RIGHT: -1 as MOUSE }}
   />;
 }
 
-type RegisteredTarget = { id: string; group: Group };
+type RegisteredTarget = { key: string; group: Group };
 
-function WorldObjectsLayer({ objects, isClick, markDragged }: {
-  objects: SceneObject[];
+function ProjectWorldLayer({ objects, isClick, markDragged }: {
+  objects: readonly ProjectWorldObject[];
   isClick: () => boolean;
   markDragged: () => void;
 }) {
-  const selectedId = useSceneStore((state) => state.editor.selectedObjectId);
+  const selection = useProjectStore((state) => state.runtime.editor.selection);
+  const selectedKey = selection ? projectEntityReferenceKey(selection) : null;
+  const interactionMode = useProjectStore((state) => state.runtime.editor.interactionMode);
   const roots = useRef(new Map<string, Group>());
   const [registeredTarget, setRegisteredTarget] = useState<RegisteredTarget | null>(null);
 
-  const registerRoot = useCallback((id: string, group: Group | null) => {
+  const registerRoot = useCallback((reference: ProjectEntityReference, group: Group | null) => {
+    const key = projectEntityReferenceKey(reference);
     if (group) {
-      roots.current.set(id, group);
-      if (useSceneStore.getState().editor.selectedObjectId === id) {
-        setRegisteredTarget((current) => current?.id === id && current.group === group ? current : { id, group });
+      roots.current.set(key, group);
+      const currentSelection = useProjectStore.getState().runtime.editor.selection;
+      if (currentSelection && projectEntityReferenceKey(currentSelection) === key) {
+        setRegisteredTarget((current) => current?.key === key && current.group === group ? current : { key, group });
       }
       return;
     }
 
-    roots.current.delete(id);
-    setRegisteredTarget((current) => current?.id === id ? null : current);
+    roots.current.delete(key);
+    setRegisteredTarget((current) => current?.key === key ? null : current);
   }, []);
 
   // Selection can change independently of mounting (sidebar selection, undo,
-  // object creation). Resolve the selected logical object to its live Three.js
-  // root after refs have been committed.
+  // object creation). Resolve its typed Project reference to a live Three.js root.
   useLayoutEffect(() => {
-    const group = selectedId ? roots.current.get(selectedId) : undefined;
+    const group = selectedKey ? roots.current.get(selectedKey) : undefined;
     setRegisteredTarget((current) => {
-      if (!selectedId || !group) return current === null ? current : null;
-      if (current?.id === selectedId && current.group === group) return current;
-      return { id: selectedId, group };
+      if (!selectedKey || !group) return current === null ? current : null;
+      if (current?.key === selectedKey && current.group === group) return current;
+      return { key: selectedKey, group };
     });
-  }, [selectedId, objects.length]);
+  }, [selectedKey, objects.length]);
 
-  const selectedTarget = selectedId && registeredTarget?.id === selectedId ? registeredTarget.group : null;
+  const selectedTarget = selectedKey && registeredTarget?.key === selectedKey ? registeredTarget.group : null;
 
   return <>
-    {objects.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} registerRoot={registerRoot} />)}
-    <TransformGizmo objectId={selectedId} target={selectedTarget} markDragged={markDragged} />
+    {objects.map((object) => {
+      const referenceKey = projectEntityReferenceKey(object.reference);
+      const canSelect = import.meta.env.DEV || interactionMode === "inspect";
+      return <ModelObject key={referenceKey} object={object} isClick={isClick} selected={selectedKey === referenceKey}
+        onSelect={() => {
+          if (canSelect) useProjectStore.getState().selectProjectEntity(object.reference);
+        }} registerRoot={import.meta.env.DEV ? registerRoot : undefined} />;
+    })}
+    {import.meta.env.DEV && interactionMode === "gizmo" && <TransformGizmo entity={selection} target={selectedTarget} markDragged={markDragged} />}
   </>;
 }
 
-export function WorldScene({ cameraReset, fleetPreview }: { cameraReset: number; fleetPreview: SceneObject[] | null }) {
-  const objects = useSceneStore((state) => state.document.objects);
+export function WorldScene() {
+  const document = useProjectStore((state) => state.runtime.document);
+  const selectedYear = useProjectStore((state) => state.runtime.editor.plan.selectedYear);
+  const objects = useMemo(() => createProjectWorld(document, selectedYear), [document, selectedYear]);
   // Track the full pointer path: returning to the start after orbiting is still a drag.
   const gesture = useRef({ x: 0, y: 0, dragged: false, primary: false });
   const isClick = useCallback(() => gesture.current.primary && !gesture.current.dragged, []);
@@ -100,19 +124,14 @@ export function WorldScene({ cameraReset, fleetPreview }: { cameraReset: number;
     }}
     onPointerMoveCapture={(event) => { if (Math.hypot(event.clientX - gesture.current.x, event.clientY - gesture.current.y) > 4) gesture.current.dragged = true; }}
     onPointerCancelCapture={markDragged}>
-    <p className="sr-only">{fleetPreview ? `3D fleet preview with ${fleetPreview.length} vehicles arranged side by side.` : "Interactive 3D world containing procedural models. The World Objects list provides keyboard selection."}</p>
+    <p className="sr-only">Project depot with {document.environment.vehicles.length} fleet vehicles.</p>
     <Canvas dpr={[1, 1.5]} camera={{ position: [8, 7, 9], fov: 42, near: 0.1, far: 200 }}
       fallback={<div className="grid h-full place-items-center p-8 text-center text-secondary">WebGL is unavailable. The sidebar remains usable.</div>}
-      onPointerMissed={() => { if (!fleetPreview && isClick()) useSceneStore.getState().selectObject(null); }}>
+      onPointerMissed={() => { if (isClick()) useProjectStore.getState().selectProjectEntity(null); }}>
       <color attach="background" args={["#07100f"]} />
       <Lighting />
-      {fleetPreview
-        ? fleetPreview.map((object) => <ModelObject key={object.id} object={object} isClick={isClick} selectable={false} />)
-        : <WorldObjectsLayer objects={objects} isClick={isClick} markDragged={markDragged} />}
-      {fleetPreview?.map((object) => <Html key={`${object.id}-label`} position={[object.transform.position[0], 2.8, object.transform.position[2]]} center style={{ pointerEvents: "none" }}>
-        <span className="whitespace-nowrap rounded border border-line-strong bg-panel/90 px-2 py-1 font-mono text-xs text-primary">{object.name}</span>
-      </Html>)}
-      <CameraControls reset={cameraReset} fleetCount={fleetPreview?.length ?? null} />
+      <ProjectWorldLayer objects={objects} isClick={isClick} markDragged={markDragged} />
+      <CameraControls />
     </Canvas>
   </div>;
 }

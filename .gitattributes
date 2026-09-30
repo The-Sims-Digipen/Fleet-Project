@@ -1,0 +1,9 @@
+# ReportLab PDFs are ASCII85-encoded and contain no NUL bytes, so Git misdetects
+# them as text and corrupts them with CRLF conversion on checkout.
+*.pdf binary
+
+# Deployment scripts/configuration must work on Linux after Windows checkouts.
+*.sh text eol=lf
+*.conf text eol=lf
+*.yml text eol=lf
+*.py text eol=lf

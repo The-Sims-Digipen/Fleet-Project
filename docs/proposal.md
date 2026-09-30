@@ -8,19 +8,21 @@ Success means a user can create or load a sample fleet, author a depot, schedule
 
 ## Committed product
 
-A single-user browser application runs locally with browser-local IndexedDB project persistence and a Fastify API available for later backend features. It includes fleet editing, staged transition scheduling, depot/external/mixed charging, a custom calculation engine, a flat freeform depot editor, scenario-driven 3D visualization, suitability explanations, charts, and two-plan comparison. No account or public hosting is required.
+The product definition below covers the long-term M1–M6 scope. The current version 1 Project format contains a Depot and Vehicle baselines, shared Analysis Settings, and Scenario-owned Vehicle transition plans. M1 does not persist parking assignments or Scenario charging assumptions; charging strategies, charging infrastructure, feasibility, Charger visualization, and charging comparison remain later scope.
 
-Synthetic sample data provides an immediate demonstration. Fleet size and vehicle type are not restricted to the 100-van example. Sample values are explicitly illustrative. Use realistic synthetic or historical data unless ChargedUp explicitly approves other data.
+A single-user browser application runs locally with browser-local IndexedDB project persistence and a Fastify API backed by the same aggregate Project repository contract. It includes fleet editing, staged transition scheduling, depot/external/mixed charging, a custom calculation engine, a flat freeform depot editor, scenario-driven 3D visualization, suitability explanations, charts, and two-plan comparison. No account or public hosting is required.
+
+Synthetic sample data provides an immediate demonstration. The current default Depot supplies ten initial world-space Vehicle spawn transforms; the 100-van example remains an illustrative future-scale case rather than a vehicle-type restriction. Sample values are explicitly illustrative. Use realistic synthetic or historical data unless ChargedUp explicitly approves other data.
 
 ## Requirements and acceptance scenarios
 
 | Requirement | Required outcome |
 |---|---|
-| R01 — Persistent workspace | Create/open a project, create/rename/duplicate reusable worlds, and create/rename/duplicate/delete/save/reopen independent scenarios; failed or stale saves preserve the working copy and last valid stored state. |
+| R01 — Persistent workspace | Create/open/save/reopen a Project containing one physical environment and create/rename/duplicate/delete independent Scenarios over it; failed or stale saves preserve the working copy and last valid stored state. |
 | R02 — Fleet and generic transition planning | Build user-defined vehicle presets and a heterogeneous fleet; filter/group/select vehicles; assign any target preset and transition year; produce correct annual fleet composition. |
 | R03 — Calculations | Recalculate TCO, CAPEX, OPEX, payback, energy, and emissions from explicit editable assumptions with deterministic annual/cumulative breakdowns. |
 | R04 — Charging and feasibility | Model depot/external/mixed charging, charger inventory/timing, connection capacity, dwell/readiness, and depot-space constraints. |
-| R05 — Depot authoring | Build an irregular flat depot with obstacles, bays, and chargers; edit with snapping/numeric properties, assignments, validation, cancel, undo/redo, and shared-world persistence with separate world-bound scenario data. |
+| R05 — Depot environment | Start every Project with the default depot and ten initial Vehicle positions; keep development tools focused on typed Project entities, while future typed depot authoring remains part of the Project environment. |
 | R06 — 3D digital twin | Inspect the data-driven depot, selected-year vehicle/charger state, constraint overlays, and independent comparison scenes with full viewport interaction. |
 | R07 — Explainable choices | Rank transition candidates using operational/economic/feasibility factors and show factor-level reasons and assumption impacts without automatic schedule mutation. |
 | R08 — Comparison and analytics | Compare two independent plans at the same analysis year using synchronized metrics, charts, roadmaps, feasibility, and 3D state. |

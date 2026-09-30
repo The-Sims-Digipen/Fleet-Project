@@ -1,10 +1,10 @@
-import { Component, useCallback, useLayoutEffect, useMemo, type ComponentType, type ReactNode } from "react";
+import { Component, useCallback, useLayoutEffect, useMemo, type ReactNode } from "react";
 import type { Group } from "three";
 import { createProceduralInstance } from "../models/proceduralModel";
-import { getDefinition, type ObjectDefinition } from "../scene/catalog";
-import type { SceneObject } from "../scene/types";
-import { useResolvedModelId } from "../state/presetStore";
-import { useSceneStore } from "../state/sceneStore";
+import { getModelDefinition, type ModelDefinition } from "../scene/catalog";
+import { copyTransform } from "../domain/spatial";
+import type { ProjectWorldObject } from "../scene/projectWorld";
+import type { ProjectEntityReference } from "../domain/project";
 
 class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -12,12 +12,12 @@ class ObjectBoundary extends Component<{ children: ReactNode }, { failed: boolea
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-type RendererProps = { object: SceneObject; definition: ObjectDefinition; selected: boolean };
+type RendererProps = { object: ProjectWorldObject; definition: ModelDefinition; selected: boolean };
 
 function ProceduralRenderer({ object, definition, selected }: RendererProps) {
   const instance = useMemo(() => createProceduralInstance(definition.createModel), [definition]);
   useLayoutEffect(() => () => instance.dispose(), [instance]);
-  useLayoutEffect(() => { instance.applyAppearance(object.appearance); }, [instance, object.appearance]);
+  useLayoutEffect(() => { instance.applyTint(object.tint); }, [instance, object.tint]);
 
   return <group dispose={null}>
     <primitive object={instance.group} />
@@ -25,27 +25,24 @@ function ProceduralRenderer({ object, definition, selected }: RendererProps) {
   </group>;
 }
 
-const renderers: Record<ObjectDefinition["kind"], ComponentType<RendererProps>> = {
-  procedural: ProceduralRenderer,
-};
-
-export function ModelObject({ object, isClick, selectable = true, registerRoot }: {
-  object: SceneObject;
+export function ModelObject({ object, isClick, selected, onSelect, registerRoot }: {
+  object: ProjectWorldObject;
   isClick: () => boolean;
-  selectable?: boolean;
-  registerRoot?: (id: string, root: Group | null) => void;
+  selected: boolean;
+  onSelect: () => void;
+  registerRoot?: (reference: ProjectEntityReference, root: Group | null) => void;
 }) {
-  const selected = useSceneStore((state) => selectable && state.editor.selectedObjectId === object.id);
-  const modelId = useResolvedModelId(object);
-  const definition = getDefinition(modelId);
-  const setRoot = useCallback((root: Group | null) => registerRoot?.(object.id, root), [object.id, registerRoot]);
+  const definition = getModelDefinition(object.modelId);
+  const transform = copyTransform(object.transform);
+  const setRoot = useCallback((root: Group | null) => {
+    registerRoot?.(object.reference, root);
+  }, [object, registerRoot]);
   if (!definition) return null;
-  const Renderer = renderers[definition.kind];
 
-  return <group ref={registerRoot ? setRoot : undefined} {...object.transform} onClick={(event) => {
+  return <group ref={registerRoot ? setRoot : undefined} {...transform} onClick={(event) => {
     event.stopPropagation();
-    if (selectable && isClick()) useSceneStore.getState().selectObject(object.id);
+    if (isClick()) onSelect();
   }}>
-    <ObjectBoundary><Renderer object={object} definition={definition} selected={selected} /></ObjectBoundary>
+    <ObjectBoundary><ProceduralRenderer object={object} definition={definition} selected={selected} /></ObjectBoundary>
   </group>;
 }
