@@ -21,7 +21,9 @@ export function FleetManagementPanel() {
   const scenario = scenarios.find((item) => item.id === activeScenarioId) ?? scenarios[0];
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [expandedVehicleId, setExpandedVehicleId] = useState<string | null>(null);
+  const selectedVehicle = vehicles.find((vehicle) => selection?.kind === "vehicle" && selection.id === vehicle.id) ?? vehicles[0];
+  const transitions = selectedVehicle ? scenario?.vehiclePlans[selectedVehicle.id]?.transitions ?? [] : [];
+  const transition = transitions[0];
 
   const years = Array.from({ length: analysis.yearCount }, (_, index) => analysis.startYear + index);
   const confirming = vehicles.find((vehicle) => vehicle.id === confirmingId);
@@ -48,7 +50,7 @@ export function FleetManagementPanel() {
     setNotice(`Deleted ${name}.`);
   };
 
-  return <CollapsibleSection panelId="fleet" title="Fleet Management" description="Edit Project-owned Vehicles and the active Scenario's transition plan." onBeforeCollapse={edit.commitEdit}>
+  return <CollapsibleSection panelId="fleet" title="Fleet Management" description="Select a Vehicle to edit its shared fleet inputs and active Scenario's transition plan." onBeforeCollapse={edit.commitEdit}>
     <div className="overflow-hidden rounded-lg border border-line-strong bg-control">
       <div className="flex items-center justify-between border-b border-line-strong px-3 py-2">
         <span className="text-xs font-semibold text-primary">Vehicles · {scenario?.name ?? "No scenario"}</span>
@@ -60,6 +62,7 @@ export function FleetManagementPanel() {
           onClick={() => {
             edit.commitEdit();
             const id = useProjectStore.getState().createVehicle();
+            if (id) useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id });
             setNotice(id ? "Added a vehicle at the first available world position." : "The fleet has used every default spawn position.");
           }}>Add vehicle</button>
       </div>
@@ -76,69 +79,60 @@ export function FleetManagementPanel() {
         </span>
       </div>}
 
-      {vehicles.length ? <ul aria-label="Fleet vehicles" className="m-0 max-h-[650px] list-none divide-y divide-line overflow-y-auto overscroll-contain p-0">
+      {vehicles.length ? <ul aria-label="Fleet vehicles" className="m-0 h-44 list-none overflow-y-auto overscroll-contain p-1">
         {vehicles.map((vehicle) => {
-          const transitions = scenario?.vehiclePlans[vehicle.id]?.transitions ?? [];
-          const transition = transitions[0];
           const effectivePresetId = scenario ? effectivePresetIdFor(document, scenario.id, vehicle.id, selectedYear) : vehicle.baselinePresetId;
           const transitioned = effectivePresetId !== vehicle.baselinePresetId;
-          const isSelected = selection?.kind === "vehicle" && selection.id === vehicle.id;
-          return <li key={vehicle.id} className="grid gap-3 px-3 py-3">
-            <div className="flex min-w-0 items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <button type="button" aria-label={`Select ${vehicle.name} in viewport`} aria-pressed={isSelected}
-                  className="truncate text-left text-sm font-semibold text-primary underline-offset-2 hover:text-accent hover:underline aria-pressed:text-accent"
-                  onClick={() => { edit.commitEdit(); useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: vehicle.id }); }}>
-                  {vehicle.name}
-                </button>
-                <span className="mt-0.5 block font-mono text-[10px] font-bold tracking-wider text-accent">{vehicle.id}</span>
-                <p className="text-[11px] text-secondary">Position {vehicle.transform.position.map((value) => value.toFixed(1)).join(", ")}</p>
-              </div>
+          return <li key={vehicle.id}>
+            <button type="button" aria-label={`Select ${vehicle.name} in viewport`} aria-pressed={vehicle.id === selectedVehicle?.id}
+              className="flex h-11 w-full min-w-0 items-center gap-2 rounded-sm px-2 text-left text-xs text-secondary hover:bg-white/5 aria-pressed:bg-accent/15 aria-pressed:text-primary"
+              onClick={() => {
+                edit.commitEdit();
+                setConfirmingId(null);
+                useProjectStore.getState().selectProjectEntity({ kind: "vehicle", id: vehicle.id });
+              }}>
+              <span aria-hidden="true" className="shrink-0 text-accent">◇</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold" title={vehicle.name}>{vehicle.name}</span>
+                <span className="block truncate font-mono text-[9px] opacity-60">{vehicle.id}</span>
+              </span>
               <span className={`shrink-0 rounded px-2 py-1 font-mono text-[11px] ${transitioned ? "bg-[#39ff14]/15 text-[#39ff14]" : "bg-accent/10 text-accent"}`}>
                 {transitioned ? "Changed" : "Current"}
               </span>
-            </div>
-
-            <VehicleFields vehicle={vehicle} document={document} idPrefix={`fleet-${vehicle.id}`} section="summary" />
-
-            <button type="button" className={`${actionClass} justify-self-start`} aria-expanded={expandedVehicleId === vehicle.id}
-              aria-controls={`fleet-vehicle-inputs-${vehicle.id}`}
-              onClick={() => { edit.commitEdit(); setExpandedVehicleId(expandedVehicleId === vehicle.id ? null : vehicle.id); }}>
-              {expandedVehicleId === vehicle.id ? "Hide vehicle inputs" : "Edit vehicle inputs"}
             </button>
-
-            {expandedVehicleId === vehicle.id && <div id={`fleet-vehicle-inputs-${vehicle.id}`} className="grid gap-3 rounded border border-line bg-panel p-3">
-              <VehicleFields vehicle={vehicle} document={document} idPrefix={`fleet-${vehicle.id}`} section="details" />
-            </div>}
-
-            <div className="border-t border-line pt-3">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-secondary">Active Scenario transition</p>
-              <label className={labelClass} htmlFor={`fleet-target-${vehicle.id}`}>
-                Target preset
-                <select id={`fleet-target-${vehicle.id}`} aria-label={`Target preset for ${vehicle.id}`} value={transition?.targetPresetId ?? ""}
-                  onChange={(event) => setTransition(vehicle.id, event.target.value || null, transition?.year ?? selectedYear)}
-                  disabled={!scenario || !presets.length} className={fieldClass}>
-                  <option value="">No target</option>
-                  {presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
-                </select>
-              </label>
-              <label className={`${labelClass} mt-3`} htmlFor={`fleet-year-${vehicle.id}`}>
-                Year to change{transitions.length > 1 ? ` · first of ${transitions.length}` : ""}
-                <select id={`fleet-year-${vehicle.id}`} aria-label={`Year to change for ${vehicle.id}`} value={transition?.year ?? ""}
-                  onChange={(event) => setTransition(vehicle.id, transition?.targetPresetId ?? null, event.target.value ? Number(event.target.value) : null)}
-                  disabled={!scenario || !transition} className={fieldClass}>
-                  <option value="">No transition</option>
-                  {transition && !years.includes(transition.year) && <option value={transition.year}>{transition.year} · outside period</option>}
-                  {years.map((year) => <option key={year} value={year}>{year}</option>)}
-                </select>
-              </label>
-            </div>
-
-            <button type="button" className={`${actionClass} justify-self-start`} aria-label={`Delete ${vehicle.id}`}
-              onClick={() => { edit.commitEdit(); setNotice(null); setConfirmingId(vehicle.id); }}>Delete</button>
           </li>;
         })}
       </ul> : <p className="px-3 py-4 text-xs text-secondary">No fleet vehicles yet. Add one to start planning.</p>}
     </div>
+    {selectedVehicle && <div className="mt-[22px] grid gap-3" key={`${document.id}-${selectedVehicle.id}`}>
+      <div className="grid gap-3 rounded border border-line bg-panel/50 p-3">
+        <p className="text-[11px] text-secondary">Position {selectedVehicle.transform.position.map((value) => value.toFixed(1)).join(", ")}</p>
+        <VehicleFields vehicle={selectedVehicle} document={document} idPrefix={`fleet-${selectedVehicle.id}`} />
+        <div className="border-t border-line pt-3">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-secondary">Active Scenario transition</p>
+          <label className={labelClass} htmlFor={`fleet-target-${selectedVehicle.id}`}>
+            Target preset
+            <select id={`fleet-target-${selectedVehicle.id}`} aria-label={`Target preset for ${selectedVehicle.id}`} value={transition?.targetPresetId ?? ""}
+              onChange={(event) => setTransition(selectedVehicle.id, event.target.value || null, transition?.year ?? selectedYear)}
+              disabled={!scenario || !presets.length} className={fieldClass}>
+              <option value="">No target</option>
+              {presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+            </select>
+          </label>
+          <label className={`${labelClass} mt-3`} htmlFor={`fleet-year-${selectedVehicle.id}`}>
+            Year to change{transitions.length > 1 ? ` · first of ${transitions.length}` : ""}
+            <select id={`fleet-year-${selectedVehicle.id}`} aria-label={`Year to change for ${selectedVehicle.id}`} value={transition?.year ?? ""}
+              onChange={(event) => setTransition(selectedVehicle.id, transition?.targetPresetId ?? null, event.target.value ? Number(event.target.value) : null)}
+              disabled={!scenario || !transition} className={fieldClass}>
+              <option value="">No transition</option>
+              {transition && !years.includes(transition.year) && <option value={transition.year}>{transition.year} · outside period</option>}
+              {years.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </label>
+        </div>
+      </div>
+      <button type="button" className={`${actionClass} justify-self-start`} aria-label={`Delete ${selectedVehicle.id}`}
+        onClick={() => { edit.commitEdit(); setNotice(null); setConfirmingId(selectedVehicle.id); }}>Delete</button>
+    </div>}
   </CollapsibleSection>;
 }
