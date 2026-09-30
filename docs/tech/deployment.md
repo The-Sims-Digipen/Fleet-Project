@@ -31,7 +31,11 @@ Test-NetConnection $vmAddress -Port $vmSshPort
 ssh-keygen -t ed25519 -C "fleet-prod-ci" -f "$env:USERPROFILE\.ssh\fleet-prod-ci"
 ```
 
-When asked for a passphrase, press Enter twice: the CI key must work unattended.
+**Leave the deployment key's passphrase empty.** At the passphrase prompt, press
+Enter without typing anything, then press Enter again at the confirmation prompt.
+GitHub Actions must load this key unattended; a passphrase-protected key causes
+deployment to fail with `Permission denied (publickey,password)`.
+
 This key authenticates a dedicated deployment account, separately from your admin
 account. If that filename already exists, use a new filename instead of overwriting it.
 
