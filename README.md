@@ -14,7 +14,7 @@ Project documentation is indexed in [docs/README.md](docs/README.md).
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24 LTS recommended (`.nvmrc`); minimum supported version is 22.13
 - pnpm **11.24.0** (pinned in `package.json`)
 - Git
 
@@ -96,3 +96,12 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+## Ubuntu VM deployment
+
+GitHub Actions verifies every pull request and pushes to `main`, `stage`, and `prod`.
+Only `prod` deploys automatically to the school VM. Nginx serves the production
+client over HTTP; Projects remain in each browser's IndexedDB.
+
+Follow [the VM setup and deployment guide](docs/tech/deployment.md) for the exact
+Ubuntu 24.04 commands, GitHub environment settings, first deployment, and rollback.

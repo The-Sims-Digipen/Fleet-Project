@@ -8,6 +8,8 @@ coverage/
 .cache/
 .vite/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # Local configuration and secrets (keep safe templates)
 .env

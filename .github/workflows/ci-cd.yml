@@ -1,0 +1,146 @@
+name: CI and production deployment
+
+on:
+  pull_request:
+  push:
+    branches: [main, stage, prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never interrupt production while files are being promoted. Superseded PR/main/
+# stage checks can be cancelled. The deployment also checks the latest prod SHA.
+concurrency:
+  group: fleet-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/prod' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      release: ${{ steps.package.outputs.release }}
+      sha256: ${{ steps.package.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Install pinned pnpm and dependencies
+        run: |
+          npm install --global "$(node -p "require('./package.json').packageManager")"
+          pnpm install --frozen-lockfile
+      - name: Verify application
+        run: pnpm verify
+      - name: Verify deployment script
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends nginx
+          bash -n deploy/release.sh
+          python3 -m unittest discover -s deploy/tests -v
+      - name: Package production client
+        id: package
+        if: github.ref == 'refs/heads/prod' && github.event_name != 'pull_request'
+        run: |
+          export RELEASE_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA}"
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          writeFileSync('apps/client/dist/version.json', JSON.stringify({
+            release: process.env.RELEASE_ID,
+            commit: process.env.GITHUB_SHA,
+          }) + '\n');
+          NODE
+          tar -czf fleet-client.tar.gz -C apps/client/dist .
+          echo "release=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum fleet-client.tar.gz | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: github.ref == 'refs/heads/prod' && github.event_name != 'pull_request'
+        with:
+          name: production-client
+          path: fleet-client.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    name: Deploy prod
+    needs: verify
+    if: github.ref == 'refs/heads/prod' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: prod
+      url: ${{ vars.SITE_SCHEME || 'http' }}://${{ vars.SITE_HOST }}
+    env:
+      VM_HOST: ${{ vars.VM_HOST }}
+      VM_SSH_PORT: ${{ vars.VM_SSH_PORT || '22' }}
+      SITE_HOST: ${{ vars.SITE_HOST }}
+      SITE_SCHEME: ${{ vars.SITE_SCHEME || 'http' }}
+      RELEASE_ID: ${{ needs.verify.outputs.release }}
+      ARCHIVE_SHA256: ${{ needs.verify.outputs.sha256 }}
+    steps:
+      - name: Skip commits superseded on prod
+        id: latest
+        run: |
+          tip=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/prod | cut -f 1)
+          test -n "$tip"
+          if [[ "$tip" == "$GITHUB_SHA" ]]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping $GITHUB_SHA; prod now points to $tip."
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        if: steps.latest.outputs.deploy == 'true'
+        with:
+          name: production-client
+          path: artifact
+      - name: Upload and promote release
+        if: steps.latest.outputs.deploy == 'true'
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          VM_KNOWN_HOSTS: ${{ secrets.VM_KNOWN_HOSTS }}
+        run: |
+          [[ "$VM_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$SITE_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$SITE_SCHEME" == http || "$SITE_SCHEME" == https ]]
+          [[ "$VM_SSH_PORT" =~ ^[0-9]{1,5}$ ]]
+          (( VM_SSH_PORT >= 1 && VM_SSH_PORT <= 65535 ))
+          [[ "$RELEASE_ID" =~ ^[0-9]+-[0-9]+-[0-9a-f]{40}$ ]]
+          [[ "$ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          test -n "$VM_SSH_KEY"
+          test -n "$VM_KNOWN_HOSTS"
+          echo "$ARCHIVE_SHA256  artifact/fleet-client.tar.gz" | sha256sum --check --status
+
+          ssh_dir=$(mktemp -d "$RUNNER_TEMP/fleet-ssh.XXXXXX")
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          printf '%s\n' "$VM_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$VM_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          chmod 600 "$ssh_dir/key" "$ssh_dir/known_hosts"
+          ssh_options=(-i "$ssh_dir/key" -o "UserKnownHostsFile=$ssh_dir/known_hosts"
+            -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15)
+          scp "${ssh_options[@]}" -P "$VM_SSH_PORT" artifact/fleet-client.tar.gz \
+            "fleet-deploy@${VM_HOST}:/srv/fleet/prod/incoming/${RELEASE_ID}.tar.gz"
+          ssh "${ssh_options[@]}" -p "$VM_SSH_PORT" "fleet-deploy@$VM_HOST" \
+            "/usr/local/bin/fleet-release deploy prod $RELEASE_ID $ARCHIVE_SHA256"
+      - name: Check public deployment
+        if: steps.latest.outputs.deploy == 'true'
+        run: |
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --retry 3 "${SITE_SCHEME}://${SITE_HOST}/version.json" -o public-version.json
+          python3 - <<'PY'
+          import json, os
+          with open('public-version.json') as source:
+              version = json.load(source)
+          assert version['release'] == os.environ['RELEASE_ID'], version
+          assert version['commit'] == os.environ['GITHUB_SHA'], version
+          print('Public site serves the verified production release.')
+          PY

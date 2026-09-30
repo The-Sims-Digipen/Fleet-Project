@@ -14,6 +14,7 @@ import {
   type VehicleTransition,
 } from "../domain/project";
 import { createPortableProject, type PortableProjectFile } from "../project/portableProject";
+import { createId } from "../project/createId";
 import type { ProjectRepository } from "../project/repository";
 import { getProjectRepository, setProjectRepositoryInstance } from "../project/repositoryContext";
 import { NAME_MAX_LENGTH, validateName } from "../project/types";
@@ -107,7 +108,7 @@ export type ProjectState = ProjectStateFields & {
 };
 
 function initialProject(name: string): ProjectDocument {
-  return createProject({ id: crypto.randomUUID(), name, vehiclePresets: createMockPresets() });
+  return createProject({ id: createId(), name, vehiclePresets: createMockPresets() });
 }
 
 export function createProjectState(document: ProjectDocument = initialProject("Untitled project"), session = 0): ProjectStateFields {
@@ -152,7 +153,7 @@ function nextSpawnTransform(vehicles: readonly ProjectVehicle[]): Transform | un
 
 function newVehicle(document: ProjectDocument, transform: Transform): ProjectVehicle {
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: nextEntityName("Vehicle", document.environment.vehicles.map((vehicle) => vehicle.name)),
     baselinePresetId: document.vehiclePresets[0]?.id ?? null,
     transform,
@@ -171,7 +172,7 @@ function newVehicle(document: ProjectDocument, transform: Transform): ProjectVeh
 
 function newPreset(document: ProjectDocument): VehiclePreset {
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: nextEntityName("Vehicle preset", document.vehiclePresets.map((preset) => preset.name)),
     category: "Van",
     propulsion: "electric",
@@ -251,7 +252,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     importProject: async (file) => {
       const source = file.document;
       const document = createProject({
-        id: crypto.randomUUID(),
+        id: createId(),
         name: source.name,
         depot: source.environment.depot,
         vehicles: source.environment.vehicles,
@@ -274,14 +275,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     },
     createScenario: () => safelyApply({
       type: "create-scenario",
-      scenario: { id: crypto.randomUUID(), name: nextScenarioName(get().runtime.document.scenarios) },
+      scenario: { id: createId(), name: nextScenarioName(get().runtime.document.scenarios) },
     }),
     duplicateScenario: (id) => {
       const source = get().runtime.document.scenarios.find((scenario) => scenario.id === id);
       if (source) safelyApply({
         type: "duplicate-scenario",
         sourceScenarioId: id,
-        scenario: { id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) },
+        scenario: { id: createId(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) },
       });
     },
     renameScenario: (id, name) => { if (!validateName(name)) safelyApply({ type: "rename-scenario", scenarioId: id, name: name.trim() }); },
@@ -302,7 +303,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const source = document.environment.vehicles.find((vehicle) => vehicle.id === id);
       const transform = nextSpawnTransform(document.environment.vehicles);
       if (!source || !transform || document.environment.vehicles.length >= PROJECT_FLEET_CAPACITY) return null;
-      const vehicle = { ...structuredClone(source), id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH), transform };
+      const vehicle = { ...structuredClone(source), id: createId(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH), transform };
       safelyApply({ type: "create-vehicle", vehicle });
       return vehicle.id;
     },
@@ -319,7 +320,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     duplicatePreset: (id) => {
       const source = get().runtime.document.vehiclePresets.find((preset) => preset.id === id);
       if (!source) return null;
-      const preset = { ...structuredClone(source), id: crypto.randomUUID(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) };
+      const preset = { ...structuredClone(source), id: createId(), name: `${source.name} copy`.slice(0, NAME_MAX_LENGTH) };
       safelyApply({ type: "create-vehicle-preset", preset });
       get().updateEditor({ selectedPresetId: preset.id });
       return preset.id;

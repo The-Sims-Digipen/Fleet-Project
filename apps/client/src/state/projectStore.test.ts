@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createProjectFixture } from "../domain/projectFixture";
 import { DEFAULT_VEHICLE_SPAWN_TRANSFORMS } from "../domain/depotLayout";
@@ -16,6 +16,16 @@ beforeEach(() => {
 });
 
 describe("Project store", () => {
+  it("creates Projects when HTTP does not expose crypto.randomUUID", () => {
+    vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    try {
+      const state = createProjectState();
+      expect(state.runtime.document.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps viewport lighting in runtime editor state only", () => {
     const document = structuredClone(project().runtime.document);
 
