@@ -1,68 +1,189 @@
 # Fleet Transition Planner
 
-## Purpose and scope
+## Accepted M1 scope
 
-This document preserves long-term product requirements across M1–M6. The current version 1 Project format is narrower: one Project aggregate owns a Depot, Vehicle baselines, Presets, shared Analysis Settings, and Scenarios whose plans contain Vehicle transitions only. M1 has no persisted parking assignments or Scenario charging strategy; charging, feasibility, Charger visualization, and charging-oriented comparison remain later scope, not removed requirements.
+This specification describes the implemented M1 product.
+F01–F07 form the accepted M1 scope.
+Each feature document describes its current controls and behavior.
 
-Help fleet operators decide which vehicles should transition first, what user-defined vehicle preset they should transition to, when to transition them, and how those choices affect whole-fleet cost and emissions. Provide a decision-support product with clear, reusable calculation components.
+The product helps fleet operators compare Vehicle transition plans.
+It calculates costs, energy use, emissions and payback from editable inputs.
+It shows the selected-year fleet in a 3D Depot.
 
-A fleet of 100 vans remains an illustrative future-scale scenario, not a vehicle-type restriction. The current default depot has ten initial Vehicle positions and therefore limits a Project to ten vehicle instances. Vehicle utilisation, replacement timing and charging access can make different transition choices appropriate for different vehicles.
+Each Project owns one physical environment, one Depot, Vehicle baselines, Vehicle Presets, shared Analysis Settings and its Scenarios.
+The Project document format is version 1.
+Each Scenario owns ordered Vehicle Plans.
+Scenarios share the Project environment and assumptions.
 
+## Platform and initial state
 
-## Platform and simulation
+The product runs in a browser.
+The interface uses React, TypeScript, Vite and Tailwind CSS.
+Three.js and React Three Fiber provide 3D views.
+Zustand holds Project and application state.
+ECharts displays financial charts.
+IndexedDB stores complete Projects in the current browser.
 
-- Run as a normal browser-based application, not a downloaded application or a Unity/Unreal project.
-- Clearly label the experience as a simulation. Use realistic synthetic or historical data unless ChargedUp approves other data.
-- Include a custom-built scenario engine that immediately recalculates fleet costs, payback, emissions and transition priority when vehicle selections, transition years, charging strategies or assumptions change.
-- Use clearly defined fleet, economic, and charging inputs. Keep important assumptions visible and editable, with explanations of why results change and which factors drive recommendations.
-- Keep calculations and interactions responsive under repeated changes. Charts and comparisons must be understandable and trustworthy to a non-technical professional; results are indicative, without claiming engineering precision.
-- Keep the domain model and scenario engine reusable as a foundation for a future ChargedUp Nexus module rather than a one-off scripted demo.
+A new Project has one default Depot, an empty fleet, five synthetic Vehicle Presets and Plan A.
+The default analysis period is 2026–2035 inclusive.
+The default currency is SGD.
 
-## Fleet and transition planning
+Synthetic fleet examples are test fixtures.
+The current interface has no Open sample command.
+Preset values are illustrative inputs, not manufacturer specifications.
 
-- Let users create reusable **user-defined vehicle presets** containing technical and economic parameters, then create or select a sample fleet whose individual vehicles reference those presets. Provide a vehicle list showing the fleet and its operational attributes.
-- Treat each fleet vehicle as a stable generic instance with an optional preset and one Project-owned world transform, initially selected from the default depot's ten spawn positions. Changing the preset preserves vehicle identity.
-- Support selecting individual vehicles, arbitrary combinations or categories, such as vehicle type, age or suitable routes. Assign both a **target vehicle preset** and transition year to each selected vehicle or group. Unscheduled vehicles continue using their current preset. The application must not hard-code diesel-to-electric as the only transition path.
-- Support staged adoption, such as 25%, 50%, 75% and 100%, and comparison of rapid transition with gradual replacement. These percentages are examples, not prescribed stages.
-- Include a simple vehicle/route suitability ranking to inform transition priority. Consider daily distance against the selected target preset's usable range where applicable, route predictability, depot return and charging access, available dwell time, replacement timing, utilisation and economics. Explain the reasons; no particular scoring formula or sophisticated routing model is required.
-- Let users choose and compare depot charging, external charging networks and a mixture of both. Include charger quantity, type and installation year so infrastructure timing affects the transition business case.
+The Project supports up to ten Vehicles.
+A new Vehicle receives the first unused transform from ten predefined positions.
+The Project stores each Vehicle's transform.
+It does not store the predefined position list or parking assignments.
 
-## 3D depot and scenario interaction
+## Project and Scenario controls
 
-The centre of the application is an interactive 3D depot model acting as a digital twin of a real place. Show the parking layout and bays, vehicles in their bays, charging infrastructure and installed charger locations. Provide camera control so users can inspect the depot.
+| Control | Current behavior |
+|---|---|
+| New | Create an unsaved Project with the default state |
+| Open | Select a Project saved in the current browser |
+| Import | Validate a `.fleetproject` file and save an independent local Project |
+| Export | Download the complete Project, including current unsaved edits |
+| Save | Save one complete Project to IndexedDB |
+| Project name | Rename the current Project |
+| Scenario controls | Create, select, rename, duplicate or remove a Scenario |
 
-Users scrub through transition years to see each vehicle change from its current preset to its scheduled target preset and chargers appear according to the plan. Show the selected year's site power demand against the depot's fixed connection limit, and turn the site red when demand exceeds that limit.
+Scenario duplication copies Vehicle Plans.
+A Scenario switch preserves unsaved Project edits.
+The active Scenario is part of the saved Project.
+The last Scenario cannot be removed.
 
-Make physical feasibility understandable: chargers require space, and a financially attractive plan may exceed available space or power. The scene must respond to scenario data rather than play a fixed sequence.
+Project validation rejects an invalid active-Scenario reference.
+Removal of the active Scenario selects a remaining Scenario at the same list index.
+If that index is unavailable, it selects the last Scenario.
 
-Show two transition plans side by side, including their financial and emissions consequences, so users can compare vehicle ordering, transition timing and charging choices on the same screen.
+## Vehicle Presets and fleet
 
-## Inputs and outputs
+Users can create, duplicate, edit and delete Vehicle Presets.
+A referenced Preset cannot be deleted.
+The interface shows the references that prevent deletion.
 
-Expose the following inputs and assumptions, supplying plausible sample values:
+| Preset group | Editable values |
+|---|---|
+| Identity | Name, category, propulsion |
+| Energy | Fuel use, electricity use, battery capacity, charging power, range, charging efficiency |
+| Economics | Purchase price, annual maintenance, owned/leased acquisition terms |
+| Owned acquisition | Residual value at the end of analysis |
+| Leased acquisition | Annual payment and exit fee |
+| Appearance | Registered 3D model |
 
-- **Fleet and operations:** vehicle ID/type, age, annual mileage, typical daily distance, fuel use, route type/duty cycle, depot-return pattern, utilisation and planned replacement year.
-- **Vehicle presets and economics:** user-defined preset name/category/propulsion, purchase/lease costs, fuel or electricity prices as applicable, fuel/energy efficiency, usable range where applicable, charging capability, maintenance costs, physical dimensions, and ownership/residual-value assumptions.
-- **Charging:** depot charger cost, quantity, type/power and installation timing; external charging tariff; depot/external charging split; and depot space and connection-capacity parameters used by the feasibility view.
-- **Analysis and emissions:** analysis/ownership period and emissions factors used to compare current and transitioned vehicle operation.
+Diesel, petrol, electric and hybrid propulsion values are available.
+The current Vehicle model selector has one option: Low-poly Van.
 
-Recalculate and present these outputs for each scenario:
+The fleet panel selects one Vehicle at a time.
+Users can add, edit and delete Vehicles.
+Vehicle deletion removes its plans from all Scenarios.
 
-- Fleet-level total cost of ownership (TCO) over the selected period, total transition capital expenditure (CAPEX), annual operating cost, and cost difference against the explicit no-transition/current-fleet baseline.
-- Cost per vehicle, cost per kilometre where useful, and indicative payback/breakeven, showing when it is not reached within the analysis period.
-- Number and type of vehicles transitioned each year and a visual roadmap of vehicles/groups in each phase.
-- Indicative depot charging infrastructure requirements and costs, external charging costs, and the depot/external charging mix.
-- Estimated fuel displaced, electricity consumed and emissions difference against the no-transition/current-fleet baseline.
-- Vehicle/route suitability ranking and explanations of which assumptions most affect the result. Include basic assumption-impact visibility; advanced sensitivity analysis is outside M1–M6 scope.
+| Vehicle group | Editable values |
+|---|---|
+| Identity | Name and optional baseline Preset |
+| Use | Annual distance, daily distance, operating days and utilisation |
+| Operation | Route pattern, Depot dwell, Depot return and external charging access |
+| Replacement | Baseline replacement year |
+| Owned holding | Current value and end residual value |
+| Leased holding | Annual payment and exit fee |
 
-## Boundaries and acceptance scenarios
+The panel displays the Vehicle ID, world position and selected-year status.
+It does not provide filters, sort controls or bulk selection.
 
-Keep the first version focused on scenario flexibility. Advanced sensitivity/uncertainty analysis and regional presets are outside M1–M6 scope. Do not attempt exhaustive tax, subsidy, financing or route-detail models. Project 2 route optimisation and Project 3 citywide energy simulation are outside scope.
+## Transition and analysis controls
 
-The application must support these acceptance scenarios:
+The fleet form sets a target Preset and year for the selected Vehicle.
+The form edits the first transition.
+It preserves later transitions already in the Vehicle Plan.
+If the user clears the target or year, the form removes the first transition.
 
-1. Transition Vehicle A now and B next year to selected target presets, then reverse their ordering or delay A. Compare cost, payback, emissions and the yearly roadmap.
-2. Compare selected vehicles or a suitable category transitioning in stages against a full transition plan. Unscheduled vehicles remain on their current presets and yearly counts match the plan.
-3. Keep the transition schedule fixed and compare depot, external and mixed charging. Infrastructure requirements and fleet costs reflect the strategy.
-4. Raise or lower fuel/electricity prices, for example by 20%. Results update immediately and explain the changed economics.
-5. Change charger installation years or quantities. Costs and the depot timeline update; space constraints are visible, and exceeding the connection limit produces red overload feedback.
+The domain, calculations, timeline, 3D views and persistence support multiple ordered transitions.
+Transition years are distinct.
+The baseline Preset applies before the first transition.
+The latest transition at or before the selected year determines the Effective Vehicle.
+
+The Analysis Settings panel edits:
+
+- Start year and number of years.
+- Project currency.
+- Fuel price and one electricity price.
+- Discount rate.
+- Fuel and grid emissions factors.
+
+These assumptions apply to the baseline and every Scenario.
+Valid edits recalculate their results.
+Invalid numeric drafts remain local and preserve the last valid Project value.
+
+## Calculations and results
+
+The custom `simulateProject` function calculates whole-year results from the Project document.
+It produces the no-transition baseline and every Scenario result.
+The calculation uses effective Presets, distance, energy prices, maintenance, acquisition terms, replacement dates and transition dates.
+
+| Result group | Current output |
+|---|---|
+| Cost | TCO, baseline savings, Scenario-minus-baseline difference, transition CAPEX and total OPEX |
+| Unit cost | Fleet cost per kilometre and mean cost per Vehicle |
+| Payback | Year reached, initial parity or not reached |
+| Energy | Fuel used, fuel displaced and electricity used |
+| Emissions | Operational emissions, reduction and reduction percentage |
+| Selected year | Net cash cost, baseline cost, Plan cost, annual savings and cumulative savings |
+| Charts | Cumulative cash cost, annual net cash cost and annual net savings |
+| Table | Annual baseline/Plan costs and annual/cumulative savings |
+
+TCO uses the Project discount rate.
+OPEX covers the full analysis period.
+Cash charts show nominal costs.
+Undefined ratios are unavailable.
+Negative savings and emissions reductions retain their signs.
+
+## Timeline and 3D views
+
+Plan / Depot has a year slider, transition markers, event list, Play/Pause and Reset.
+The active Scenario supplies its transition events.
+The selected year controls fleet status, 3D state and selected-year results.
+
+The 3D view renders the default Depot and Project Vehicles.
+Camera controls support orbit, pan and zoom.
+Vehicle selection connects the viewport and fleet panel.
+Highlights show the selected Vehicle.
+Bright green identifies an effective Preset that differs from the baseline Preset.
+
+Development builds also expose typed object transforms, Inspector and debug controls.
+Production builds omit those development controls.
+
+## Compare
+
+Compare displays two distinct Scenarios over the same Project environment.
+Both columns use one Compare selected year.
+Their camera controls remain independent.
+Plan and Compare retain separate timeline state.
+
+Compare displays TCO, transition CAPEX, payback, transition counts, selected-year cash cost and selected-year emissions.
+It also displays B-minus-A differences, cumulative cash-cost charts and annual transition counts.
+
+A one-Scenario Project leaves the second selection unavailable.
+The interface directs the user to create or duplicate a Scenario in Plan / Depot.
+
+## Save and error behavior
+
+The interface shows unsaved, saved, in-progress and failed save states.
+A failed save preserves current edits.
+Retry Save repeats the save operation.
+Revision checks reject stale writes.
+
+New and Open dialogs warn before they replace unsaved workspace edits.
+Import requires confirmation when unsaved edits exist.
+Browser close uses the native unsaved-change warning.
+
+Portable import validates the document before it saves a local copy.
+The file format and Project document version are both 1.
+Camera, selection, timeline playback, undo history and calculated results are not persisted.
+
+## F08 panel status
+
+The Charging & feasibility panel displays an informational note only.
+It performs no charging-demand or site-feasibility calculation.
+F08 is excluded from the completed M1 feature scope.

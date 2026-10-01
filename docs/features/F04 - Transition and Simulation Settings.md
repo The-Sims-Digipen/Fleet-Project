@@ -3,30 +3,49 @@
 **M1 priority:** MUST  
 **Primary owner:** Elijah Chua Jye Kang
 
-## Shared integration contract
+## Current transition controls
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F04 commits shared Analysis Settings to the Project and ordered Vehicle transition plans to a Scenario through Project commands; component-local state is for invalid or uncommitted drafts only.
+The fleet form sets a target Preset and year for the selected Vehicle.
+It edits the first transition in the active Scenario.
+It preserves later transitions already in that Vehicle Plan.
+If the user clears the target or year, the form removes the first transition.
 
-## User capability
+The domain supports multiple ordered transitions with distinct years.
+Import, save, calculations, timeline and 3D views preserve the complete Vehicle Plan.
+The baseline Preset applies before the first transition.
+The latest transition at or before the selected year determines the Effective Vehicle.
 
-Users can choose target vehicle presets and transition years, then set the shared assumptions used by every Scenario calculation.
+The year selector uses the Project analysis period.
+An existing transition outside that period remains visible as an outside-period option.
 
-## User need
+## Shared Analysis Settings
 
-Transition decisions and assumptions must be explicit and editable so users can test how different fleet plans affect costs and payback.
+| Group | Editable values |
+|---|---|
+| Period | Start year and number of years |
+| Currency | Project currency |
+| Prices | Fuel price and one electricity price |
+| Finance | Discount rate |
+| Emissions | Fuel and grid emissions factors |
 
-## M1 scope
+These values apply to the baseline and every Scenario.
+A valid shared-assumption edit recalculates all results.
+Invalid numeric drafts remain local.
+They do not replace the last valid Project value.
 
-- Select a target preset for a fleet vehicle.
-- Select or clear its transition year.
-- Support ordered multiple transitions per Vehicle in the Project domain and each Scenario, with distinct years; use Project commands to add, update, remove, or replace a plan.
-- Edit the shared analysis period, discount rate, fuel price, one electricity price, and fuel/grid emissions factors.
-- Validate numeric inputs and preserve the last valid authoritative value when a draft is invalid.
-- Recalculate the baseline and every Scenario when a shared assumption changes.
-- Keep each Scenario's Vehicle transition timeline isolated from the other Scenarios.
+## Integration
 
-Charging strategy, depot charging share, charger availability, and separate depot/external tariffs are later scope. They do not appear in the M1 Project contract or UI and are not owned by an M1 Scenario.
+The feature follows the [M1 integration contract](../tech/m1-integration-contract.md).
+Project commands change shared Analysis Settings and Scenario Vehicle Plans.
+Shared Vehicle baselines do not contain Scenario transitions.
+Each Scenario's Vehicle Plan remains independent.
 
-## M1 evidence
+## Demonstration
 
-Change a target preset, transition year, or shared assumption and show that the committed Project input is reflected in the canonical effective Vehicle state and derived results for every Scenario.
+1. Select a Vehicle.
+2. Select a target Preset.
+3. Select a transition year.
+4. Inspect the calculated results.
+5. Change a shared price.
+6. Inspect the updated baseline and Scenario results.
+7. Inspect the Effective Vehicle at the transition year.

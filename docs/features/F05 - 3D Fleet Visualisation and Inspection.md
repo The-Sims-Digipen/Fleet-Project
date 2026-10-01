@@ -3,33 +3,44 @@
 **M1 priority:** MUST  
 **Primary owner:** Chew Shee Yang
 
-## Shared integration contract
+## Current behavior
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F05 reads the typed Project world projection for the active Scenario and selected year and renders it without independently applying transition rules or mutating Project/simulation state. Rendered objects are derived views, not a second editable scene document.
+The 3D view renders the default Depot and Project Vehicles.
+Each object uses its stored Project transform.
+Vehicle geometry and colour follow the Effective Vehicle for the selected Scenario and year.
 
-## User capability
+Bright green identifies an effective Preset that differs from the baseline Preset.
+Vehicles without a Preset use generic geometry and styling.
+The current Vehicle model is Low-poly Van.
 
-Users can view the depot/fleet in 3D, navigate the scene, select relevant objects or vehicles, inspect information, and see the displayed fleet state respond to the active scenario and selected year.
+Camera controls support orbit, pan and zoom.
+Vehicle selection connects the viewport and fleet panel.
+An outline highlights the selected Vehicle.
 
-## User need
+## Production and development controls
 
-The 3D view provides a spatial representation of the plan and lets users verify that scenario/timeline changes are reflected visually rather than existing only in forms and charts.
+Production includes camera controls, Vehicle selection and highlights.
+Development builds also expose typed object transforms, Inspector and debug controls.
+Development transform edits use Project commands and Project history.
+They do not create independent scene objects.
 
-## M1 scope
+Compare renders two Scenario views of the same Project environment.
+Each comparison view has independent camera controls.
 
-- Render the Project's physical environment and default depot.
-- Support the existing navigation and selection/inspection interactions required by the M1 build.
-- Render fleet vehicles from real project/scenario state rather than an independent hard-coded fleet source.
-- Place every fleet vehicle at its unique Project-owned world transform, using a generic visual when no preset is selected.
-- Use the selected year from Project runtime state.
-- Display the current preset/state before a transition and the target preset/state from the transition year onward.
-- Keep rendering read-only with respect to authoritative simulation/scenario state.
-- Use typed Depot/Vehicle references for picking, highlighting, Inspector routing, and development gizmo attachment.
-- Keep production Vehicle picking/highlighting available while generic development Inspector and gizmo controls remain development-only.
-- Keep development transform and Project-document inspection controls out of production builds.
+## Integration
 
-Detailed depot authoring, production asset polish and charging-layout feasibility are later milestone scope.
+The feature follows the [M1 integration contract](../tech/m1-integration-contract.md).
+`createProjectWorld` derives typed Depot and Vehicle views from the Project.
+The projection uses the selected Scenario and year.
+It shares the Effective Vehicle interpretation used by calculations.
+The renderer does not persist a second scene document.
 
-## M1 evidence
+## Demonstration
 
-Select a scenario and move the timeline across a vehicle's transition year; the 3D representation must use the same selected year and show the appropriate pre/post-transition vehicle state.
+1. Select a Scenario.
+2. Select a year before a Vehicle transition.
+3. Inspect its baseline or earlier effective state.
+4. Select the transition year.
+5. Inspect its target state.
+6. Select the Vehicle in the viewport.
+7. Inspect the corresponding fleet selection.

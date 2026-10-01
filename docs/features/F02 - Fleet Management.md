@@ -3,31 +3,56 @@
 **M1 priority:** MUST  
 **Primary owner:** Jarrel Tay Wee Han
 
-## Shared integration contract
+## Current behavior
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F02 reads Project-owned Vehicle baselines and edits them through Project commands. Ordered transition years and target Presets belong to the Scenario's Vehicle Plan and must not be written into the shared Vehicle baseline.
+The Fleet Management panel displays the Project's Vehicles.
+It selects one Vehicle at a time.
+Users can add, edit and delete Vehicles.
+The panel shows each Vehicle's ID, world position and selected-year status.
 
-## User capability
+A new Project starts with an empty fleet.
+A new Vehicle receives the first unused predefined world transform.
+The Project limit is ten Vehicles.
+Predefined positions are construction inputs.
+They are not persisted parking assignments or position-slot records.
 
-Users can view the Project's authoritative fleet and add or edit generic Vehicle instances, their optional baseline Preset, world transform, annual distance, and other M1 planning attributes.
+## Editable values
 
-## User need
+| Group | Values |
+|---|---|
+| Identity | Name and optional baseline Preset |
+| Use | Annual distance, daily distance, operating days and utilisation |
+| Operation | Route pattern, Depot dwell, Depot return and external charging access |
+| Replacement | Baseline replacement year |
+| Owned holding | Current value and end residual value |
+| Leased holding | Annual payment and exit fee |
 
-The transition model must use fleet data that represents the vehicles being planned rather than hard-coded mock rows.
+The selected Vehicle also has target-Preset and transition-year controls.
+These edit its first transition in the active Scenario.
+The panel preserves later transitions already in its Vehicle Plan.
+Filters, sort controls and bulk selection are not present.
 
-## M1 scope
+## Integration
 
-- Display the real project fleet.
-- Add a generic fleet Vehicle at the first available default spawn transform.
-- Edit the fields required by transition planning and M1 calculations.
-- Delete a vehicle with defined handling for scenario references.
-- Assign or change an optional vehicle preset without changing vehicle identity.
-- Preserve stable vehicle IDs across edits, scenarios and persistence.
-- Enforce unique default spawn positions and the current ten-Vehicle depot capacity.
-- Derive rendered Vehicles from the Project fleet instead of persisting scene objects or parking assignments.
+The panel follows the [M1 integration contract](../tech/m1-integration-contract.md).
+It edits Project-owned Vehicle baselines through Project commands.
+A baseline-Preset change preserves Vehicle identity.
+Scenario Vehicle Plans contain target Presets and transition years.
 
-Filtering, sorting and bulk planning may be expanded after the minimum real CRUD/data flow is stable.
+Vehicle deletion lists affected Scenarios before confirmation.
+The deletion removes the Vehicle and every Scenario plan for its ID.
+The 3D view derives Vehicles from the Project fleet.
+Development tools provide transform edits.
 
-## M1 evidence
+## Demonstration
 
-Create a generic Vehicle, verify it receives an unused spawn transform and renders in 3D, assign/change its preset without changing its ID, use the Vehicle in a Scenario transition, save/reopen the Project, then delete it and verify every Scenario plan keyed by its ID is removed.
+1. Add a Vehicle.
+2. Inspect its initial position in 3D.
+3. Edit its baseline Preset.
+4. Inspect its unchanged ID.
+5. Set a Scenario transition.
+6. Save the Project.
+7. Reopen the Project.
+8. Inspect the Vehicle and transition.
+9. Delete the Vehicle.
+10. Inspect the remaining Scenario plans.

@@ -3,29 +3,44 @@
 **M1 priority:** MUST  
 **Primary owner:** Jarrel Tay Wee Han
 
-## Shared integration contract
+## Current controls
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F07 uses the current workspace's selected year and playback state in `projectStore`, Project `AnalysisSettings`, and derived events for every Scenario Vehicle transition. Plan and Compare have independent Project-scoped timelines; components inside either workspace must use that workspace's canonical clock and must not duplicate effective-preset logic.
+Plan / Depot contains a year slider, transition markers, event list, Play/Pause and Reset.
+The analysis period defines the available years.
+The active Scenario supplies Vehicle transition events within that period.
+A marker selects its event year.
 
-## User capability
+Play advances the selected year.
+Pause stops playback.
+Reset stops playback and returns to the start year.
+Play restarts from the start year when the timeline is at its end.
 
-Users can select a year and play/pause/reset the analysis timeline while time-dependent fleet and 3D views use the same selected-year state.
+The current Plan timeline has no numeric year field or year dropdown.
 
-## User need
+## Workspace state
 
-Users need to understand when planned transitions occur and how the fleet changes over the analysis period.
+Plan and Compare retain separate selected years and playback state.
+A workspace change pauses its playback.
+Each workspace retains its selected year.
+An analysis-period change clamps both selected years to that period.
 
-## M1 scope
+Both Scenario views in Compare use the Compare selected year.
+Plan fleet status, 3D state and selected-year analytics use the Plan selected year.
 
-- Display the configured analysis-period years.
-- Select/seek to a year.
-- Play, pause and reset timeline playback.
-- Generate transition markers from real scenario transition data.
-- Drive the selected year through the Project runtime action.
-- Keep dependent fleet/3D/analytics views synchronized to that selected year where applicable.
+## Integration
 
-Charger-installation markers become required when charging infrastructure enters the approved product scope.
+The feature follows the [M1 integration contract](../tech/m1-integration-contract.md).
+`projectStore` owns timeline state.
+`ProjectAnalysisSettings` defines the period.
+Timeline components use runtime actions and derived transition events.
+They do not duplicate effective-Preset logic.
 
-## M1 evidence
+## Demonstration
 
-Seek to years before and after a real transition, then play/pause/reset the timeline; the displayed selected year, transition markers and dependent views must agree.
+1. Select a year before a transition.
+2. Select a year after the transition.
+3. Inspect fleet and 3D state.
+4. Play the timeline.
+5. Pause the timeline.
+6. Reset the timeline.
+7. Inspect the selected year and transition markers.

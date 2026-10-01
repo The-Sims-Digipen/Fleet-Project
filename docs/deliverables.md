@@ -1,4 +1,4 @@
-# Team roles and milestone deliverables
+# Team roles and M1 deliverables
 
 ## Team roles
 
@@ -13,11 +13,10 @@
 | Zhi Kai | Yap Zhi Kai | Vehicle Systems Champion |
 | Brandon | Brandon Koh Kai Yang | Backend Champion |
 
-## M1 contract proposal
+## Accepted M1 scope
 
-The team has internally locked the following M1 proposal. It becomes the formal M1 contract once approved by the instructor.
-
-### Product features
+The accepted M1 scope describes the implemented product.
+F01–F07 form its feature scope.
 
 | ID | Feature | Priority |
 |---|---|---|
@@ -28,25 +27,39 @@ The team has internally locked the following M1 proposal. It becomes the formal 
 | F05 | 3D Fleet Visualisation & Inspection | MUST |
 | F06 | Financial & Payback Results | MUST |
 | F07 | Timeline Control | MUST |
-| F08 | Power & Feasibility Information | SHOULD |
 
-See [features/README.md](features/README.md) for detailed scope and ownership.
+The [feature catalogue](features/README.md) defines current behavior and ownership.
+Each Project owns one physical environment.
+Its Scenarios own Vehicle Plans over the shared fleet.
+Current Compare views use the same environment and assumptions.
 
-### Supporting M1 technical work
+F08 identifies the informational Charging & feasibility panel.
+It is excluded from the completed M1 feature scope.
+The panel does not calculate demand, capacity or feasibility.
 
-- Scenario/domain contracts are maintained in the shared technical contracts, with persistence-facing review by the Technical Lead.
-- CI pipeline is owned by Chew Shee Yang and remains a fixed rubric requirement rather than a separate Txx.
-- End-to-end M1 integration and automated integration testing are shared responsibilities.
+## Supporting technical work
 
-## Milestone gates
+| Work | Current ownership |
+|---|---|
+| Scenario/domain contracts | Tan Wei Jun is the primary owner. Chew Shee Yang reviews contracts that affect persistence. |
+| CI pipeline | Chew Shee Yang |
+| M1 integration and integration tests | Shared team responsibility |
 
-| Milestone | Deadline / scheduling basis | Required implementation state |
-|---|---|---|
-| M1 | 4 October 2026, 23:59 Singapore time | Sample/new project -> real preset/fleet edit -> generic scenario transition -> deterministic recalculated result -> selected-year 3D update -> save/reopen. |
-| M2 | 8 November 2026, 23:59 Singapore time | Full fleet/preset planning, financial/energy/emissions analytics, project/scenario workflow, and reliable persistence; later technical deliverables are reorganized from approved M2 product requirements. |
-| M3 (MVP) | 30 November 2026 | Charging/feasibility, suitability recommendations, and two-scenario comparison including dual 3D scenes. Build ready by 29 November. |
-| M4 | Relative weeks 1-4 | Freeform depot authoring, geometry validation/history, assignments, Project environment persistence, and comparison integration. |
-| M5 | Relative weeks 1-4 | All product features integrated with shared feasibility/recommendation state, responsive/error hardening, and performance optimization. |
-| M6 | Relative weeks 1-4 | Full regression, clean-environment/platform verification, final performance measurements, and release build. |
+The [M1 integration contract](tech/m1-integration-contract.md) defines shared boundaries and the merge gate.
+CI remains a fixed rubric requirement.
 
-Later technical work should be derived from the approved feature requirements and architecture rather than maintained as a second planning catalogue.
+## M1 workflow
+
+1. Create, open or import a Project.
+2. Edit a Vehicle Preset.
+3. Edit the fleet.
+4. Set a Scenario transition.
+5. Inspect calculated results.
+6. Change the selected year.
+7. Inspect the 3D fleet state.
+8. Save the Project.
+9. Reopen the Project.
+
+## M1 deadline
+
+M1 is due on 4 October 2026 at 23:59 Singapore time.

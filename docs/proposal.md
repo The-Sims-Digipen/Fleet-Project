@@ -2,47 +2,98 @@
 
 ## Problem, audience, and outcome
 
-Fleet operators must choose which vehicles to electrify, when to replace them, and how to provide charging without exceeding depot space or power. The product helps a non-technical fleet decision maker compare those choices through visible assumptions, understandable results, and an interactive representation of the depot.
+Fleet operators need to compare Vehicle replacement choices.
+They need to see how the target Preset and transition year affect costs, energy use, emissions and payback.
 
-Success means a user can create or load a sample fleet, author a depot, schedule transitions, compare two alternatives against the same no-transition/current-fleet baseline, explain their financial/emissions differences, recognize infeasible plans, and save/reopen the work. The result is indicative decision support, not an engineering certification or operational control system.
+The current product provides editable fleet inputs, Scenario plans, calculated results and a 3D Depot view.
+Users can save and reopen one Project with independent Scenarios.
 
-## Committed product
+## Accepted M1 scope
 
-The product definition below covers the long-term M1–M6 scope. The current version 1 Project format contains a Depot and Vehicle baselines, shared Analysis Settings, and Scenario-owned Vehicle transition plans. M1 does not persist parking assignments or Scenario charging assumptions; charging strategies, charging infrastructure, feasibility, Charger visualization, and charging comparison remain later scope.
+The accepted M1 scope consists of the current implementation.
+F01–F07 describe its implemented features.
+The [feature catalogue](features/README.md) identifies their owners.
 
-A single-user browser application runs locally with browser-local IndexedDB project persistence and a Fastify API backed by the same aggregate Project repository contract. It includes fleet editing, staged transition scheduling, depot/external/mixed charging, a custom calculation engine, a flat freeform depot editor, scenario-driven 3D visualization, suitability explanations, charts, and two-plan comparison. No account or public hosting is required.
+Each Project owns one physical environment, one Depot, Vehicle baselines, Vehicle Presets, shared Analysis Settings and its Scenarios.
+Scenarios contain ordered Vehicle Plans.
+They share the same fleet and assumptions.
 
-Synthetic sample data provides an immediate demonstration. The current default Depot supplies ten initial world-space Vehicle spawn transforms; the 100-van example remains an illustrative future-scale case rather than a vehicle-type restriction. Sample values are explicitly illustrative. Use realistic synthetic or historical data unless ChargedUp explicitly approves other data.
+The workflow starts with a new, saved or imported Project.
+Users edit Presets and Vehicles, set transitions, inspect results, select a year, and save/reopen the Project.
+Compare displays two Scenarios over the same Project environment.
 
-## Requirements and acceptance scenarios
+## Platform and data
 
-| Requirement | Required outcome |
+The product runs in a browser.
+React, TypeScript, Vite and Tailwind CSS provide the interface.
+Three.js and React Three Fiber provide 3D views.
+Zustand holds application and Project state.
+ECharts displays cost charts.
+
+The browser saves complete Projects to IndexedDB.
+The current save workflow does not depend on the Fastify/PostgreSQL server.
+A `.fleetproject` file transfers Project data between browsers.
+
+A new Project has an empty fleet, five synthetic Vehicle Presets and Plan A.
+Its default analysis period is 2026–2035 inclusive, with SGD as the currency.
+Synthetic fleet examples are test fixtures.
+The interface does not expose an Open sample command.
+
+The Project limit is ten Vehicles.
+New Vehicles receive world transforms from ten predefined positions.
+The Project stores Vehicle transforms, not a spawn-position list or parking assignments.
+
+## Current capabilities
+
+| Feature | Implemented behavior |
 |---|---|
-| R01 — Persistent workspace | Create/open/save/reopen a Project containing one physical environment and create/rename/duplicate/delete independent Scenarios over it; failed or stale saves preserve the working copy and last valid stored state. |
-| R02 — Fleet and generic transition planning | Build user-defined vehicle presets and a heterogeneous fleet; filter/group/select vehicles; assign any target preset and transition year; produce correct annual fleet composition. |
-| R03 — Calculations | Recalculate TCO, CAPEX, OPEX, payback, energy, and emissions from explicit editable assumptions with deterministic annual/cumulative breakdowns. |
-| R04 — Charging and feasibility | Model depot/external/mixed charging, charger inventory/timing, connection capacity, dwell/readiness, and depot-space constraints. |
-| R05 — Depot environment | Start every Project with the default depot and ten initial Vehicle positions; keep development tools focused on typed Project entities, while future typed depot authoring remains part of the Project environment. |
-| R06 — 3D digital twin | Inspect the data-driven depot, selected-year vehicle/charger state, constraint overlays, and independent comparison scenes with full viewport interaction. |
-| R07 — Explainable choices | Rank transition candidates using operational/economic/feasibility factors and show factor-level reasons and assumption impacts without automatic schedule mutation. |
-| R08 — Comparison and analytics | Compare two independent plans at the same analysis year using synchronized metrics, charts, roadmaps, feasibility, and 3D state. |
-| R09 — Technical quality | Keep primary panels reachable responsively, handle invalid/error states safely, meet performance targets, and support reproducible clean builds/browser-storage setup. |
+| F01 — Vehicle Presets | Create, duplicate and edit Presets. Delete unused Presets. Select the registered Vehicle model. |
+| F02 — Fleet Management | Add, select, edit and delete individual Vehicles. Preserve their IDs, baseline Presets and Project-owned transforms. |
+| F03 — Project & Scenario Management | Create, open, import, export and save Projects. Create, select, rename, duplicate and remove Scenarios. |
+| F04 — Transition & Simulation Settings | Set the selected Vehicle's first target/year. Edit shared assumptions. Preserve and calculate complete ordered Vehicle Plans. |
+| F05 — 3D Fleet Visualisation & Inspection | View the Depot and selected-year fleet. Navigate the camera. Select and highlight Vehicles. |
+| F06 — Financial & Payback Results | Display costs, payback, energy, emissions, charts and annual tables from the custom simulation engine. |
+| F07 — Timeline Control | Select a year. Play, pause and reset the timeline. Display transition events. Synchronize dependent views. |
 
-The application must support these end-to-end scenarios using generic preset transitions:
+The current model selector offers Low-poly Van.
+The fleet form edits one Vehicle at a time.
+The transition form edits the first transition.
+Imported plans can contain later transitions.
 
-1. transition Vehicle A now and B next year to selected target presets, then reverse or delay their order; verify cost, payback, emissions, annual preset composition, 3D state, and the saved schedule.
-2. compare selected vehicles or a category transitioning in stages with a full transition plan; unscheduled vehicles remain on their current presets.
-3. keep the vehicle schedule fixed and compare depot, external, and mixed charging; infrastructure, operating cost, and result differences reflect the strategy.
-4. change fuel/electricity prices by ±20% or edit target-preset economics; recalculate and explain the changed economics without silently altering the schedule.
-5. change charger quantities/years; update costs, visibility, space/operational feedback, and red/text overload warnings.
+Compare includes dual 3D views, calculated metrics, B-minus-A differences, cumulative cost charts and annual transition counts.
+The Charging & feasibility panel contains a note only.
+F08 is excluded from the completed M1 feature scope.
 
+## Calculation and state model
 
-## Boundaries
+The custom `simulateProject` function derives the baseline and Scenario results from one Project document.
+The same Effective Vehicle interpretation drives calculations, timeline state and 3D views.
 
-No multi-user accounts, public service hosting, native mobile/desktop clients, live telemetry, charger control, route optimization, citywide energy model, or production ChargedUp Nexus integration is included. The flat editor excludes terrain, CAD/GIS import, site holes, and cable routing. Detailed tax/subsidy/finance models and engineering-grade electrical simulation are excluded. CSV/PDF export is not promised.
+The Project document format is version 1.
+Save writes one complete Project.
+Export includes unsaved edits.
+Import validates the file and creates an independent local Project.
 
-Advanced sensitivity sweeps and regional presets are outside M1–M6 scope. Manual assumption edits and explanations are included.
+Invalid drafts preserve the last valid Project value.
+Failed saves preserve current edits.
+Revision checks reject stale writes.
+Project history groups continuous edits into one undo step.
 
-## Delivery
+## M1 workflow
 
-M1: 4 October 2026, 23:59; M2: 8 November 2026, 23:59; M3: 30 November 2026. Times are Singapore time. M4-M6 use four relative working weeks each; calendar dates are not set.
+1. Create, open or import a Project.
+2. Create or edit a Vehicle Preset.
+3. Add or select a Vehicle.
+4. Set its baseline Preset and inputs.
+5. Select a Scenario.
+6. Assign a target Preset.
+7. Assign a transition year.
+8. Inspect calculated results.
+9. Select years before and after the transition.
+10. Inspect the corresponding fleet and 3D state.
+11. Save the Project.
+12. Reopen the Project.
+
+## M1 delivery
+
+M1 is due on 4 October 2026 at 23:59 Singapore time.
