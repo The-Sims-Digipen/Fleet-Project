@@ -3,28 +3,51 @@
 **M1 priority:** MUST  
 **Primary owner:** Yap Zhi Kai
 
-## Shared integration contract
+## Current behavior
 
-Follow the [M1 integration contract](../tech/m1-integration-contract.md). F06 renders view models derived from `SimulationResult`; KPI cards and charts use the canonical effective Vehicle interpretation and must not contain fallback financial calculations or hard-coded authoritative values.
+The Cost & emissions panel displays results for the active Scenario.
+The custom `simulateProject` function supplies its calculations.
+Shared Analysis Settings also define the no-transition baseline.
 
-## User capability
+| Result group | Values |
+|---|---|
+| Cost | TCO, savings, Scenario-minus-baseline difference, transition CAPEX and OPEX |
+| Unit costs | Fleet cost per kilometre and mean cost per Vehicle |
+| Payback | Year reached, initial parity or not reached |
+| Energy | Fuel used, fuel displaced and electricity used |
+| Emissions | Operational emissions, reduction and reduction percentage |
+| Selected year | Net cash cost, baseline cost, Plan cost, annual savings and cumulative savings |
 
-Users can view recalculated financial results, including baseline-versus-transition costs and payback/breakeven information, after changing scenario decisions or economic assumptions.
+TCO uses the Project discount rate.
+OPEX covers the full analysis period.
+Positive baseline savings mean the Scenario costs less.
+Positive Scenario-minus-baseline cost means it costs more.
+Undefined ratios are unavailable.
+Negative savings and emissions reductions retain their signs.
 
-## User need
+## Charts and table
 
-Users need clear, traceable financial feedback to understand the cost impact of a transition plan rather than relying on hard-coded demonstration numbers.
+The panel includes:
 
-## M1 scope
+- Cumulative cash-cost lines for the baseline and active Scenario.
+- Annual net cash-cost bars.
+- Annual net-savings bars.
+- An annual financial table with baseline/Plan costs and annual/cumulative savings.
 
-- Display real simulation output rather than mock chart arrays or fixed KPI values.
-- Show baseline and active-scenario cost series over the analysis period.
-- Show relevant M1 KPI values such as TCO, savings and payback/breakeven.
-- Show scenario-minus-baseline cost difference, fleet cost per km and per vehicle, fuel displaced, and emissions-reduction percentage when baseline emissions are nonzero. Preserve negative cost and emissions results with clear signs, and label zero-denominator values as unavailable.
-- Handle `payback not reached` explicitly.
-- Use consistent units, legends and formatting.
-- Support selected-year indicators where appropriate without recalculating financial logic inside the UI layer.
+Cash charts show nominal values.
+The cumulative chart marks the selected year and a reached payback year.
+The financial table marks the selected-year row.
 
-## M1 evidence
+## Integration
 
-Change a real Scenario transition or economic assumption and show the KPI/chart values update from simulation outputs, including a tested payback or no-payback case with no hard-coded result values.
+The panel follows the [M1 integration contract](../tech/m1-integration-contract.md).
+`ProjectSimulation` and `ScenarioSimulation` contain calculation output.
+`createFinancialViewModel` prepares displayed values.
+KPI cards and charts do not use independent financial calculations or fixed result values.
+
+## Demonstration
+
+1. Change a Scenario transition or economic assumption.
+2. Inspect the updated KPI values.
+3. Inspect the updated charts and annual table.
+4. Inspect the payback status.

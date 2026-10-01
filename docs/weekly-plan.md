@@ -1,4 +1,4 @@
-# Weekly technical delivery plan
+# M1 technical delivery
 
 ## Team roles
 
@@ -13,13 +13,17 @@
 | Zhi Kai | Yap Zhi Kai | Vehicle Systems Champion |
 | Brandon | Brandon Koh Kai Yang | Backend Champion |
 
-# M1 implementation phase
+## Current implementation
 
-The UI-stub phase is complete enough to move into the M1 integration phase. The priority is now to replace mock/hard-coded state in the core M1 path with shared domain state, deterministic calculations and persistent project data.
+F01–F07 form the accepted M1 scope.
+They use shared Project state, a custom calculation engine and complete-Project persistence.
+Each Project owns one physical environment.
+Each Scenario owns Vehicle Plans over that environment.
 
-The versioned domain handoff, shared-file ownership and merge sequence are fixed in the [M1 integration contract](tech/m1-integration-contract.md). Implementation branches start from a verified commit containing that contract rather than from the earlier UI-stub branches.
+The [M1 integration contract](tech/m1-integration-contract.md) defines domain boundaries and the merge gate.
+Implementation branches use a verified commit that contains this contract.
 
-## Product feature targets
+## Feature ownership
 
 - [F01 — Vehicle Presets](features/F01%20-%20Vehicle%20Presets.md) — MUST — Tan Wei Jun
 - [F02 — Fleet Management](features/F02%20-%20Fleet%20Management.md) — MUST — Jarrel Tay Wee Han
@@ -28,21 +32,30 @@ The versioned domain handoff, shared-file ownership and merge sequence are fixed
 - [F05 — 3D Fleet Visualisation & Inspection](features/F05%20-%203D%20Fleet%20Visualisation%20and%20Inspection.md) — MUST — Chew Shee Yang
 - [F06 — Financial & Payback Results](features/F06%20-%20Financial%20and%20Payback%20Results.md) — MUST — Yap Zhi Kai
 - [F07 — Timeline Control](features/F07%20-%20Timeline%20Control.md) — MUST — Jarrel Tay Wee Han
-- [F08 — Power & Feasibility Information](features/F08%20-%20Power%20and%20Feasibility%20Information.md) — SHOULD — Dayton Ng Zhi Jie
 
-## Integration order
+[F08 — Power & Feasibility Information](features/F08%20-%20Power%20and%20Feasibility%20Information.md) belongs to Dayton Ng Zhi Jie.
+Its current panel contains an informational note.
+F08 is excluded from the completed M1 feature scope.
 
-1. Lock domain contracts and workspace boundaries; the Technical Lead reviews serialization-facing types.
-2. Replace mock fleet/scenario state and ensure the aggregate can be saved and reopened.
-3. Implement the simulation as a pure deterministic engine using canonical Project inputs.
-4. Connect analytics views to simulation outputs and remove hard-coded primary financial results.
-5. Connect timeline controls to real Scenario transition events and workspace-scoped runtime state.
-6. Drive F05 3D state from the canonical Project and Plan timeline rather than independent transition logic.
-7. Exercise the full M1 path and keep CI green.
+## Current integration path
+
+Project commands change the canonical Project document.
+The custom simulation derives baseline and Scenario results from that document.
+Analytics display those results.
+Timeline controls set each workspace's selected year.
+The 3D view derives the effective fleet from the same Project and selected year.
+The repository saves and reopens the complete Project.
+
+Plan and Compare retain separate selected years and playback state.
+Both Compare columns use the Compare selected year.
 
 ## Supporting technical work
 
-- **Scenario/domain contracts:** Tan Wei Jun primary; Chew Shee Yang reviews persistence-facing contracts.
-- **CI pipeline:** Chew Shee Yang; install/typecheck/tests/build on PR/integration branch.
-- **M1 smoke path:** create/open -> preset/fleet edit -> scenario transition -> simulation -> real analytics -> selected-year 3D -> save/reopen.
-- **Tests:** each engine owns unit tests; cross-system behavior gets integration coverage before M1 submission.
+| Work | Owner or current behavior |
+|---|---|
+| Scenario/domain contracts | Tan Wei Jun is the primary owner. Chew Shee Yang reviews contracts that affect persistence. |
+| CI pipeline | Chew Shee Yang. CI installs dependencies, checks types, runs tests and builds on PRs and integration branches. |
+| M1 workflow | New/open/import Project → Preset/fleet edit → Scenario transition → simulation → analytics → selected-year 3D state → save/reopen |
+| Tests | Engine owners maintain unit tests. Integration tests cover cross-system behavior. |
+
+The feature catalogue remains the implementation hierarchy.

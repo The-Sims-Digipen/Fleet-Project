@@ -1,88 +1,161 @@
 # Product design
 
-Design owners: Ooi Ming Thong (UX), Dayton Ng Zhi Jie (web interface), and Tan Wei Jun (3D interaction). [Wireframes](ui-ux/wireframes.md) illustrate the screens; the [implementation features](../features/README.md) defines scope.
+Design owners: Ooi Ming Thong (UX), Dayton Ng Zhi Jie (web interface), and Tan Wei Jun (3D interaction).
 
-This is a long-term M1–M6 design. The current version 1 Project format has shared Project Analysis Settings and Scenario-owned Vehicle transition plans; charging strategies, charger placement, and parking assignments are later design scope, not persisted M1 state.
+The [wireframes](ui-ux/wireframes.md) show the M1 interface. The [feature catalogue](../features/README.md) defines implementation scope.
 
-## Navigation and screen responsibilities
+This document describes the current M1 application.
 
-The application has a project home screen and a project workspace. The workspace offers Plan, Depot, and Compare views without navigating away from the current document. Its header always shows project/scenario names, saved/unsaved state, Save, and the simulation label. Common Analysis Settings are Project-owned; Scenario-specific Vehicle transitions are shown separately. Any future charging assumptions must be explicitly separated when scheduled.
+## Current M1 application
 
-| View | Primary content | Main actions |
+### Project and navigation
+
+Each Project owns one environment. This environment contains one Depot and the shared fleet of Vehicles.
+
+Vehicle Presets and Analysis Settings belong to the Project. Each Scenario contains Vehicle transition plans. Scenarios use the same environment.
+
+The application opens in a workspace. `New` and `Open` show dialogs in that workspace.
+
+The header contains the Project name, `New`, `Open`, `Import`, `Export`, `Save`, and the save status. It also contains two workspace tabs.
+
+| Tab | Content | Main actions |
 |---|---|---|
-| Home | Saved project list and synthetic sample entry | New project, Open, Open sample, delete project with confirmation |
-| Plan | Fleet table, shared depot with the active scenario overlay, selected vehicle inspector, result panel | Vehicle CRUD, filters/groups, transition year, assumptions, results |
-| Depot | Large scene, object list, editing tools, properties and validation issues | Site/obstacle authoring, bays/chargers, assignment, transforms, undo/redo |
-| Compare | Plan A and B scenes/results, shared year selector and baseline description | Choose two scenarios, inspect differences, change year, return to edit |
+| `Plan / Depot` | 3D environment and a sidebar with feature panels | Edit Vehicles, Presets, Scenarios, and Analysis Settings. Select a year. Inspect results. |
+| `Compare` | Two Scenario views, a shared timeline, results, differences, and a cost chart | Select two distinct Scenarios. Select a year. Inspect differences. Reset each camera. |
 
-At desktop widths of at least 1280 CSS px, Plan uses a roughly 280 px fleet pane, flexible scene, and 320 px inspector; results below the scene can collapse. Compare shows two equal columns. Below 1280 px, collapse the inspector into a drawer and allow comparison columns to scroll horizontally without hiding one plan's identity. At smaller widths, forms remain usable but precision authoring is designed for desktop pointer/keyboard use; no native mobile deliverable is implied.
+The `Plan / Depot` sidebar starts at 420 CSS px wide. A separator permits width changes.
 
-## Main user journey
+At widths of 900 CSS px or less, the sidebar appears below the viewport. The separator then controls its height.
+
+Compare uses two columns. Each column has a minimum width of 520 CSS px. Smaller screens permit horizontal scrolling.
+
+The current interface supports browser use. Precise 3D editing requires desktop pointer and keyboard controls.
+
+### Main user journey
 
 ```mermaid
 flowchart TD
-  Home[Project home] --> Choice{New or existing?}
-  Choice -->|New or sample| Fleet[Review fleet and common assumptions]
-  Choice -->|Open| Workspace[Restore saved inputs]
-  Workspace --> Fleet
-  Fleet --> Plan[Select vehicles and assign transition years]
-  Plan --> Charging[Choose charging strategy and installation timing]
-  Charging --> Depot[Edit depot and inspect feasibility]
-  Depot --> Results[Inspect annual costs and emissions]
-  Results --> Compare[Duplicate a plan and compare alternatives]
-  Compare --> Save[Save the project]
-  Save --> Home
+  Start[Open the workspace] --> Choice{New or saved Project?}
+  Choice -->|New| New[Create a Project]
+  Choice -->|Open| Open[Open a local Project]
+  New --> Fleet[Add Vehicles]
+  Open --> Fleet
+  Fleet --> Inputs[Review Presets and Analysis Settings]
+  Inputs --> Plan[Set Scenario transitions]
+  Plan --> Results[Inspect the timeline, 3D view, and results]
+  Results --> Alternative[Duplicate a Scenario]
+  Alternative --> Change[Change its transitions]
+  Change --> Compare[Compare two Scenarios]
+  Compare --> Save[Save the Project locally]
 ```
 
-### Start and fleet setup
+### Create or open a Project
 
-New project creates an empty fleet, one scenario named Plan A, and a 40 m × 30 m rectangular site that can be freely edited. The default analysis starts in 2026 for four years, currency SGD. Do not seed unverified market assumptions as authoritative values: the sample project uses explicitly labeled synthetic values from the [calculation fixtures](../tech/simulation.md#synthetic-worked-fixtures), while blank required economic fields in a newly added vehicle require entry before commitment.
+A new Project has an empty fleet, five synthetic Vehicle Presets, and one Scenario named `Plan A`.
 
-Open sample creates a new unsaved project rather than modifying a shared saved sample. Use the SIM01 vehicle fixture as the initial economics demonstration and the SIM03 two-vehicle fixture as a charging constraint example; name them so the expected purpose is clear. Both samples identify their operational and charging assumptions. Selection does not edit data.
+It uses the default Depot and ten initial Vehicle positions. The analysis period starts in 2026 and lasts ten years, through 2035.
 
-Fleet rows show ID/name/type, age, annual/daily distance, replacement year, transition year, and current status. Filters support type and age; sorting supports name, year, and suitability once implemented. Shift/range and checkbox selection permit arbitrary combinations; bulk transitions show the selected count before committing. Vehicle creation/editing happens in a labeled form. Removing a vehicle previews all affected scenario schedules/assignments.
+The default currency is SGD. Economic and emissions defaults are synthetic planning inputs. They are not verified market or manufacturer data.
 
-### Plan a transition
+`Open` lists Projects saved in the current browser. The list shows each Project name, Scenario count, and update time.
 
-Choose one or more vehicles and assign a year within the analysis period. Clear transition retains the vehicle's current preset. Update annual counts and the scene immediately after valid edits. A user can duplicate Plan A as Plan B and change ordering without changing A. The Project depot and fleet remain shared; only Scenario-specific schedules, assignments, and planning overlays are duplicated. Shared fleet edits affect both and are explicitly labeled “Applies to all scenarios.”
+New Projects remain unsaved until the user selects `Save`. Import creates and saves a new Project identity from a portable file.
 
-The year slider has discrete integer steps, accessible arrow-key behavior, and a numeric/year dropdown alternative. Changing the selected year does not change the plan. Charts show the full horizon and mark the selected year; scene state and selected-year KPIs use the same index.
+The application has no `Open sample` control. Sample Projects and the [worked calculation fixtures](../tech/simulation.md#synthetic-worked-fixtures) support tests and demonstrations.
 
-### Charging and layout
+### Fleet and transition planning
 
-The charging panel selects Depot, External, or Mixed. Depot forces share 100%; External forces 0%; Mixed accepts strictly between 0% and 100%. Show depot/external tariffs, efficiency, site limit, and charger inventory. A quantity increase previews new instances in a row near the site origin; the user can move them before committing. Do not silently resolve spatial conflicts. Quantity reduction asks which instances to remove, with their locations and installation years.
+Fleet Management permits one Vehicle selection at a time. Each row shows the Vehicle name, ID, and selected-year status.
 
-Each charger has a visible installation year and power. Selecting a year before installation shows the planned charger as a dashed/ghost object only in Depot authoring mode, labeled “Not installed this year”; Plan/Compare render installed infrastructure only. Show financial and feasibility consequences even when a financially cheap plan is operationally constrained.
+The selected Vehicle form contains its shared inputs. These inputs include its baseline Preset, operation, and current ownership or lease terms.
 
-Full editing behavior is in [depot editor](../tech/depot-editor.md). In Plan view, clicking a mesh selects the corresponding fleet/object row; clicking a row frames/highlights that item without changing the schedule.
+Shared fleet edits affect all Scenarios. A Vehicle deletion confirmation identifies Scenarios that contain its transition plan.
 
-### Results and comparisons
+The current fleet capacity is ten Vehicles. `Add vehicle` uses the first available initial position.
 
-Show TCO, CAPEX, annual OPEX, baseline savings, operational emissions, and payback with units and short explanations. Use annual stacked cost bars, cumulative cash cost lines, annual emissions bars, and the transition roadmap. Show terminal residual credit separately so cumulative cash charts and residual-adjusted TCO are not confused.
+The production transition controls edit the selected Vehicle's first transition. `Target preset` selects its next Preset. `Year to change` selects the transition year.
 
-Compare requires two distinct Scenarios in the same Project, so both use its one physical environment with different planning overlays. If only one exists, offer Duplicate current plan. Both columns display the shared fleet/analysis revision and no-transition/current-fleet baseline. Controls in Compare inspect rather than edit Scenarios; use Edit A/Edit B to return to the chosen Plan. Year selection is shared; cameras are independent with a Reset view command. No mandatory camera synchronization is added.
+If the plan contains later transitions, these controls preserve them. Removing the first transition also preserves later transitions.
 
-Each column includes scene, selected-year counts/demand, full-horizon financial/emissions KPIs, and warnings. Differences are labeled in direction (B minus A) with positive/negative meaning written out. Suitability appears as a sortable list of candidates with factor/reason details and site-wide constraint notices. It never automatically assigns transition years.
+The production fleet interface has no filters, sorting, group selection, or bulk transition controls.
 
-## State, validation, and recovery
+The Scenarios panel provides `New`, `Duplicate`, and `Remove`. Duplication copies transition plans into a new Scenario.
 
-| State | Required response |
+The environment, fleet, Presets, and Analysis Settings remain shared. The last Scenario cannot be removed.
+
+### Timeline and 3D view
+
+The Timeline panel contains an integer year slider, transition markers, an event list, `Play`, and `Reset`.
+
+The selected year changes the derived Vehicle state and selected-year financial results. It does not change Scenario transition plans.
+
+The year slider supports the browser's keyboard controls. There is no year dropdown in this panel.
+
+The 3D view uses the same Project, active Scenario, and selected year as the results. Bright green Vehicles indicate a changed effective Preset.
+
+The Vehicle rows also show `Current` or `Changed`. The default Depot and Vehicle transforms belong to the Project environment.
+
+Development builds add a transform toolbar, Inspector, Scene panel, and Debug panel. They permit position, rotation, scale, and complete transition-list edits.
+
+Production builds do not show these development tools. M1 does not include freeform site geometry, bays, obstacles, or chargers.
+
+### Results and comparison
+
+The `Cost & emissions` panel shows TCO, transition CAPEX, OPEX, baseline differences, payback, fuel, electricity, and operational emissions.
+
+It also shows fleet cost per kilometre and mean cost per Vehicle. Undefined ratios show `Unavailable` or `N/A`.
+
+The charts show cumulative cash cost, annual cash cost, and annual savings. An annual table supplies numerical values.
+
+The cumulative chart marks the selected year and reached payback year.
+
+TCO includes terminal residual credit and can include discounting. The cash charts show nominal cash flows.
+
+Compare uses two distinct Scenarios from the open Project. Both columns use the same environment, fleet, Presets, and Analysis Settings.
+
+With one Scenario, the second selection is disabled. The panel instructs the user to create or duplicate another Scenario in `Plan / Depot`.
+
+Compare has no inline duplication control or `Edit A` and `Edit B` controls. The header tab returns the user to `Plan / Depot`.
+
+Compare has a shared year slider, year buttons, `Play`, and `Reset`. Each scene has an independent camera and a `Reset view` control.
+
+Differences use Plan B minus Plan A. The Difference panel uses signed values. Payback differences identify an earlier or later year.
+
+The `Charging & feasibility` panel contains an information message. M1 results do not include charger inventory, charging strategies, or site-power calculations.
+
+### Current validation and saving
+
+| State | Current M1 response |
 |---|---|
-| Blank/nonnumeric field draft | Keep locally, show a specific error on commit, and leave the last valid domain value unchanged; label displayed results as based on the last valid inputs. |
-| Out-of-range/domain-invalid value | Block commit/save of that draft, focus the error, and explain the permitted range. Never render NaN totals. |
-| Geometrically infeasible layout | Keep/edit/save the representable layout, highlight affected objects, and label calculations indicative/infeasible. |
-| Empty fleet/results | Show zero totals with a prompt to add/load vehicles; ratios/payback that are undefined show an explanation rather than a misleading zero. |
-| Unsaved project | Header shows Unsaved changes; leaving/reloading asks Save, Discard, or Cancel. Browser close uses the supported native warning. |
-| Save in flight | Disable duplicate saves, allow editing, and retain dirty status for edits newer than the saved snapshot. |
-| Save failure/offline backend | Keep all edits, display retry guidance and failure state; never clear dirty status. |
-| Stale revision | Offer reload with discard confirmation or save as new project; no silent overwrite. |
-| Unknown saved version | Keep the stored document intact, explain unsupported version, and offer return to project list. |
-| Destructive change | Confirm deletion and list affected references; last scenario cannot be deleted. |
+| Blank or invalid numeric draft | Keep the last valid Project value. Restore the valid value when the field loses focus or the edit ends. |
+| Invalid Project name | Show a specific validation message in the name form. |
+| Empty fleet | Show an instruction to add a Vehicle. Calculate zero totals where defined. |
+| Unsaved Project | Show `Not saved yet` or `Unsaved changes` in the header. |
+| New or Open with unsaved changes | Show a discard warning in the dialog. `Cancel` retains the open Project. |
+| Import with unsaved changes | Require confirmation before replacing the open Project. |
+| Browser close or reload with unsaved changes | Request the browser's native warning. |
+| Save in progress | Show `Saving…`. Disable another save. Retain edits made after the captured save state. |
+| Save failure or stale revision | Show `Save failed` and the failure message. Retain edits. Offer `Retry Save`. |
+| Project list failure | Retain open edits. Show the error and `Retry`. |
+| Unsupported or invalid Project file | Show an import error. Retain the open Project. |
+| Scenario deletion | Show a confirmation dialog. Prevent removal of the last Scenario. |
 
-A collapsed panel retains its valid state. Undo/redo operates on committed domain edits, including geometry transactions, with up to 100 entries. A shared fleet edit undoes its coordinated scenario reference changes atomically. Camera, selection, active year, and saved revision are not undo entries.
+`Saved locally` appears after IndexedDB accepts the captured Project state. It is not a server acknowledgement.
 
-## Accessibility and review
+Edits made during a save remain unsaved after that save completes. A stale revision cannot silently overwrite the saved Project.
 
-All forms and toolbar commands have visible labels/tooltips, keyboard access, focus indication, and error association. Status and overload are communicated in text as well as color. Numeric transform controls and object lists provide an alternative to pointer-only object movement. Diagram/charts include text summaries and numerical values. Keyboard shortcuts do not steal native form-field undo while text input has focus.
+The current interface does not offer conflict-specific reload or save-as-new controls. General numeric fields do not show specific inline errors.
 
-Usability checks cover planning, saving, comparison, depot editing, and the final end-to-end flow.
+Undo and redo apply to committed Project edits. The history retains up to 100 states. Coordinated fleet and Scenario changes form one edit.
+
+Camera state, selection, playback, and save metadata do not form Project history entries. A collapsed panel retains its valid state.
+
+### Keyboard and text access
+
+The workspace has a `Skip to workspace` link. Dialogs have named titles. Form controls have labels.
+
+Timeline sliders and sidebar separators support keyboard input. The annual results table supplies numerical values for the financial charts.
+
+Save and import failures use status or alert text. Fleet status uses `Current` and `Changed` labels as well as colour.
+
+Text-field undo remains available while the field has focus. General numeric controls do not provide specific inline error messages.

@@ -1,62 +1,66 @@
 # Data model and persistence contract
 
-The version 1 Project document is one physical planning environment and one aggregate persistence record. It owns its Depot, authoritative Vehicle baselines, reusable Vehicle Presets, shared Analysis Settings, active Scenario identity, and ordered Scenarios. Save/load preserves authoritative inputs, not Three.js meshes, editor state, or calculated results.
+The version 1 Project document represents one physical environment and one aggregate persistence record. It owns its Depot, authoritative Vehicle baselines, reusable Vehicle Presets, shared Analysis Settings, active Scenario identity, and ordered Scenarios. Save/load preserves authoritative inputs. It excludes Three.js meshes, editor state, and calculated results.
 
 ## Data model
 
 | Entity | Principal data | Relationship / purpose |
 |---|---|---|
-| Project | ID, name, active Scenario ID, environment, presets, analysis settings | Aggregate and atomic persistence boundary |
-| Depot | Stable ID, name, world transform | The Project's physical site |
-| Vehicle | Stable ID, baseline preset ID, world transform, operational and holding inputs | One physical fleet unit owned by the Project |
-| Vehicle preset | Stable ID, model/type, powertrain, energy, cost, efficiency | Reusable configuration referenced by vehicles and transitions |
-| Scenario | Stable ID, name, per-vehicle transition sequences | Alternative plan over the Project baseline |
-| Result | Annual counts, cash flows, energy, emissions, feasibility issues | Derived; never authoritative persistence |
+| Project | ID, name, active Scenario ID, environment, Presets, Analysis Settings | Aggregate and atomic persistence boundary |
+| Depot | Stable ID, name, world transform | Physical site of the Project |
+| Vehicle | Stable ID, baseline Preset ID, world transform, operational and holding inputs | One physical fleet unit that the Project owns |
+| Vehicle Preset | Stable ID, model/type, powertrain, energy, cost, efficiency | Reusable configuration for Vehicles and transitions |
+| Scenario | Stable ID, name, Vehicle transition sequences | Alternative plan over the Project baseline |
+| Result | Annual counts, cash flows, energy, emissions | Derived data; never authoritative persistence |
 
-In the M1 contract, a Scenario stores Vehicle transition plans only. It does not own a copy of a Vehicle, charging strategy, depot charging share, charger availability, or separate energy tariffs. Later charging and feasibility requirements remain in [F08](../features/F08%20-%20Power%20and%20Feasibility%20Information.md) and [the product specification](../SPECS.md).
+In M1, a Scenario stores Vehicle transition plans only. It does not own a Vehicle copy, charging strategy, Depot charging share, Charger availability, or separate energy tariffs.
 
-Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication deep-copies planning data only. The Project document's `version` field is 1 and identifies its serialized format; code uses unversioned domain names because one current schema is authoritative at runtime.
+Geometry uses XZ ground coordinates in metres and rotations in radians. Scenario duplication makes an independent copy of plan data only. The Project document field `version` is 1 and identifies its serialized format. Code uses unversioned domain names because one current schema is authoritative at runtime.
 
 ## Project invariants
 
-- Project, depot, vehicle, preset, and Scenario IDs are valid and unique in their scopes.
-- The Project fleet is authoritative; rendered vehicles are derived.
-- A vehicle's `baselinePresetId` is null or resolves to a Project preset.
-- The depot and every vehicle own exactly one valid world transform.
-- The default depot supports at most ten fleet vehicles.
-- Vehicle creation copies the first unused default world-space spawn transform. Spawn positions are construction inputs; neither a spawn-slot identity nor a parking assignment is persisted.
-- Every Scenario plan key resolves to a Project vehicle.
-- Every transition target resolves to a Project preset.
-- Transition years for a vehicle are unique and ascending.
-- Deleting a vehicle removes every Scenario plan keyed by its ID in the same domain command.
-- A referenced preset cannot be deleted.
-- Every Project contains at least one Scenario, and `activeScenarioId` resolves to one of them.
+- Project, Depot, Vehicle, Preset, and Scenario IDs are valid and unique in their scopes.
+- The Project fleet is authoritative. Rendered Vehicles are derived.
+- A Vehicle field `baselinePresetId` is null or references a Project Preset.
+- The Depot and every Vehicle own exactly one valid world transform.
+- The default Depot supports at most ten fleet Vehicles.
+- Vehicle creation copies the first unused default spawn transform in world coordinates. Spawn positions are construction inputs. Persistence excludes spawn-slot identities and parking assignments.
+- Every Scenario plan key references a Project Vehicle.
+- Every transition target references a Project Preset.
+- Transition years for a Vehicle are unique and in ascending order.
+- A Vehicle deletion command removes every Scenario plan with that Vehicle ID in the same command.
+- The system blocks deletion of a referenced Preset.
+- Every Project contains at least one Scenario. Its `activeScenarioId` references one of these Scenarios.
 
-`normalizeProject` enforces these invariants at construction and every mutation boundary. Repository and portable-file adapters validate untrusted documents through the same function.
+`normalizeProject` enforces these invariants at construction and each mutation boundary. Repository and portable-file adapters validate untrusted documents through the same function.
 
-`effectivePresetIdFor` is the canonical interpretation of a Vehicle baseline and a Scenario's ordered transitions at a selected year. Simulation and the typed Project world projection consume that same rule; the rendered Vehicle is not another authoritative entity.
+`effectivePresetIdFor` interprets a Vehicle baseline and the ordered Scenario transitions at a selected year. Simulation and the typed Project world projection use this same rule. The rendered Vehicle is not another authoritative entity.
 
 ## Repository contract
 
-UI/state code depends on `ProjectRepository`, which can:
+UI and state code depend on `ProjectRepository`. This interface provides these operations:
 
-- list saved Projects;
-- load one complete Project record;
-- create the aggregate atomically;
-- update it atomically with an expected revision.
+- List saved Projects.
+- Load one complete Project record.
+- Create the aggregate atomically.
+- Update the aggregate atomically with an expected revision.
 
-IndexedDB has one `projects` store keyed by `document.id`. Each record contains the complete Project document plus `revision`, `createdAt`, and `updatedAt`. Persistence metadata is deliberately outside the undoable domain document. A failed transaction exposes no partial save.
+The default browser repository uses IndexedDB. An API adapter also implements the interface. The default browser save path does not use the API adapter.
 
-The browser database is named `fleet-transition-planner` and currently uses internal IndexedDB revision 5. This storage revision is independent of the Project document format version 1. Initialization creates the current `projects` store; it does not transform or automatically clear incompatible prerelease data. Clear incompatible browser data manually.
+IndexedDB has one `projects` store with the key `document.id`. Each record contains the complete Project document, `revision`, `createdAt`, and `updatedAt`. Persistence metadata remains outside the domain document and its undo history. A failed transaction exposes no partial save.
 
-The server row's `schema_version` mirrors the Project document version and is 1. The migration runner applies ordered SQL migrations; the current clean baseline creates only the aggregate `projects` table. Incompatible prerelease server data is not ported; recreate the server database when a breaking persistence change requires a clean start. Keep the migration mechanism for supported future schema changes.
+The browser database is named `fleet-transition-planner` and uses internal IndexedDB revision 5. This storage revision is independent of Project document format version 1. Initialization creates the current `projects` store. It does not convert or automatically clear incompatible prerelease data. Clear incompatible browser data manually.
 
-## Portable project file
+The server field `schema_version` matches the Project document version and is 1. The migration runner applies SQL migrations in order. The current clean baseline creates only the aggregate `projects` table. It does not convert incompatible prerelease server data. Recreate the prerelease server database when a breaking persistence change requires a clean start.
+
+## Portable Project file
 
 Format `fleet-transition-planner-project` at version 1 contains:
 
-- the complete Project document;
-- an export timestamp;
-- the portable format version, independent of the Project document version.
+- The complete Project document.
+- An export timestamp.
+- The portable format version, independent of the Project document version.
 
-Import validates the current format and document, then creates a fresh Project ID. Persistence metadata, camera state, selection, transform controls, lighting, undo history, and derived results are excluded.
+Export includes unsaved document edits. It excludes persistence metadata, camera state, selection, transform controls, lighting, undo history, and derived results.
+
+Import validates the current format and document. It creates a fresh Project ID and stores a new aggregate record. Depot, Vehicle, Preset, and Scenario IDs remain unchanged within the new Project. The active Scenario identity also remains unchanged. Import opens the new Project after a successful save.

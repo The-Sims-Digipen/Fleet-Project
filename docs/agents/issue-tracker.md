@@ -1,30 +1,35 @@
 # Issue tracker: Local Markdown
 
-Issues and specs for this repo live as Markdown files in `.scratch/`.
+Store local issues and specifications as Markdown files in `.scratch/`.
 
-`.scratch/` is ignored by Git. Its contents are machine-local and must not be committed or treated as shared team state. Each contributor maintains their own local tickets.
+Git ignores `.scratch/`. Each contributor keeps their own local tickets.
+Keep these files out of commits and shared team records.
 
 ## Conventions
 
-- One feature per directory: `.scratch/<feature-slug>/`
-- The spec is `.scratch/<feature-slug>/spec.md`
-- Implementation issues are one file per ticket at `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`
-- Triage state is recorded as a `Status:` line near the top of each issue file
-- Comments and conversation history append under a `## Comments` heading
+- Use one directory per feature: `.scratch/<feature-slug>/`.
+- Put the specification at `.scratch/<feature-slug>/spec.md`.
+- Use one file per ticket: `.scratch/<feature-slug>/issues/<NN>-<slug>.md`. Start the numbers at `01`.
+- Put a `Status:` line near the top of each issue file.
+- Add comments and conversation history under `## Comments`.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a new file under `.scratch/<feature-slug>/`, creating the directory if needed.
+1. If the directory is absent, create `.scratch/<feature-slug>/`.
+2. Create the ticket file in that directory.
 
 ## When a skill says "fetch the relevant ticket"
 
-Read the referenced local file. The user will normally provide its path or issue number.
+Read the specified local file. The user usually supplies its path or issue number.
 
 ## Wayfinding operations
 
-- Map: `.scratch/<effort>/map.md`
-- Child ticket: `.scratch/<effort>/issues/NN-<slug>.md`
-- Blocking: record `Blocked by: NN, NN` near the top
-- Frontier: select the first numbered ticket that is open, unblocked, and unclaimed
-- Claim: set `Status: claimed` before starting work
-- Resolve: append the answer under `## Answer`, set `Status: resolved`, and update the map
+Use `.scratch/<effort>/map.md` for the work map.
+Use `.scratch/<effort>/issues/NN-<slug>.md` for each child ticket.
+
+1. Record dependencies as `Blocked by: NN, NN` near the top of a ticket.
+2. Select the first numbered open ticket with no unresolved dependency or claim.
+3. Set `Status: claimed` before work starts.
+4. When the work is complete, add the answer under `## Answer`.
+5. Set `Status: resolved`.
+6. Update the work map.

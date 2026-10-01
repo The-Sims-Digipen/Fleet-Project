@@ -1,63 +1,70 @@
 # M1 integration contract
 
-This is the shared handoff for integrating the milestone-one features into one working application. Feature scope remains in `docs/features/`, and owners remain in `docs/weekly-plan.md`.
+This contract defines the shared interfaces for M1 feature integration. Feature scope remains in `docs/features/`. Owners remain in `docs/weekly-plan.md`.
 
 ## Canonical code contract
 
-The framework-independent aggregate is `apps/client/src/domain/project.ts`. Its version 1 `ProjectDocument` owns one environment, Vehicle Presets, Scenarios, active Scenario identity, and shared Analysis Settings. Code uses unversioned Project and domain names; the format field identifies the serialized contract, and normalizers reject an unsupported format.
+The aggregate in `apps/client/src/domain/project.ts` does not depend on a framework. Its version 1 `ProjectDocument` owns one environment, Vehicle Presets, Scenarios, active Scenario identity, and shared Analysis Settings. Code uses unversioned Project and domain names. The format field identifies the serialized contract. Normalizers reject unsupported formats.
 
-The contract fixes these decisions:
+The contract defines these boundaries:
 
-- Project-owned inputs: depot, authoritative vehicles and transforms, presets, analysis period, prices, emissions factors, and discount rate.
-- Scenario-owned inputs: ordered Vehicle transition plans only. Charging strategy, depot charging share, charging infrastructure, and feasibility are later scope; no such assumptions are persisted per Scenario in M1.
-- Project editor-only state: selection; independent Plan and Compare timeline state; Compare Scenario A/B choices; camera; lighting; transform tools; drafts; and undo mechanics. Application-wide workspace mode, Project catalogue/list status, global Project dialogs, and sidebar expansion remain in `appStore` across Project changes. Save status follows the open Project runtime.
-- Derived state: simulation, analytics, event lists, and render objects are recomputed and never authoritative persisted data.
-- Transition semantics: the baseline preset applies before the first transition, then the latest transition at or before the selected year applies.
-- Time semantics: `startYear` through `startYear + yearCount - 1`, inclusive.
+- Project inputs include the Depot, authoritative Vehicles and transforms, Presets, analysis period, prices, emissions factors, and discount rate.
+- Scenario inputs contain ordered Vehicle transition plans only. M1 does not persist charging strategy, Depot charging share, infrastructure, or feasibility assumptions per Scenario.
+- Project editor state contains selection, independent Plan and Compare timelines, Compare Scenario A/B choices, camera, lighting, transform tools, drafts, and undo state.
+- Application state contains workspace mode, Project catalogue/list status, global Project dialogs, and sidebar expansion. This state remains in `appStore` across Project changes.
+- Save status belongs to the open Project runtime.
+- Simulation, analytics, event lists, and render objects are derived. They are recalculated and never authoritative persisted data.
+- The baseline Preset applies before the first transition. The latest transition at or before the selected year then applies.
+- The analysis period includes `startYear` through `startYear + yearCount - 1`.
 
-An Effective Vehicle is a derived, read-only interpretation of its Project Vehicle baseline and one Scenario's transitions at a selected year. Timeline, simulation, graphs, Inspector state, comparison metrics, and `createProjectWorld` must agree with this interpretation across every ordered transition.
+An Effective Vehicle interprets the Vehicle baseline and one Scenario's transitions at a selected year. This interpretation is derived and read-only. Timeline, simulation, graphs, Inspector state, comparison metrics, and `createProjectWorld` must use the same interpretation across all ordered transitions.
 
 ## Validation and reference invariants
 
 - IDs are stable and unique in their scope.
-- Numeric domain values are finite and respect their documented ranges.
-- Every vehicle baseline preset and Scenario target preset resolves inside the same Project.
-- Every Scenario plan key resolves to a Project vehicle.
-- Every vehicle owns a valid world transform, and a Project contains at most ten vehicles.
-- Vehicle transition years are unique and ascending.
-- Deleting a referenced preset is blocked.
-- Deleting a vehicle removes all of its Scenario plan entries in the same command.
-- Scenario duplication deep-copies plans. The last Scenario cannot be deleted.
-- Invalid form drafts remain component-local and never replace the last valid domain value.
-- Changing the analysis period clamps both workspace selected years. Leaving a workspace pauses its playback while preserving its selected year and Scenario choices.
+- Numeric domain values are finite and within their documented ranges.
+- Every Vehicle baseline Preset and Scenario target Preset references a Preset inside the same Project.
+- Every Scenario plan key references a Project Vehicle.
+- Every Vehicle owns a valid world transform. A Project contains at most ten Vehicles.
+- Vehicle transition years are unique and in ascending order.
+- The system blocks deletion of a referenced Preset.
+- A Vehicle deletion command removes all Scenario plan entries for that Vehicle in the same command.
+- Scenario duplication makes an independent copy of plans. The system blocks deletion of the last Scenario.
+- Invalid form drafts stay in the component. They never replace the last valid domain value.
+- An analysis-period change clamps the selected year in both workspaces.
+- A workspace exit pauses its playback. It preserves the selected year and Scenario choices.
 
 `normalizeProject` enforces these invariants at creation, mutation, repository, and import boundaries.
 
 ## State and integration boundaries
 
-`useProjectStore` is the application-facing module. It owns one `ProjectRuntime` containing:
+`useProjectStore` is the application interface. It owns one `ProjectRuntime` with these fields:
 
-- the canonical `ProjectDocument`;
-- repository metadata and the saved dirty-state baseline;
-- editor-only state;
-- one undo/redo history for all Project edits.
+- The canonical `ProjectDocument`.
+- Repository metadata and the saved baseline for dirty-state checks.
+- Editor state.
+- One undo/redo history for all Project edits.
 
-Feature components must not mirror Project slices into another authoritative store. Continuous controls use `beginEdit`, preview commands, `commitEdit`, and `cancelEdit`. Discrete actions issue one Project command. Viewport rendering, picking, and Inspector routing use `createProjectWorld` and typed Depot/Vehicle references; they do not persist a second scene document. The hardcoded ordered spawn transforms are copied onto new Vehicles and have no persisted parking-slot identity.
+Feature components must not copy Project data into another authoritative store. Continuous controls use `beginEdit`, preview commands, `commitEdit`, and `cancelEdit`. Discrete actions issue one Project command.
+
+Viewport views, object selection, and Inspector routes use `createProjectWorld` and typed Depot/Vehicle references. They do not persist a second scene document. Vehicle creation copies a default spawn transform from the ordered list. This construction list is fixed in code. Vehicles do not store a parking-slot identity.
 
 ## Persistence boundary
 
-`ProjectRepository` lists, loads, creates, and revision-checks complete Project records. IndexedDB and the future API adapter implement that interface. Portable export carries the complete Project document; import validates it and creates a fresh Project identity. Runtime editor state and calculated results never cross this boundary.
+`ProjectRepository` lists, loads, creates, and updates complete Project records with revision checks. IndexedDB and the existing API adapter implement this interface. The default browser repository uses IndexedDB. It does not use the API adapter.
+
+Portable export contains the complete Project document. Import validates this document and creates a fresh Project ID. Nested entity IDs and the active Scenario identity remain unchanged within the new Project. Runtime editor state and calculated results never cross the persistence boundary.
 
 ## Merge gate
 
-At minimum, integration coverage proves:
+Integration tests must prove these behaviors:
 
-- stable vehicle and preset references across save/reopen;
-- Scenario duplication is a deep copy and edits remain isolated;
-- before/at/after transition-year state agrees in timeline and 3D projections;
-- vehicle deletion removes dependent plans atomically;
-- referenced preset deletion is blocked;
-- unsupported versions and stale revisions fail without losing working edits;
-- empty and zero cases never emit `NaN` or `Infinity`.
+- Vehicle and Preset references remain stable across save/reopen.
+- Scenario duplication makes an independent copy. Changes to the copy do not change the original.
+- Timeline and 3D projections agree before, at, and after each transition year.
+- Vehicle deletion removes dependent plans atomically.
+- The system blocks deletion of referenced Presets.
+- Unsupported versions and stale revisions fail without loss of current edits.
+- Empty and zero cases never produce `NaN` or `Infinity`.
 
-Every pull request runs `pnpm verify`. A change to `ProjectDocument` must name and update all affected consumers.
+Every pull request runs `pnpm verify`. Identify all affected consumers for a `ProjectDocument` change. Update each affected consumer.

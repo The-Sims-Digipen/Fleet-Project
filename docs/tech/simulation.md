@@ -1,116 +1,187 @@
 # Annual simulation model
 
-Model: `annual-v1`. The M1 engine derives annual fleet energy, cost, emissions, and payback results from the Project aggregate. Shared Analysis Settings apply to every Scenario. Worked examples use synthetic values rather than market forecasts.
+Model: `annual-v1`. The M1 engine calculates annual energy, cost, emissions, and payback from the Project document.
+All Scenarios use the Project Analysis Settings. The worked examples use synthetic values, not market forecasts.
 
-M1 has no Scenario charging strategy, depot charging share, charging-availability plan, or separate depot/external tariff. Charging infrastructure, power feasibility, and suitability ranking below are retained as later-scope requirements; they are not M1 simulation inputs or outputs.
+M1 has no Scenario charging strategy, depot charging share, charger plan, or separate depot and external tariffs.
+The engine does not calculate charging feasibility or suitability scores.
 
 ## Time, units, and assumptions
 
-- Model whole calendar years from `startYear` through `startYear + years - 1`. Transition, replacement, and charger installation occur at the start of their chosen year; annual operation follows; terminal residual credits occur after the final year's operation.
-- Use km, litres, kWh, kgCO2e, and one Project currency. Fuel and electricity prices, emissions factors, and the discount rate are shared Project assumptions. Apply the discount rate to present-value TCO; do not model inflation, tax, subsidy, or battery degradation. All comparisons use the Project currency.
-- Each Vehicle has constant annual-distance/operational assumptions; maintenance and energy behavior come from the effective Vehicle Preset. `utilisation` is retained for later suitability ranking; it does not multiply annualKm. `typicalDailyKm`, `operatingDays`, depot return/dwell, and external access are stored Vehicle inputs for later charging checks and do not add an M1 charging strategy or feasibility calculation.
-- The baseline can include one replacement using the Vehicle's baseline Preset. A Scenario can contain multiple ordered transitions, and each target Preset stays active until the next transition. If the first transition is on or before the baseline replacement year, it replaces that baseline purchase; otherwise the baseline replacement happens first. Transition years may fall outside the evaluation window.
-- Operational emissions include the active Preset's fuel and supplied-electricity use using the shared Project factors. Vehicle manufacturing and disposal emissions are excluded.
+The analysis covers whole calendar years from `startYear` through `startYear + yearCount - 1`, inclusive.
+A replacement or transition occurs at the start of its year. Annual operation follows that event.
+The final residual credit occurs after the last year's operation.
+
+Use these units:
+
+- Distance: km.
+- Fuel: litres.
+- Electricity: kWh.
+- Emissions: kgCO2e.
+- Money: the Project currency.
+
+Fuel and electricity prices, emissions factors, and the discount rate belong to the Project.
+The engine uses the discount rate for present-value total cost of ownership (TCO).
+It excludes inflation, tax, subsidies, and battery degradation. All comparisons use the same Project currency.
+
+Each Vehicle has constant annual distance and operational inputs.
+The effective Vehicle Preset supplies its maintenance and energy inputs.
+The Project stores `utilisation`, daily distance, operating days, depot return, depot dwell, and external charging access.
+The M1 engine does not use these fields. It uses `annualKm` directly, without a utilisation multiplier.
+
+The baseline can include one replacement with the Vehicle's baseline Preset.
+A Scenario can contain multiple ordered transitions. Each target Preset applies until the next transition.
+The first transition replaces the baseline purchase if it occurs on or before the baseline replacement year.
+Otherwise, the baseline replacement occurs first.
+Transitions can occur outside the analysis period.
+Events before the period determine the initial Preset and asset holding. The engine does not charge their purchase costs again.
+Events after the period add no cost or transition count within that period.
+
+Operational emissions include fuel and supplied electricity, with the Project emissions factors.
+The model excludes Vehicle manufacture and disposal emissions.
 
 ## Annual fleet state and baseline
 
-A Scenario with no transitions keeps the Vehicle's baseline Preset for the horizon, subject only to its baseline replacement assumption. Each transition changes the effective Preset at the start of its year and that Preset remains active until the next transition. Count a transition only in its year. Every Scenario uses the same Project fleet and shared Analysis Settings for its no-transition baseline.
+Without transitions, a Vehicle keeps its baseline Preset throughout the analysis period.
+Its baseline replacement can change its asset holding, but keeps the same Preset.
+Each Scenario uses the same Project fleet and Analysis Settings for its no-transition baseline.
 
-In the baseline, acquire a replacement using the current preset at replacementYear r, if set. In the scenario: if t <= r, skip that baseline replacement and acquire the target preset at t; if r < t, acquire the replacement current-preset vehicle at r and later replace it with the target preset at t. If no t exists, follow baseline replacement behavior. Exactly one vehicle exists per fleet ID in each year; purchasing does not add to fleet count.
+For a baseline replacement year `r` and first transition year `t`:
 
-Existing owned vehicles are sunk assets: do not charge their historic purchase cost. Their initial market value is used for sale interpolation, not as new CAPEX. Leased vehicles incur the supplied annual lease payment while active. An owned acquisition incurs purchaseCost once; a leased acquisition incurs no purchase CAPEX and pays its annualPayment each active year. Maintenance and energy are additional; lease payments are assumed to exclude both. Charge a leased holding's exitFee when it is replaced/transitioned; use zero when no fee is intended. Do not charge exit fees merely because the analysis horizon ends.
+- If no transition exists, use the baseline replacement behavior.
+- If `t <= r`, acquire the target Preset at `t` and omit the baseline replacement.
+- If `r < t`, acquire the baseline replacement at `r`, then the target Preset at `t`.
+
+Exactly one Vehicle exists per fleet ID in each year. An acquisition does not increase fleet size.
+
+Existing owned Vehicles are assets from before the analysis period.
+Do not charge their historical purchase cost.
+Use their initial market value to calculate a disposal credit.
+
+An owned acquisition incurs `purchaseCost` once.
+A leased acquisition incurs no purchase CAPEX. It incurs its `annualPayment` in each active year.
+Add maintenance and energy costs to the lease payment. The supplied lease payment excludes these costs.
+When a leased asset is replaced, charge its `exitFee` once. Use zero if no exit fee applies.
+The end of the analysis period does not cause an exit fee.
 
 ## Disposal and residual values
 
-For an owned holding active from start-of-year index a to horizon end N, with acquisition/current value P and supplied horizon residual R, its disposal value at start of index t is:
+For an owned asset, calculate its disposal value with:
 
 `V(t) = P + (R - P) * (t - a) / (N - a)`
 
-Use a=0 for existing assets. Use the actual acquisition-year index for acquired assets. R is an explicit end-of-analysis value, not an automatically estimated resale price. All allowed purchases occur before N. At replacement/transition, credit V(t) for the outgoing owned holding. At horizon end, credit R only for the final owned holding. Never credit both early disposal and terminal residual for the same disposed holding. Leased holdings have no sale/residual credit.
+| Symbol | Meaning |
+|---|---|
+| `a` | The acquisition-year index. Use zero for an existing asset. |
+| `N` | The number of analysis years. |
+| `P` | The acquisition value, or the initial market value of an existing asset. |
+| `R` | The supplied residual value at the end of the analysis period. |
+| `t` | The disposal-year index at the start of that year. |
+
+Use the actual acquisition-year index for an acquired asset, including a negative index for an acquisition before the period.
+`R` is an explicit input. The model does not estimate resale prices.
+All purchases that affect the period occur before index `N`.
+
+At replacement or transition, credit `V(t)` for the outgoing owned asset.
+At the end of the period, credit `R` only for the final owned asset.
+Do not give a terminal credit to an asset that already has a disposal credit.
+Leased assets have no disposal or terminal credit.
 
 ## Energy, annual costs, and totals
 
-For annual distance D:
+For annual distance `D`, calculate the following values:
 
-- For a fuel-consuming Preset, fuel litres = `D * litresPer100Km / 100`.
-- For an electric Preset, supplied electricity = `D * kWhPer100Km / 100 / chargingEfficiency`.
-- Fuel cost = litres × the shared Project fuel price. Electricity cost = supplied electricity × the shared Project electricity price.
-- Annual operating cost = applicable energy cost + active-preset maintenance + active lease payments.
-- Annual net cash cost = acquisition CAPEX + lease exit fees + operating cost − disposal credits.
-- Cumulative cost is the running sum of annual net cash cost, excluding terminal credit.
-- TCO = sum of annual net cash cost − final owned-vehicle terminal credits.
-- Transition CAPEX = owned target-Preset acquisitions caused by Scenario transitions. Replacement CAPEX = owned baseline replacement purchases. Lease payments remain OPEX.
-- Savings = baseline TCO − scenario TCO; positive values mean the plan costs less. Also show scenario-minus-baseline cost difference with an explicit label.
-- Fleet cost/km = fleet TCO / sum of all annual fleet km. Mean fleet cost/vehicle = fleet TCO / fleet size. Return null for zero denominators. Per-vehicle TCO excludes shared charger costs and is labeled accordingly; fleet totals include them.
-- Fuel displaced = baseline litres − scenario litres where fuel-based presets are involved. Emissions = fuel litres × fuel factor + supplied electricity × electricity factor for the supported energy-source model. Reduction = baseline emissions − scenario emissions; percentage = reduction / baseline emissions × 100, or null when baseline emissions is zero. Negative reduction is valid and must be shown.
+| Value | Formula |
+|---|---|
+| Fuel litres | `D * litresPer100Km / 100` for a fuel-consuming Preset. |
+| Supplied electricity | `D * kWhPer100Km / 100 / chargingEfficiency` for an electricity-consuming Preset. |
+| Fuel cost | Fuel litres × Project fuel price. |
+| Electricity cost | Supplied electricity × Project electricity price. |
+| Annual operating cost | Fuel cost + electricity cost + maintenance + lease payments. |
+| Annual net cash cost | Acquisition CAPEX + lease exit fees + operating cost − disposal credits. |
+| Cumulative cash cost | The sum of annual net cash costs up to that year, excluding terminal credit. |
+| Nominal TCO | The sum of annual net cash costs − terminal credit. |
+| Transition CAPEX | Owned target-Preset acquisitions from Scenario transitions. |
+| Replacement CAPEX | Owned acquisitions from baseline replacements. |
 
-Keep full numeric precision during calculation; round only display amounts to two decimal currency places and suitable metric precision. Numerical reference tests compare within 1e-6 currency/metric units for these small fixtures.
+Diesel, petrol, and hybrid Presets consume fuel. Electric and hybrid Presets consume supplied electricity.
+A hybrid Preset can therefore contribute to both energy totals.
+Lease payments remain operating expenditure (OPEX).
+M1 totals contain Vehicle costs only.
+
+For discount rate `d` and year index `i`, calculate:
+
+- Discounted annual net cash cost: `netCashCost / (1 + d) ** i`.
+- Discounted terminal credit: `terminalCredit / (1 + d) ** yearCount`.
+- Present-value TCO: the sum of discounted annual net cash costs − discounted terminal credit.
+
+The first year uses index zero. The engine returns both `nominalTco` and present-value `tco`.
+Cash-flow charts and payback use nominal cash values.
+
+Use present-value TCO for these ratios and comparisons:
+
+| Value | Formula or response |
+|---|---|
+| Savings | Baseline TCO − Scenario TCO. A positive value means the Scenario costs less. |
+| Cost difference | Scenario TCO − baseline TCO. Give this value an explicit label. |
+| Fleet cost/km | Fleet TCO / total fleet distance over all analysis years. |
+| Mean cost/Vehicle | Fleet TCO / fleet size. |
+| Zero denominator | Return `null` for the ratio. |
+
+Calculate energy and emissions comparisons with:
+
+| Value | Formula |
+|---|---|
+| Fuel displaced | Baseline litres − Scenario litres. |
+| Emissions | Fuel litres × fuel factor + supplied electricity × electricity factor. |
+| Emissions reduction | Baseline emissions − Scenario emissions. |
+| Percentage reduction | Reduction / baseline emissions × 100. Return `null` if baseline emissions are zero. |
+
+Negative reductions are valid. Show their sign.
+Keep full precision in calculations.
+Round currency displays to two decimal places. Use suitable display precision for other units.
+Compare small numerical fixtures within `1e-6` currency or metric units.
 
 ## Payback and explanations
 
-Define annual cumulative cash savings as baseline cumulative cost minus scenario cumulative cost. Exclude terminal residual credits from payback so a hypothetical terminal sale cannot manufacture an operating breakeven. Display residual-adjusted TCO separately.
+Annual cumulative cash savings equal baseline cumulative cash cost minus Scenario cumulative cash cost.
+Exclude terminal residual credits from payback. A final hypothetical sale must not create an operating breakeven.
+Show TCO with its residual credit separately.
 
-`paybackYear` is the first end-of-year where cumulative cash savings is nonnegative and remains nonnegative at every later modeled year. If it never does, return null/`not-reached`. Later staged CAPEX can therefore delay apparent payback. Use `initial-parity` only when the scenario has no positive upfront cost premium at the start year and cumulative savings is nonnegative throughout; return startYear and label “No upfront premium; cash savings stay nonnegative.” Otherwise use `reached` and label an end-of-year value, with no fractional-year interpolation.
+`paybackYear` is the first year-end with nonnegative cumulative cash savings that stay nonnegative in every later analysis year.
+If no such year exists, return `null` and `not-reached`.
+Later staged CAPEX can delay payback.
 
-Assumption impact compares the before/after Project input snapshots, lists changed fields, and reports resulting cost/emissions differences. For multiple simultaneous edits, report the combined impact; do not claim a causal decomposition or automated sensitivity analysis. A shared price or emissions-factor change recomputes the baseline and every Scenario. Schedule/layout values stay unchanged during assumption-only edits.
+Use `initial-parity` only if both conditions are true:
 
-## Deferred: charging and physical feasibility
+- The Scenario has no positive upfront cost premium in the start year.
+- Cumulative cash savings stay nonnegative throughout the period.
 
-The following requirements remain for a later milestone. They do not add Scenario charging strategy or infrastructure fields to the M1 contract and do not feed the M1 simulation. Existing Vehicle operating attributes such as depot return, dwell, and external access are not a persisted per-Scenario charging plan.
+In this case, return `startYear` with the label “No upfront premium; cash savings stay nonnegative.”
+Otherwise, use `reached` for a qualifying year-end. Do not interpolate a fractional year.
+The upfront premium includes acquisition CAPEX, lease exit fees, and disposal credits.
 
-When charging infrastructure is introduced, its purchase and installation costs are CAPEX in the installation year regardless of current use or selected strategy. Owned infrastructure has no residual value in annual-v1. Existing/prepaid infrastructure is represented by zero acquisition costs at the start year. Do not silently erase costs because a user selects external charging while still retaining planned chargers.
-
-For each electric active-preset vehicle/year, typical depot supplied daily kWh = typicalDailyKm × active-preset kWh/km × depotShare / efficiency. Sum across electric vehicles requesting depot charging. Installed capacity P is the sum of powerKW for chargers with installationYear <= selected year; chargers must also have a valid finite numeric configuration. Placement conflicts do not secretly remove planned chargers from cost/power calculations: return infeasibility alongside indicative results.
-
-Use a deliberately conservative shared charging window H: the minimum depotDwellHours among EVs requesting depot charging. Required aggregate charging power is daily depot energy / H when H > 0. If P=0 with positive depot demand, report `NO_DEPOT_CHARGER`. If H=0, report `NO_DEPOT_DWELL`. If daily depot energy > P×H, report `INSUFFICIENT_CHARGING_WINDOW` with energy shortfall. This is a shared-window approximation, not vehicle-level charging-session scheduling; do not imply a connection assignment has been simulated.
-
-For a selected-year overload view, indicative demand is full installed nameplate power P when any electric active-preset vehicle requests depot energy, otherwise zero. If demand > connectionLimitKW, report `SITE_POWER_OVERLOAD`. This tests conservative simultaneous charger use, not optimized load management. Show both the nameplate demand and energy/dwell check; passing one does not guarantee the other.
-
-Report required aggregate kW and installed charger count. If chargers exist, an indicative count can be displayed using the mean installed charger power and `ceil(requiredKW / meanPowerKW)`, labeled as assuming identical average-power units. With no chargers or zero dwell, show the kW requirement/issue and ask the user to choose a charger type; do not invent a hardware recommendation.
-
-Additional year-dependent issues:
-
-| Code | Condition / behavior |
-|---|---|
-| NO_DEPOT_RETURN | A vehicle requests depot charging but does not return to depot. |
-| NO_EXTERNAL_ACCESS | External share > 0 for a vehicle lacking external charging access. |
-| DAILY_RANGE_EXCEEDED | Typical daily distance exceeds the active/target electric preset range. |
-| ANNUAL_DAILY_MISMATCH | abs(annualKm − typicalDailyKm×operatingDays) exceeds 20% of max(annualKm, impliedKm); informational warning. |
-| UNASSIGNED_VEHICLE | Depot-returning vehicle has no bay in that scenario. |
-| LAYOUT_INFEASIBLE | Site/object geometry validation has blocking issues; show their object IDs and specific reasons. |
-
-An infeasible plan may still display financial results, prominently labeled “Indicative costs — plan has feasibility issues.” Never silently reschedule vehicles, shift demand to external charging, add chargers, or clip power to the connection limit. A user must explicitly change the plan.
-
-## Deferred: suitability ranking
-
-This ranking depends on the later charging-access, charging-window, and economic comparison inputs described above.
-
-Zhi Kai owns the ranking using the current selected year as the candidate transition year to the user-selected target preset. It does not modify the plan. Candidates are vehicles still on their current preset immediately before that year's transitions; vehicles already transitioned in an earlier year are shown separately. In a copied scenario, substitute the candidate's transition year with the selected year and retain other vehicles' schedules. Evaluate its operational factors, the resulting aggregate charging window, and a hypothetical per-vehicle target-preset-now versus current-preset cost comparison; exclude shared charger CAPEX from the economic factor and label this limitation.
-
-Score 0–100 as the sum of eight documented factors: range (20), route predictability (10), depot return/available external access (10), selected charging strategy access (10), available charging window (15), replacement timing (10), utilisation (10), and economics (15).
-
-- Range: 20 if dailyKm <= 80% of assumed range, 10 if <= range, else 0.
-- Predictable route: 10; variable: 0.
-- Depot return or external access: 10 if either is available, else 0.
-- Strategy access: 10 if every nonzero share has its required access, else 0.
-- Charging window: 15 when the scenario passes the aggregate daily charging check, otherwise 0. For external-only with external access, award 15 but state external wait/availability is not modeled.
-- Replacement timing: 10 when replacementYear <= candidate year, 5 when the following year, otherwise 0 (including no planned replacement).
-- Utilisation: 10×utilisation. The operational distance is already in economics and is not multiplied again.
-- Economics: 15 if hypothetical per-vehicle savings > 0, 7.5 if equal within 1e-6, otherwise 0.
-
-Classify an operationally constrained candidate separately before ranking: exceeded daily range, absent required access, or failed charging window is a constraint even if other scores are high. Sort unconstrained candidates first, then score descending, then stable vehicle ID. Show every factor's input, points, and reason. Site geometry/power issues remain prominent site-wide warnings; a ranking never certifies site feasibility.
-
-A candidate with full points in every factor scores 100. Keeping those inputs but failing the aggregate charging window gives 85 and an operationally constrained classification; it sorts after every unconstrained candidate, even one scoring below 85. The weights are transparent heuristic rules, not empirically calibrated predictions.
+A shared price or emissions-factor edit recalculates the baseline and every Scenario.
+An Analysis Settings edit leaves Vehicle transition plans and transforms unchanged.
 
 ## Synthetic worked fixtures
 
-Unless stated otherwise, fixtures use owned assets, two vehicles only where stated, no taxes/discounting, and full-year operation. Unspecified costs/residuals are zero. They are arithmetic test inputs, not suggested user defaults.
+Unless specified otherwise, use owned assets, full-year operation, no taxes, and a zero discount rate.
+Use zero for unspecified costs and residual values.
+Use two Vehicles only where the example specifies two.
+These values are arithmetic test inputs, not recommended user defaults.
+SIM01, SIM02, SIM04, and SIM05 describe the current model.
 
 ### SIM01 — four-year single-vehicle transition
 
-Years 2026–2029; annual distance 10,000 km; ICE 10 L/100 km at 2 currency/L; ICE maintenance 500/year. No baseline replacement. Existing ICE current/end values are zero. EV bought in 2026 for 12,000, end residual 2,000; 20 kWh/100 km; efficiency 1; external-only tariff 0.25/kWh; EV maintenance 200/year. Emissions factors: fuel 2 kg/L and electricity 0.5 kg/kWh.
+Use years 2026–2029 and annual distance of 10,000 km.
+The ICE Preset uses 10 L/100 km at 2 currency/L, with maintenance of 500/year.
+There is no baseline replacement. The existing ICE Vehicle has zero initial and terminal values.
+Buy the EV in 2026 for 12,000, with a terminal residual value of 2,000.
+The EV uses 20 kWh/100 km, efficiency 1, the shared electricity price of 0.25/kWh, and maintenance of 200/year.
+Use emissions factors of 2 kg/L for fuel and 0.5 kg/kWh for electricity.
 
-| Result | ICE baseline | EV scenario |
+| Result | ICE baseline | EV Scenario |
 |---|---|---|
 | Annual fuel / electricity | 1,000 L | 2,000 kWh |
 | Annual operating cost | 2,500 | 700 |
@@ -120,28 +191,49 @@ Years 2026–2029; annual distance 10,000 km; ICE 10 L/100 km at 2 currency/L; I
 | Terminal credit | 0 | 2,000 |
 | TCO | 10,000 | 12,800 |
 
-Savings = −2,800; EV cost/km = 0.32; total fuel displaced = 4,000 L; electricity = 8,000 kWh; emissions reduction = 4,000 kg (50%). Payback is not reached. Dropping EV purchase cost to 6,000 gives cumulative cash savings −4,200, −2,400, −600, +1,200 and payback at end-2029; TCO becomes 6,800 and savings 3,200.
+Savings are −2,800. EV cost/km is 0.32.
+Total fuel displaced is 4,000 L. Total electricity is 8,000 kWh.
+The emissions reduction is 4,000 kg, or 50%. The plan does not reach payback.
+
+If the EV purchase cost decreases to 6,000, cumulative cash savings are −4,200, −2,400, −600, and +1,200.
+Payback occurs at the end of 2029. TCO becomes 6,800 and savings become 3,200.
 
 ### SIM02 — replacement and sale without double counting
 
-Three years 2026–2028. Existing ICE value 6,000, terminal residual 0; baseline replacement in 2027 costs 9,000 with terminal residual 3,000. Both technologies have zero operating cost in this fixture. Transition instead to an EV in 2027 costing 12,000 with terminal residual 4,000.
+Use three years, 2026–2028.
+The existing ICE Vehicle has value 6,000 and zero terminal residual value.
+Its baseline replacement in 2027 costs 9,000, with terminal residual value 3,000.
+Both Presets have zero operating cost in this fixture.
+Instead, transition to an EV in 2027 for 12,000, with terminal residual value 4,000.
 
-Existing disposal value at 2027 = 6,000×(1−1/3) = 4,000. Baseline net acquisition 5,000 and terminal credit 3,000 give TCO 2,000. Scenario net acquisition 8,000 and terminal credit 4,000 give TCO 4,000. No ICE replacement is bought in the scenario because transition and replacement are in the same year.
+Existing disposal value in 2027 is `6,000 * (1 - 1/3) = 4,000`.
+The baseline net acquisition cost is 5,000. A terminal credit of 3,000 gives baseline TCO of 2,000.
+The Scenario net acquisition cost is 8,000. A terminal credit of 4,000 gives Scenario TCO of 4,000.
+The Scenario buys no ICE replacement because replacement and transition occur in the same year.
 
-If transition is delayed until 2028, buy replacement ICE in 2027 and dispose of it in 2028 for 9,000+(3,000−9,000)×1/2 = 6,000. Scenario TCO = 9,000−4,000+12,000−6,000−4,000 = 7,000. Do not also credit the disposed ICE's 3,000 terminal residual.
-
-### SIM03 — charging split and feasibility
-
-Two EVs, each 10,000 annual km and 100 typical daily km over 100 operating days, 20 kWh/100 km, efficiency 1. Depot share 0.5, depot tariff 0.20, external tariff 0.40. Each returns to depot with a two-hour dwell and external access. One 7 kW charger costs 1,000 plus 500 installation; connection limit 6 kW.
-
-Annual fleet energy = 4,000 kWh; depot/external each 2,000 kWh. Energy cost = 400+800 = 1,200/year. Daily depot energy = 20 kWh; window capacity = 7×2 = 14 kWh, shortfall 6 kWh; required aggregate power = 10 kW; indicative two chargers at 7 kW each. Nameplate demand 7 kW exceeds the 6 kW site limit by 1 kW. Both constraint issues appear. Installation incurs 1,500 CAPEX once.
-
-For the same fleet, depot-only energy costs 800/year and external-only 1,600/year; planned installed charger CAPEX is retained until the user removes it. Delaying installation while keeping the EV schedule returns NO_DEPOT_CHARGER before installation and moves the 1,500 CAPEX to the installation year.
+If transition occurs in 2028, buy the ICE replacement in 2027.
+Its disposal value in 2028 is `9,000 + (3,000 - 9,000) * 1/2 = 6,000`.
+Scenario TCO is `9,000 - 4,000 + 12,000 - 6,000 - 4,000 = 7,000`.
+Do not also credit the disposed ICE Vehicle's terminal residual value of 3,000.
 
 ### SIM04 — price impacts
 
-Using SIM01, raising fuel price by 20% adds 400/year to baseline cost and 1,600 over four years; EV scenario cost is unchanged and savings improve from −2,800 to −1,200. Raising external electricity tariff by 20% adds 100/year and 400 to scenario TCO; baseline is unchanged and savings fall to −3,200. Lowering these prices by 20% gives savings −4,400 and −2,400 respectively.
+Use SIM01.
+If fuel price increases by 20%, baseline cost increases by 400/year, or 1,600 over four years.
+EV Scenario cost stays the same. Savings improve from −2,800 to −1,200.
+If the shared electricity price increases by 20%, EV cost increases by 100/year, or 400 over four years.
+Baseline cost stays the same. Savings decrease to −3,200.
+If fuel price decreases by 20%, savings become −4,400.
+If electricity price decreases by 20%, savings become −2,400.
 
 ### SIM05 — owned versus leased, empty and zero cases
 
-For two years, an initially leased ICE at 1,000/year with exitFee 100, replaced by a leased EV at 800/year in year one, has baseline TCO 2,000 and scenario TCO 1,700 (100+800+800); CAPEX and residual credit are zero. Zero fuel/emission factors produce zero relevant totals and null percentage reduction when the baseline is zero. An empty fleet has zero cost and null per-vehicle/per-km ratios. No test may accept NaN or Infinity.
+Use two years and an initial ICE lease of 1,000/year with `exitFee` 100.
+Transition to an EV lease of 800/year in the first year.
+Baseline TCO is 2,000. Scenario TCO is `100 + 800 + 800 = 1,700`.
+CAPEX and residual credit are zero.
+
+Zero fuel or emissions factors give zero for the related totals.
+If baseline emissions are zero, return `null` for percentage reduction.
+An empty fleet has zero cost and `null` per-Vehicle and per-km ratios.
+Reject `NaN` and `Infinity` in test results.

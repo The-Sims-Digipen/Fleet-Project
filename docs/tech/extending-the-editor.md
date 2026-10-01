@@ -1,14 +1,18 @@
-# Extending the editor
+# Extend the editor
 
-Compose each sidebar feature as an isolated component inside `Sidebar` using `CollapsibleSection`. Register a stable panel ID and its initial expansion value in `appStore`, then supply that ID, a title, an optional description, and children. Modules with editable controls should pass the appropriate document or runtime-editor `commitEdit` to `onBeforeCollapse`. Reuse the controls in `components/controls.tsx`; they receive values, callbacks, and an edit lifecycle and do not depend on Zustand.
+Compose each sidebar feature as an isolated component inside `Sidebar`. Use `CollapsibleSection` for the feature panel. Register a stable panel ID in `appStore`. Set the initial expansion value for that ID. Supply the ID, title, optional description, and children to the panel.
 
-Feature components read the version 1 canonical document from `useProjectStore(state => state.runtime.document)` and call focused store actions or Project commands. Do not introduce a second authoritative feature store for a slice of Project data. Project-scoped editor values belong in `ProjectEditorState`; persisted domain values belong in `ProjectDocument`; application-shell values that survive replacing the open Project belong in `appStore`. These include the read-only Project catalogue, repository list/open status, global Project dialogs, workspace mode, and sidebar expansion.
+Pass the applicable document or runtime-editor `commitEdit` callback to `onBeforeCollapse` for editable controls. Reuse controls from `components/controls.tsx`. These controls receive values, callbacks, and an edit lifecycle. They do not depend on Zustand.
+
+Feature components read the version 1 canonical document from `useProjectStore(state => state.runtime.document)`. They call focused store actions or Project commands. Do not add another authoritative store for part of the Project data.
+
+Project editor values belong in `ProjectEditorState`. Persisted domain values belong in `ProjectDocument`. Application values that survive a change to the open Project belong in `appStore`. These values include the read-only Project catalogue, repository list/open status, global Project dialogs, workspace mode, and sidebar expansion.
 
 ## Register a procedural model
 
-Scene models are TypeScript factories in `apps/client/src/models/`. Each factory returns a new, self-contained `THREE.Group`. Models use metres, Y-up, and the XZ ground plane. Put the model origin at its ground-contact centre when practical, and name meshes so tests and debugging can identify meaningful parts.
+Scene models are TypeScript factories in `apps/client/src/models/`. Each factory returns a new, independent `THREE.Group`. Models use metres, Y-up, and the XZ ground plane. Put the model origin at its ground-contact centre where possible. Give each mesh a name that identifies its function for tests and debug tools.
 
-Create a factory such as:
+Create a factory as shown in this example:
 
 ```ts
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from "three";
@@ -25,7 +29,7 @@ export function createChargerModel() {
 }
 ```
 
-Then import the factory in `apps/client/src/scene/catalog.ts` and register a stable model ID. Set `vehiclePresetCompatible` to `true` only for geometry selectable by a Vehicle Preset.
+Import the factory in `apps/client/src/scene/catalog.ts`. Register a stable model ID. Set `vehiclePresetCompatible` to `true` only for geometry that a Vehicle Preset can select.
 
 ```ts
 charger: {
@@ -35,16 +39,18 @@ charger: {
 },
 ```
 
-Registering geometry only makes a renderer available. If a charger, bay, obstacle, or other object needs product behavior or persistence, first add a typed Project-domain concept and its validation/commands, then add that type to the read-only Project world projection. The model catalogue cannot create a separately persisted scene instance.
+Geometry registration makes a renderer available. It does not add product behavior or persistence. Add a typed Project-domain concept first when a Charger, Bay, Obstacle, or other object needs this behavior. Add validation and commands for the concept. Add the type to the read-only Project world projection. The model catalogue cannot create a separately persisted scene instance.
 
-## Rendering and ownership
+## Render views and ownership
 
-`domain/spatial.ts` owns the transform type used by persisted Project entities. `createProjectWorld` derives read-only typed Depot and Vehicle views from the Project environment, active Scenario, and selected year. Typed references carry the Project entity kind and stable ID; those views and Three.js objects are never persisted. M1 does not persist parking assignments or Scenario charging assumptions. Future charger, bay, or obstacle behavior must add a typed Project entity and Project command before exposing its renderer.
+`domain/spatial.ts` owns the transform type for persisted Project entities. `createProjectWorld` derives read-only typed Depot and Vehicle views from the Project environment, active Scenario, and selected year. Typed references contain the Project entity kind and stable ID. Persistence excludes these views and Three.js objects.
 
-The model catalogue maps each stable model ID to its procedural factory and Vehicle Preset compatibility. A model supplies presentation; it does not define fleet or planning data.
+M1 does not persist parking assignments or Scenario charging assumptions. Add a typed Project entity before its renderer. Add the applicable Project command before that renderer.
 
-Every procedural factory call must return newly owned geometry and materials. Do not reuse mutable `Object3D`, geometry, material, or texture instances across calls. `createProceduralInstance` applies the tint derived by the Project world projection, creates selection bounds, and disposes resources when the instance unmounts. Factory failures are isolated by the per-object render boundary.
+The model catalogue maps each stable model ID to its procedural factory and Vehicle Preset compatibility. A model supplies its visual representation. It does not define fleet or plan data.
 
-The viewport uses Three.js `TransformControls` on the selected typed Project object. Interaction mode, transform mode, transform space, snapping, lighting, and camera state are editor-only. Depot and vehicle transforms are persisted and share the Project undo history.
+Each procedural factory call must return new geometry and materials that the instance owns. Do not share mutable `Object3D`, geometry, material, or texture instances across calls. `createProceduralInstance` applies the tint from the Project world projection. It creates selection bounds and disposes resources when the instance unmounts. A render boundary isolates a factory failure to that object.
 
-See [editing and history](editing-and-history.md) and [architecture](architecture.md#ownership-boundaries).
+The viewport uses Three.js `TransformControls` on the selected typed Project object. Interaction mode, transform mode, transform space, snapping, lighting, and camera state belong to the editor only. Depot and Vehicle transforms are persisted. They share the Project undo history.
+
+See [edit lifecycle and history](editing-and-history.md) and [architecture](architecture.md#ownership-boundaries).
