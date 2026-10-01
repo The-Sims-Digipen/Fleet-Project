@@ -311,6 +311,3 @@ They do not identify the latest public releases.
 | [Vitest configuration](../../apps/client/vitest.config.ts) | Test environment and React plugin. |
 | [3D view](../../apps/client/src/components/WorldScene.tsx) | Scene, camera and Project state connections. |
 | [Financial charts](../../apps/client/src/components/CostAnalysis.tsx) | Calculation outputs and SVG chart settings. |
-
-The platform requirement and AI uses come from team confirmation.
-Tool links in the numbered sections provide the official technical references.
