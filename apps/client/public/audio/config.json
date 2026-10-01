@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "sounds": [
+    { "id": "ui-click", "label": "UI click", "src": "ui-click.wav", "channel": "sfx", "gain": 0.7 },
+    { "id": "level-bgm", "label": "Level 1 BGM", "src": "demo/Level 1 BGM.wav", "channel": "bgm", "gain": 0.12 },
+    { "id": "interact-alert", "label": "Interact alert", "src": "demo/InteractAlert.wav", "channel": "sfx", "gain": 0.08 },
+    { "id": "monkey-1-18", "label": "Monkey 1 attack 18", "src": "demo/Monkey-1_18_Attack.wav", "channel": "sfx", "gain": 0.08 },
+    { "id": "monkey-2-19", "label": "Monkey 2 attack 19", "src": "demo/Monkey-2_19_Attack.wav", "channel": "sfx", "gain": 0.08 },
+    { "id": "monkey-2-2", "label": "Monkey 2 attack 2", "src": "demo/Monkey-2_2_Attack.wav", "channel": "sfx", "gain": 0.08 },
+    { "id": "no-voice", "label": "No voice", "src": "demo/NoVoice.wav", "channel": "sfx", "gain": 0.08 },
+    { "id": "npc-voice", "label": "NPC voice", "src": "demo/NPCVoice.wav", "channel": "sfx", "gain": 0.08 },
+    { "id": "player-impact", "label": "Player hit impact", "src": "demo/Player OnHit Impact.wav", "channel": "sfx", "gain": 0.08 },
+    { "id": "player-parry", "label": "Player parry", "src": "demo/Player Parry.wav", "channel": "sfx", "gain": 0.08 }
+  ],
+  "buttonClick": { "selector": "button", "sound": "ui-click" },
+  "demo": ["level-bgm", "interact-alert", "monkey-1-18", "monkey-2-19", "monkey-2-2", "no-voice", "npc-voice", "player-impact", "player-parry"]
+}

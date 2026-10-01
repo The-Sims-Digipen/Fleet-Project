@@ -64,3 +64,7 @@ Depot and Vehicle transforms are authoritative fields of the Project environment
 The model catalogue maps stable model IDs to runtime factories. Production users create typed Vehicles through Fleet Management. Development tools may inspect and transform the typed Depot and Vehicles through Project commands; the catalogue does not create independently persisted scene instances.
 
 See [contracts](contracts.md), [simulation](simulation.md), and [depot editor](depot-editor.md).
+
+## Application audio
+
+The application shell owns a client-only Web Audio engine independently of Project state and sidebar mounting. Runtime audio configuration maps button activations and demo tracks to replaceable sound files served under `/audio/`. One BGM voice and independently allocated SFX voices can play concurrently; new sounds do not steal active voices. The isolated Audio demo sidebar panel controls individual tracks and looping, while ordinary application audio consists only of button-click feedback. Playback and loop choices are session-only and do not enter Project persistence or undo history. See [M1 audio](audio.md) for the controls, runtime configuration, and rubric demonstration.
