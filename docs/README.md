@@ -16,6 +16,7 @@ The product documents describe the current M1 implementation.
 ## Technical implementation
 
 - [Architecture](tech/architecture.md)
+- [Toolchain Decision Document](tech/toolchain-decision-document.md)
 - [M1 integration contract](tech/m1-integration-contract.md)
 - [Ubuntu VM setup and CI/CD](tech/deployment.md)
 - [Data model and API](tech/contracts.md)
