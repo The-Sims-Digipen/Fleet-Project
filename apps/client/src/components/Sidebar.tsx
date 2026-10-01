@@ -1,4 +1,5 @@
 import { CostAnalysis } from "./CostAnalysis";
+import { AudioDemoPanel } from "./AudioDemoPanel";
 import { DebugPanel, InspectorPanel, ScenePanel } from "./EditorPanels";
 import { FleetManagementPanel } from "./FleetManagementPanel";
 import { PowerFeasibility } from "./PowerFeasibility";
@@ -18,6 +19,7 @@ export function Sidebar() {
     <PowerFeasibility />
     {import.meta.env.DEV && <ScenePanel />}
     <CostAnalysis />
+    <AudioDemoPanel />
     {import.meta.env.DEV && <DebugPanel />}
   </aside>;
 }

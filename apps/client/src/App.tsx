@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, type ReactNode } from "react";
+import { AudioProvider } from "./audio/AudioProvider";
 import { CompareWorkspace } from "./components/CompareWorkspace";
 import { HistoryControls } from "./components/HistoryControls";
 import { ProjectControls } from "./components/ProjectControls";
@@ -20,7 +21,7 @@ class ViewportBoundary extends Component<{ children: ReactNode }, { failed: bool
   }
 }
 
-export default function App() {
+function Workspace() {
   useProjectHistoryShortcuts();
   const workspaceMode = useAppStore((state) => state.workspaceMode);
   const setWorkspaceMode = useAppStore((state) => state.setWorkspaceMode);
@@ -62,4 +63,8 @@ export default function App() {
       <Sidebar />
     </ResizableWorkspace>}
   </main>;
+}
+
+export default function App() {
+  return <AudioProvider><Workspace /></AudioProvider>;
 }
