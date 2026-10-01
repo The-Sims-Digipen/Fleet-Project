@@ -157,7 +157,7 @@ function newVehicle(document: ProjectDocument, transform: Transform): ProjectVeh
     name: nextEntityName("Vehicle", document.environment.vehicles.map((vehicle) => vehicle.name)),
     baselinePresetId: document.vehiclePresets[0]?.id ?? null,
     transform,
-    annualKm: 0,
+    annualKm: 50000,
     typicalDailyKm: 0,
     operatingDays: 250,
     utilisation: 1,
