@@ -18,7 +18,7 @@ The appendices provide versions, source references and technical terms.
 
 | Area | Selected tool | Status |
 |---|---|---|
-| Target platform | Desktop browser | Client requirement |
+| Target platform | Desktop browser | Current |
 | Programming language | TypeScript | Current |
 | User interface | React | Current |
 | Development and build | Vite | Current |
@@ -314,18 +314,3 @@ They do not identify the latest public releases.
 
 The platform requirement and AI uses come from team confirmation.
 Tool links in the numbered sections provide the official technical references.
-
-## Appendix C. Technical terms
-
-| Term | Meaning in this document |
-|---|---|
-| Toolchain | The tools used to develop, build and test the application. |
-| Component | A defined part of the interface or scene. |
-| State | Data that describes the current application condition. |
-| Store | An interface through which components read and change state. |
-| Workspace | Applications and shared packages managed in one repository. |
-| Token | A named style value, such as a color or font. |
-| WebGL | A browser interface for graphics drawing. |
-| SVG | Scalable Vector Graphics, used to draw the current charts. |
-| Canvas | A browser drawing surface used by graphics and chart tools. |
-| Transaction | A database operation that applies related changes together. |
