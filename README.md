@@ -12,7 +12,7 @@ Use the [documentation index](docs/README.md) to find product and technical docu
 - IndexedDB for local Project storage
 - Fastify for the optional server API
 
-## Run the built application
+## Build and Run the application
 
 Download or clone the project, then run its launcher:
 
