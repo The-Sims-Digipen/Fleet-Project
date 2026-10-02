@@ -1,6 +1,22 @@
 import { Badge } from "@chargedup/ui";
+import themeCss from "@chargedup/ui/theme.css?raw";
 import { PageHeading, SectionHeading } from "../components/Headings";
 import { CodeBlock } from "../components/CodeBlock";
+import { NAV_GROUPS } from "../components/NavSidebar";
+
+// Derive the component count from the documented catalogue so it is always updated when more components added.
+const COMPONENT_COUNT = NAV_GROUPS.find((group) => group.title === "Components")?.items.length ?? 0;
+const THEME_BLOCK = themeCss.match(/@theme\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+const TOKEN_COUNT = new Set(THEME_BLOCK.match(/--[\w-]+(?=\s*:)/g) ?? []).size;
+
+// When the UI library/docs last changed, injected from git at build time.
+const LAST_UPDATED = __LAST_UPDATED__;
+
+function formatLastUpdated(iso: string): string {
+  const date = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
 
 const INSTALL_CODE = `# Install the UI package (it lives in the workspace)
 pnpm add @chargedup/ui
@@ -32,9 +48,9 @@ export function OverviewPage() {
       {/* Hero stats */}
       <div className="mb-10 grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Components", value: "13" },
-          { label: "Design tokens", value: "30+" },
-          { label: "Brand-compliant", value: "100%" },
+          { label: "Components", value: String(COMPONENT_COUNT) },
+          { label: "Design tokens", value: String(TOKEN_COUNT) },
+          { label: "Last updated", value: formatLastUpdated(LAST_UPDATED) },
         ].map(({ label, value }) => (
           <div
             key={label}
