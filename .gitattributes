@@ -4,7 +4,6 @@
 
 # Deployment scripts/configuration must work on Linux after Windows checkouts.
 *.sh text eol=lf
-*.bat text eol=crlf
 *.conf text eol=lf
 *.yml text eol=lf
 *.py text eol=lf

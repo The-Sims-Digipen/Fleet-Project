@@ -11,9 +11,6 @@ coverage/
 __pycache__/
 *.pyc
 
-# Portable Node.js, pnpm, and caches installed by run.bat / run.sh
-/.tools/
-
 # Local configuration and secrets (keep safe templates)
 .env
 .env.*

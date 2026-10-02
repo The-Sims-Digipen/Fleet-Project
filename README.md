@@ -12,23 +12,7 @@ Use the [documentation index](docs/README.md) to find product and technical docu
 - IndexedDB for local Project storage
 - Fastify for the optional server API
 
-## Build and Run the application
-
-Download or clone the project, then run its launcher:
-
-- **Windows 10/11:** double-click `run.bat`, or run `.\run.bat` from a terminal.
-- **Ubuntu 24.04:** run `bash run.sh` from a terminal.
-
-Open **http://localhost:5173**. Keep the terminal open while using the application,
-press **Ctrl+C** to stop both services. Port 5173 must be free
-
-Tool downloads and package caches stay in the ignored `.tools/` directory.
-Installation needs no administrator rights and does not change the system PATH.
-
-The client is served with Vite's local build preview. For VM hosting, use the
-[deployment guide](docs/tech/deployment.md).
-
-## Development prerequisites
+## Prerequisites
 
 - Use Node.js 24 LTS (`.nvmrc`). The minimum supported version is 22.13.
 - Use pnpm **11.24.0**. `package.json` specifies this version.

@@ -8,7 +8,6 @@
     "dev:server": "pnpm --filter @fleet-project/server dev",
     "dev:ui": "pnpm --filter @chargedup/ui-docs dev",
     "dev:docs": "pnpm --filter @chargedup/ui-docs dev",
-    "start": "concurrently --kill-others --names client,api \"pnpm --filter @fleet-project/client start\" \"pnpm --filter @fleet-project/server start\"",
     "build": "pnpm --filter @chargedup/ui build && pnpm --filter @chargedup/ui-docs build && pnpm --filter @fleet-project/server build && pnpm --filter @fleet-project/client build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
