@@ -24,6 +24,19 @@ If pnpm is absent, install it:
 npm install --global pnpm@11.24.0
 ```
 
+# Build and Run
+
+Download or clone the project, then run its launcher:
+
+- **Windows 10/11:** double-click `run.bat`, or run `.\run.bat` from a terminal.
+- **Ubuntu 24.04:** run `bash run.sh` from a terminal.
+
+Open **http://localhost:5173**. Keep the terminal open while using the application,
+press **Ctrl+C** to stop both services. Port 5173 must be free
+
+The client is served with Vite's local build preview. For VM hosting, use the
+[deployment guide](docs/tech/deployment.md).
+
 ## Local development
 
 1. Install the dependencies:
