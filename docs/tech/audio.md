@@ -1,18 +1,5 @@
 # M1 audio
 
-## Agreed scope
-
-This implementation supports the optional rubric audio modifiers.
-
-- Every enabled application button activation receives the supplied UI click sound. Normal use requires no other audio.
-- The production sidebar Audio demo panel plays background music with at least eight simultaneous sound effects.
-- Background music starts only through Audio demo. Normal fleet use does not start background music.
-- Use the supplied WAV files. Do not generate placeholder sounds.
-- The engine reads sound files and playback bindings from runtime data/configuration. Sound-file replacement and binding changes must not require an application rebuild.
-- A new sound must not stop an existing sound.
-- Audio demo provides individual Play, Stop, and Loop controls for the supplied BGM and each of the eight supplied SFX. The user starts tracks manually. A combined Run demo action is not required.
-- Panel collapse and workspace changes do not stop playback. Tracks without loops end naturally. Explicit Stop controls also end playback.
-
 ## Assets
 
 The UI click file is `apps/client/public/audio/ui-click.wav`. Supplied demo tracks retain their original names in `apps/client/public/audio/demo/`.
